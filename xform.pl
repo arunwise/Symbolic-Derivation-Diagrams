@@ -184,7 +184,8 @@ msw(S, I, X, C_in, C_out) :-
 	functor(S, F, N),
 	type(F, N, T),
 	write_attr(X, type, T),   % revise to ensure X's attribute called "type" is correctly set to T
-	write_attr(X, id, (S, I)),
+	set_id(X, (S, I)),
+	%write_attr(X, id, (S, I)),
 	(contains(C_in, X)
 	->  C_out = C_in
 	;   read_attr(X, constraint, C),   % ensure read_attr never fails
@@ -192,6 +193,22 @@ msw(S, I, X, C_in, C_out) :-
 	    make_tree(X, [C], [One], Osdd),   % osdd: X -- C --> 1
 	    and(C_in, Osdd, C_out)
 	).
+
+% set id if it doesn't exist, otherwise unify with existing id
+set_id(X, (S, I))  :-
+    read_id(X, (S', I')),
+    S'=S,
+    I'=I.
+
+% return
+read_id(X, (S, I)) :-
+    (get_attr(X, id, (S, I))
+    ->
+	true
+    ;
+    put_attr(X, id, (S', I')),
+    S'=S, I'=I
+    ).
 
 %%%
 %
