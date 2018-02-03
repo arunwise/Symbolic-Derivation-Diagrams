@@ -1,3 +1,5 @@
+values(gene,[a,b,o]).
+
 bloodtype(P) :- genotype(X,Y), {X=Y}, {P=X}.
 
 bloodtype(P) :- genotype(X,Y), {X=o}, {P=Y}.
@@ -6,6 +8,6 @@ bloodtype(P) :- genotype(X,Y), {Y=o}, {P=X}.
 
 bloodtype(P) :- genotype(X,Y), {P=ab}.
 
-sick(mary).
-
 genotype(X,Y) :- msw(gene,X), msw(gene,Y).
+
+sick(mary).

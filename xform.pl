@@ -31,8 +31,8 @@ read_and_transform(File) :-
 	(Clause == end_of_file
 	->  true
 	;   transform(Clause, XClause),
-	    num_vars:numbervars(XClause),
-	    writeln(XClause),
+		num_vars:numbervars(XClause),
+		writeln(XClause),
 		open(File, append, Handle), 
 		writeln(Handle, XClause), 
 		close(Handle),
@@ -65,7 +65,8 @@ transform((H_in :- B_in), (H_out :- B_out)) :- !,
 transform(F_in, F_out) :-
 	functor(F_in, F, N),
 	declare(F, N),
-	transform_pred(F_in, F_out, (Arg, Arg)).  % [?] Should a fact f(X) be transformed to F(X, Arg, Arg) or F(X, Arg)?  As implemented it is F(X, Arg, Arg).
+	transform_pred(F_in, F_trans, (Arg)),
+	F_out = (F_trans :- one(Arg)).
 
 %%%
 % [transform_body/3]
@@ -115,9 +116,9 @@ transform_pred(msw(S,I,X), msw(S,I,X, Arg_in, Arg_out), (Arg_in, Arg_out)) :- !.
 % ---
 % Pred_out is Pred_in with (Arg_in, Arg_out) appended to the original arguments of the term.
 %%%
-transform_pred(Pred_in, Pred_out, (Arg_in, Arg_out)) :-
+transform_pred(Pred_in, Pred_out, (Args_in)) :-
 	Pred_in =.. [P | Args],
-	basics:append(Args, [Arg_in, Arg_out], NewArgs),
+	basics:append(Args, [Args_in], NewArgs),
 	Pred_out =.. [P | NewArgs].
 
 %%%
@@ -137,7 +138,6 @@ declare(F, N) :-
 %%%%%%
 % OSDD construction definitions
 %%%%%%
-
 /*
   TODO
   ---
@@ -194,3 +194,8 @@ placeholders(IS, N, OS):-
     str_cat(IS, '_,', S),
     N1 is N-1,
     placeholders(S, N1, OS).
+
+%%%
+% [one/1]
+%%%
+%one(O) :- node(true, [], []).
