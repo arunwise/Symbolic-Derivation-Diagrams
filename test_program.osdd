@@ -1,4 +1,3 @@
-(values(gene,[a,b,o],A) :- one(A))
 (bloodtype(A,(B,C)) :- genotype(D,E,(B,F)),constraint(D = E,F,G),constraint(A = D,G,C))
 (bloodtype(A,(B,C)) :- genotype(D,E,(B,F)),constraint(D = o,F,G),constraint(A = E,G,C))
 (bloodtype(A,(B,C)) :- genotype(D,E,(B,F)),constraint(E = o,F,G),constraint(A = D,G,C))

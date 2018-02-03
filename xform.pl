@@ -25,18 +25,23 @@ transform_file(File, OutFile) :- !,
 % ---
 % INPUT: a File to write to
 % OUTPUT: writes the current Clause to the File
+% ---
+% If a clause is transformed to none, continue to the next clause.
 %%%
 read_and_transform(File) :-
 	read(Clause),
 	(Clause == end_of_file
-	->  true
-	;   transform(Clause, XClause),
-		num_vars:numbervars(XClause),
-		writeln(XClause),
-		open(File, append, Handle), 
-		writeln(Handle, XClause), 
-		close(Handle),
-	    read_and_transform(File)
+	->	true
+	;	transform(Clause, XClause),
+		(XClause = none
+		-> 	read_and_transform(File)
+		;	num_vars:numbervars(XClause),
+			writeln(XClause),
+			open(File, append, Handle), 
+			writeln(Handle, XClause), 
+			close(Handle),
+			read_and_transform(File)
+		)
 	).
 
 %%%
@@ -61,12 +66,24 @@ transform((H_in :- B_in), (H_out :- B_out)) :- !,
 % ---
 % Handles a fact F_in by tabling F/N,
 % then calling transform_pred/3 on F_in to produce F_out.
+% If a clause is a values/2 declaration set F_out to none and call set_domain(F_in).
 %%%
 transform(F_in, F_out) :-
 	functor(F_in, F, N),
-	declare(F, N),
-	transform_pred(F_in, F_trans, (Arg)),
-	F_out = (F_trans :- one(Arg)).
+	(F = values
+	->  set_domain(F_in),
+		F_out = none
+	;	declare(F, N),
+		transform_pred(F_in, F_trans, (Arg)),
+		F_out = (F_trans :- one(Arg))
+	).
+
+%%%
+%
+%%%
+set_domain(X) :-
+	X =.. [values | [S, Values]],
+	assert(domain(S, Values)).
 
 %%%
 % [transform_body/3]
@@ -194,8 +211,3 @@ placeholders(IS, N, OS):-
     str_cat(IS, '_,', S),
     N1 is N-1,
     placeholders(S, N1, OS).
-
-%%%
-% [one/1]
-%%%
-%one(O) :- node(true, [], []).
