@@ -222,3 +222,6 @@ one(leaf(1)).
 make_tree(Root, Edges, Subtrees, tree(Root, L)) :-
     lists:zip(Edges,Subtrees,L).
 
+% for now we have dummy predicates for and/or
+and(T1, T2, and(T1,T2)).
+or(T1, T2, or(T1,T2)).
