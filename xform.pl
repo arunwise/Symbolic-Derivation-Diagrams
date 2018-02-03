@@ -199,3 +199,9 @@ placeholders(IS, N, OS):-
 % [one/1]
 %%%
 %one(O) :- node(true, [], []).
+one(leaf(1)).
+
+% represent trees as tree(Root,[Edge1,Subtree1,Edge2,Subtree2,...])
+make_tree(Root, Edges, Subtrees, tree(Root, L)) :-
+    lists:zip(Edges,Subtrees,L).
+    
