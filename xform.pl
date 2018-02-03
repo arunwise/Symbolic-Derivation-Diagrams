@@ -1,5 +1,9 @@
+/*
+ * Usage: transform_file('test_program.txt', 'test_program.osdd').
+ */
+
 %%%%%%
-% Usage: transform_file('test_program.txt', 'test_program.osdd').
+% Program transformation definitions
 %%%%%%
 
 %%%
@@ -7,8 +11,6 @@
 % ---
 % INPUT: a File to read from, an OutFile to write to 
 % OUTPUT: writes the tranformed program to OutFile
-% ---
-% Establishes input/output streams.
 %%%
 transform_file(File, OutFile) :- !,
 	seeing(OF),
@@ -91,9 +93,6 @@ transform_body(G_in, G_out, Args) :-
 %%%
 % [transform_pred/3]
 % ---
-% INPUT: true
-% OUTPUT: true
-% ---
 % Base case.
 %%%
 transform_pred(true, true, (Arg, Arg)) :- !.
@@ -121,35 +120,24 @@ transform_pred(Pred_in, Pred_out, (Arg_in, Arg_out)) :-
 	basics:append(Args, [Arg_in, Arg_out], NewArgs),
 	Pred_out =.. [P | NewArgs].
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%
+% [declare/2]
+% ---
+% INPUT: predicate F/N
+% OUTPUT: writes table definition to OutFile
+%%%
 :- table declare/2.
 declare(F, N) :-
 	M is N+2,
-	fmt_write(':- table %s/%d\n', f(F, M)).
+	fmt_write(':- table %s/%d\n', f(F, M)).  % [?] Should we pass OutFile from tranform_file/2 to handle where to write?
 
-msw(Sw, Inst, X, Ci, Co) :-
-	functor(Sw, F, N),
-	type(F, N, T),
-	write_attr(X, type, T),   % revise to ensure X's attribute called "type" is correctly set to T
-	write_attr(X, id, (Sw, Inst)),
-	(contains(Ci, X)
-	->  Co = Ci
-	;   read_attr(X, constraint, C),   % ensure read_attr never fails
-	    create_osdd_one(One),
-	    create_osdd(X, [(C, One)], Osdd), 	    % osdd:   X -- C --> 1
-	    and(Ci, Osdd, Co)
-	).
-	    
-constraint((Lhs=Rhs), Ci, Co) :-
-	get_type(Lhs, T1),
-	get_type(Rhs, T2),
-	T1 = T2,
-	write_attr(Lhs, constraint, (Lhs=Rhs)),
-	write_attr(Rhs, constraint, (Lhs=Rhs)),
-	add_constraint_to_edges(Ci, [(Lhs, (Lhs=Rhs)), (Rhs, (Lhs=Rhs))], Co).
-	
+%%%%%%
+% OSDD construction definitions
+%%%%%%
 
 /*
+  TODO
+  ---
   For every switch, assume we have a values declaration.
   Each domain specified in a values declaration corresponds to a type.
   We can either name the types using unique generated names, or simply
@@ -167,5 +155,32 @@ constraint((Lhs=Rhs), Ci, Co) :-
   When we find a node labeled X in Ci, its outgoing constraints are and-ed with C *provided* all variables in C have been seen in the root-to-X path in C.
 
   Define and/or.
-  
 */
+
+%%%
+%
+%%%
+msw(S, I, X, C_in, C_out) :-
+	functor(S, F, N),
+	type(F, N, T),
+	write_attr(X, type, T),   % revise to ensure X's attribute called "type" is correctly set to T
+	write_attr(X, id, (S, I)),
+	(contains(C_in, X)
+	->  C_out = C_in
+	;   read_attr(X, constraint, C),   % ensure read_attr never fails
+	    create_osdd_one(One),
+	    create_osdd(X, [(C, One)], Osdd),   % osdd: X -- C --> 1
+	    and(C_in, Osdd, C_out)
+	).
+
+%%%
+%
+%%%	    
+constraint((Lhs=Rhs), C_in, C_out) :-
+	get_type(Lhs, T1),
+	get_type(Rhs, T2),
+	T1 = T2,
+	write_attr(Lhs, constraint, (Lhs=Rhs)),
+	write_attr(Rhs, constraint, (Lhs=Rhs)),
+	add_constraint_to_edges(C_in, [(Lhs, (Lhs=Rhs)), (Rhs, (Lhs=Rhs))], C_out).
+	
