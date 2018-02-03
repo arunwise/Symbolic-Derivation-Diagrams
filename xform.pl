@@ -5,6 +5,7 @@
 %%%%%%
 % Program transformation definitions
 %%%%%%
+:- import get_attr/3, put_attr/3 from machine.
 
 %%%
 % [transform_file/2]
