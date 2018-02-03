@@ -75,8 +75,7 @@ transform(F_in, F_out) :-
 	->  set_domain(F_in),
 		F_out = none
 	;	declare(F, N),
-		transform_pred(F_in, F_trans, (Arg)),
-		F_out = (F_trans :- one(Arg))
+		transform_pred(F_in, F_out, (Arg, Arg))
 	).
 
 %%%
