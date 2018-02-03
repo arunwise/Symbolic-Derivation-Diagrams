@@ -83,7 +83,7 @@ transform(F_in, F_out) :-
 %%%
 set_domain(X) :-
 	X =.. [values | [S, Values]],
-	assert(domain(S, Values)).
+	assert(type(S, Values)).
 
 %%%
 % [transform_body/3]
@@ -119,13 +119,13 @@ transform_pred(true, true, (Arg, Arg)) :- !.
 % INPUT: A constraint of the form {C}, an argument list (Arg_in, Arg_out)
 % OUTPUT: Transformed constraint of the form contraint(C, Arg_in, Arg_out).
 %%%
-transform_pred('{}'(C), constraint(C, (Arg_in, Arg_out)), (Arg_in, Arg_out)) :- !.
+transform_pred('{}'(C), constraint(C, Arg_in, Arg_out), (Arg_in, Arg_out)) :- !.
 
 %%%
 % INPUT: An msw/3 predicate, an argument list (Arg_in, Arg_out)
 % OUTPUT: Transformed msw which has the appended arguments
 %%%
-transform_pred(msw(S,I,X), msw(S,I,X, (Arg_in, Arg_out)), (Arg_in, Arg_out)) :- !.
+transform_pred(msw(S,I,X), msw(S,I,X, Arg_in, Arg_out), (Arg_in, Arg_out)) :- !.
 
 %%%
 % INPUT: A predicate Pred_in, an argument list (Arg_in, Arg_out)
@@ -133,9 +133,9 @@ transform_pred(msw(S,I,X), msw(S,I,X, (Arg_in, Arg_out)), (Arg_in, Arg_out)) :- 
 % ---
 % Pred_out is Pred_in with (Arg_in, Arg_out) appended to the original arguments of the term.
 %%%
-transform_pred(Pred_in, Pred_out, (Args_in)) :-
+transform_pred(Pred_in, Pred_out, (Arg_in, Arg_out)) :-
 	Pred_in =.. [P | Args],
-	basics:append(Args, [Args_in], NewArgs),
+	basics:append(Args, [Arg_in, Arg_out], NewArgs),
 	Pred_out =.. [P | NewArgs].
 
 %%%
@@ -182,7 +182,7 @@ declare(F, N) :-
 %%%
 msw(S, I, X, C_in, C_out) :-
 	functor(S, F, N),
-	type(F, N, T),
+	type(S, T),
 	write_attr(X, type, T),   % revise to ensure X's attribute called "type" is correctly set to T
 	write_attr(X, id, (S, I)),
 	(contains(C_in, X)
@@ -192,6 +192,12 @@ msw(S, I, X, C_in, C_out) :-
 	    make_tree(X, [C], [One], Osdd),   % osdd: X -- C --> 1
 	    and(C_in, Osdd, C_out)
 	).
+
+%%%
+%
+%%%
+write_attr(X, type, T) :-
+	put_attr(X, type, T).
 
 %%%
 %
@@ -212,10 +218,9 @@ placeholders(IS, N, OS):-
     N1 is N-1,
     placeholders(S, N1, OS).
 
-%%%
-% [one/1]
-%%%
-%one(O) :- node(true, [], []).
+%%%%%%
+% Tree Structure
+%%%%%%
 one(leaf(1)).
 
 % represent trees as tree(Root,[Edge1,Subtree1,Edge2,Subtree2,...])
@@ -229,3 +234,18 @@ myzip([A|AR], [B|BR], [(A,B)|R]) :-
 % for now we have dummy predicates for and/or
 and(T1, T2, and(T1,T2)).
 or(T1, T2, or(T1,T2)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% TESTS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%
+% TEST: prints the type attribute of random variable X
+%     To be used after transforming the test program and asserting the type.
+%%%
+test_msw(S, I, X, C_in, C_out) :-
+	functor(S, F, N),
+	type(S, T),
+	write_attr(X, type, T),
+	get_attr(X, type, TestOut),
+	println(TestOut).
