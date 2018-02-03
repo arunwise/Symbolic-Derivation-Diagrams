@@ -128,8 +128,11 @@ transform_pred(Pred_in, Pred_out, (Arg_in, Arg_out)) :-
 %%%
 :- table declare/2.
 declare(F, N) :-
-	M is N+2,
-	fmt_write(':- table %s/%d\n', f(F, M)).  % [?] Should we pass OutFile from tranform_file/2 to handle where to write?
+    N1 is N+1,
+    placeholders('', N1, P),
+    str_cat(P,'lattice(or/3)', P1),
+    fmt_write(':- table %s(%s).\n', args(F, P1)).
+% [?] Should we pass OutFile from tranform_file/2 to handle where to write?
 
 %%%%%%
 % OSDD construction definitions
@@ -183,4 +186,11 @@ constraint((Lhs=Rhs), C_in, C_out) :-
 	write_attr(Lhs, constraint, (Lhs=Rhs)),
 	write_attr(Rhs, constraint, (Lhs=Rhs)),
 	add_constraint_to_edges(C_in, [(Lhs, (Lhs=Rhs)), (Rhs, (Lhs=Rhs))], C_out).
-	
+
+
+placeholders(S, 0, S).
+placeholders(IS, N, OS):-
+    N > 0,
+    str_cat(IS, '_,', S),
+    N1 is N-1,
+    placeholders(S, N1, OS).
