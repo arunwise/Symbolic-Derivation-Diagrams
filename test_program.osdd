@@ -1,6 +1,0 @@
-(bloodtype(A,B,C) :- genotype(D,E,B,F),constraint(D = E,F,G),constraint(A = D,G,C))
-(bloodtype(A,B,C) :- genotype(D,E,B,F),constraint(D = o,F,G),constraint(A = E,G,C))
-(bloodtype(A,B,C) :- genotype(D,E,B,F),constraint(E = o,F,G),constraint(A = D,G,C))
-(bloodtype(A,B,C) :- genotype(D,E,B,F),constraint(A = ab,F,C))
-(genotype(A,B,C,D) :- msw(gene,E,A,C,F),msw(gene,G,B,F,D))
-sick(mary,A,A)
