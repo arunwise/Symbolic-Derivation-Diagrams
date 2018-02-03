@@ -184,7 +184,7 @@ msw(S, I, X, C_in, C_out) :-
 	functor(S, F, N),
 	type(S, T),
 	write_attr(X, type, T),   % revise to ensure X's attribute called "type" is correctly set to T
-	write_attr(X, id, (S, I)),
+	put_attr(X, id, (S, I)),
 	(contains(C_in, X)
 	->  C_out = C_in
 	;   read_attr(X, constraint, C),   % ensure read_attr never fails
