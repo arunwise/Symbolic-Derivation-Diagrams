@@ -6,4 +6,6 @@ bloodtype(P) :- genotype(X,Y), {Y=o}, {P=X}.
 
 bloodtype(P) :- genotype(X,Y), {P=ab}.
 
+sick(mary).
+
 genotype(X,Y) :- msw(gene,X), msw(gene,Y).

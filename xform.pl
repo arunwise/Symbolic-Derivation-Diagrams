@@ -1,16 +1,16 @@
-%%%%%%
+%
 % Usage: transform('test_program.txt').
-%%%%%%
+%
 
 %%%
-%  transform/2
+%  [transform/2]
 %  ---
 %  INPUT: a clause of the form H_in :- B_in
 %  OUTPUT: a rewritten clause H_out :- B_out
 %  ---
 %  First declare/2 writes a table directive for H_in,
-%  then the rule H_in :- B_in is rewritten by transforming the input head followed by the input body.
-%  The transformed rule will include ExtraArgs which holds SDD subtrees as arguments.
+%  then the rule H_in :- B_in is rewritten by transforming H_in -> H_out followed by B_in -> B_out.
+%  The transformed predicates will include ExtraArgs which holds SDD subtrees as arguments.
 %%%
 transform((H_in :- B_in), (H_out :- B_out)) :- !,
    functor(H_in, F, N),
@@ -19,38 +19,75 @@ transform((H_in :- B_in), (H_out :- B_out)) :- !,
    transform_body(B_in, B_out, ExtraArgs).
 
 %%%
-%  transform/2
+%  INPUT: a fact F_in
+%  OUTPUT: a rewritten fact F_out
 %  ---
-%  INPUT: a fact Fi
-%  OUTPUT: a rewritten fact Fo
+%  Handles a fact F_in by tabling F/N,
+%  then calling transform_pred/3 on F_in to produce F_out.
 %%%
-transform(Fi, Fo) :-
-   functor(Fi, F, N),
+transform(F_in, F_out) :-
+   functor(F_in, F, N),
    declare(F, N),
-   transform_pred(Fi, Fo, (Arg, Arg)).
+   transform_pred(F_in, F_out, (Arg, Arg)).  % [?] Should a fact f(X) be transformed to F(X, Arg, Arg) or F(X, Arg)?  As implemented it is F(X, Arg, Arg).
 
 %%%
+%  [transform_body/3]
+%  ---
+%  INPUT: A sequence of goals (G_in, Gs_in)
+%  OUTPUT: A transformed sequence of goals (G_out, Gs_out)
+%  ---
+%  Transforms a sequence of goals (G_in, Gs_in) as follows:
+%      Apply transform_pred/3 on the single goal G_in to produce G_out,
+%      Recurse on Gs_in
+%%%
+transform_body((G_in, Gs_in), (G_out, Gs_out), (Arg_in, Arg_out)) :- !,
+	transform_body(G_in, G_out, (Arg_in, Arg)),
+	transform_body(Gs_in, Gs_out, (Arg, Arg_out)).
+
+%%%
+%  INPUT: A goal G_in
+%  OUTPUT: A transformed goal G_out
+%  ---
+%  Calls tranform_pred/3 on G_in to produce G_out.
+%%%
+transform_body(G_in, G_out, Args) :-
+	transform_pred(G_in, G_out, Args).
+
+%%%
+%  [transform_pred/3]
+%  ---
+%  INPUT:
+%  OUTPUT:
+%  ---
 %
 %%%
-transform_body((Gi1, Gi2), (Go1, Go2), (Argi, Argo)) :- !,
-	transform_body(Gi1, Go1, (Argi, A)),
-	transform_body(Gi2, Go2, (A, Argo)).
-
-%%%
-%
-%%%
-transform_body(Gi, Go, Args) :-
-	transform_pred(Gi, Go, Args).
-
 transform_pred(true, true, (Arg, Arg)) :- !.
-transform_pred('{}'(Ci), constraint(Ci, Argi, Argo), (Argi, Argo)) :- !.
-transform_pred(msw(S,I,X), msw(S,I,X, Argi, Argo), (Argi, Argo)) :- !.
-transform_pred(Predi, Predo, (Argi, Argo)) :-
-	Predi =.. [P | Args],
-	basics:append(Args, [Argi, Argo], NewArgs),
-	Predo =.. [P | NewArgs].
+
+%%%
+%  INPUT:
+%  OUTPUT:
+%  ---
+%%%
+transform_pred('{}'(C), constraint(C, Arg_in, Arg_out), (Arg_in, Arg_out)) :- !.
+
+%%%
+%  INPUT:
+%  OUTPUT:
+%%%
+transform_pred(msw(S,I,X), msw(S,I,X, Arg_in, Arg_out), (Arg_in, Arg_out)) :- !.
+
+%%%
+%  INPUT:
+%  OUTPUT:
+%  ---
+%%%
+transform_pred(Pred_in, Pred_out, (Arg_in, Arg_out)) :-
+	Pred_in =.. [P | Args],
+	basics:append(Args, [Arg_in, Arg_out], NewArgs),
+	Pred_out =.. [P | NewArgs].
 
 
+%%%%%%%%%%%%%%%%
 transform(File) :-
 	seeing(OF),
 	see(File),
