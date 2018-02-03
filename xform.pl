@@ -1,17 +1,22 @@
+%%%%%%
+% Usage: transform('test_program.txt').
+%%%%%%
+
 %%%
 %  transform/2
 %  ---
-%  INPUT: a clause of the form Hi :- Bi
-%  OUTPUT: a rewritten clause Ho :- Bo
+%  INPUT: a clause of the form H_in :- B_in
+%  OUTPUT: a rewritten clause H_out :- B_out
 %  ---
-%  First declare/2 writes a table directive for Hi,
-%  then the rule Hi :- Bi is rewritten by transforming the head followed by the body.
+%  First declare/2 writes a table directive for H_in,
+%  then the rule H_in :- B_in is rewritten by transforming the input head followed by the input body.
+%  The transformed rule will include ExtraArgs which holds SDD subtrees as arguments.
 %%%
-transform((Hi :- Bi), (Ho :- Bo)) :- !,
-   functor(Hi, F, N),
+transform((H_in :- B_in), (H_out :- B_out)) :- !,
+   functor(H_in, F, N),
    declare(F, N),
-   transform_pred(Hi, Ho, ExtraArgs),
-   transform_body(Bi, Bo, ExtraArgs).
+   transform_pred(H_in, H_out, ExtraArgs),
+   transform_body(B_in, B_out, ExtraArgs).
 
 %%%
 %  transform/2
