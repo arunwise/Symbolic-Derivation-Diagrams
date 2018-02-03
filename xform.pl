@@ -1,111 +1,127 @@
-%
-% Usage: transform('test_program.txt').
-%
+%%%%%%
+% Usage: transform_file('test_program.txt', 'test_program.osdd').
+%%%%%%
 
 %%%
-%  [transform/2]
-%  ---
-%  INPUT: a clause of the form H_in :- B_in
-%  OUTPUT: a rewritten clause H_out :- B_out
-%  ---
-%  First declare/2 writes a table directive for H_in,
-%  then the rule H_in :- B_in is rewritten by transforming H_in -> H_out followed by B_in -> B_out.
-%  The transformed predicates will include ExtraArgs which holds SDD subtrees as arguments.
+% [transform_file/2]
+% ---
+% INPUT: a File to read from, an OutFile to write to 
+% OUTPUT: writes the tranformed program to OutFile
+% ---
+% Establishes input/output streams.
 %%%
-transform((H_in :- B_in), (H_out :- B_out)) :- !,
-   functor(H_in, F, N),
-   declare(F, N),
-   transform_pred(H_in, H_out, ExtraArgs),
-   transform_body(B_in, B_out, ExtraArgs).
-
-%%%
-%  INPUT: a fact F_in
-%  OUTPUT: a rewritten fact F_out
-%  ---
-%  Handles a fact F_in by tabling F/N,
-%  then calling transform_pred/3 on F_in to produce F_out.
-%%%
-transform(F_in, F_out) :-
-   functor(F_in, F, N),
-   declare(F, N),
-   transform_pred(F_in, F_out, (Arg, Arg)).  % [?] Should a fact f(X) be transformed to F(X, Arg, Arg) or F(X, Arg)?  As implemented it is F(X, Arg, Arg).
-
-%%%
-%  [transform_body/3]
-%  ---
-%  INPUT: A sequence of goals (G_in, Gs_in)
-%  OUTPUT: A transformed sequence of goals (G_out, Gs_out)
-%  ---
-%  Transforms a sequence of goals (G_in, Gs_in) as follows:
-%      Apply transform_pred/3 on the single goal G_in to produce G_out,
-%      Recurse on Gs_in
-%%%
-transform_body((G_in, Gs_in), (G_out, Gs_out), (Arg_in, Arg_out)) :- !,
-	transform_body(G_in, G_out, (Arg_in, Arg)),
-	transform_body(Gs_in, Gs_out, (Arg, Arg_out)).
-
-%%%
-%  INPUT: A goal G_in
-%  OUTPUT: A transformed goal G_out
-%  ---
-%  Calls tranform_pred/3 on G_in to produce G_out.
-%%%
-transform_body(G_in, G_out, Args) :-
-	transform_pred(G_in, G_out, Args).
-
-%%%
-%  [transform_pred/3]
-%  ---
-%  INPUT:
-%  OUTPUT:
-%  ---
-%
-%%%
-transform_pred(true, true, (Arg, Arg)) :- !.
-
-%%%
-%  INPUT:
-%  OUTPUT:
-%  ---
-%%%
-transform_pred('{}'(C), constraint(C, Arg_in, Arg_out), (Arg_in, Arg_out)) :- !.
-
-%%%
-%  INPUT:
-%  OUTPUT:
-%%%
-transform_pred(msw(S,I,X), msw(S,I,X, Arg_in, Arg_out), (Arg_in, Arg_out)) :- !.
-
-%%%
-%  INPUT:
-%  OUTPUT:
-%  ---
-%%%
-transform_pred(Pred_in, Pred_out, (Arg_in, Arg_out)) :-
-	Pred_in =.. [P | Args],
-	basics:append(Args, [Arg_in, Arg_out], NewArgs),
-	Pred_out =.. [P | NewArgs].
-
-
-%%%%%%%%%%%%%%%%
-transform(File) :-
+transform_file(File, OutFile) :- !,
 	seeing(OF),
 	see(File),
 	abolish_table_pred(declare/2),
-	read_and_transform,
+	read_and_transform(OutFile),
 	seen,
 	see(OF).
 
-read_and_transform :-
+%%%
+% [read_and_transform/1]
+% ---
+% INPUT: a File to write to
+% OUTPUT: writes the current Clause to the File
+%%%
+read_and_transform(File) :-
 	read(Clause),
 	(Clause == end_of_file
 	->  true
 	;   transform(Clause, XClause),
 	    num_vars:numbervars(XClause),
 	    writeln(XClause),
-	    read_and_transform
+		open(File, append, Handle), 
+		writeln(Handle, XClause), 
+		close(Handle),
+	    read_and_transform(File)
 	).
 
+%%%
+% [transform/2]
+% ---
+% INPUT: a clause of the form H_in :- B_in
+% OUTPUT: a rewritten clause H_out :- B_out
+% ---
+% First declare/2 writes a table directive for H_in,
+% then the rule H_in :- B_in is rewritten by transforming H_in -> H_out followed by B_in -> B_out.
+% The transformed predicates will include ExtraArgs which holds SDD subtrees as arguments.
+%%%
+transform((H_in :- B_in), (H_out :- B_out)) :- !,
+	functor(H_in, F, N),
+	declare(F, N),
+	transform_pred(H_in, H_out, ExtraArgs),
+	transform_body(B_in, B_out, ExtraArgs).
+
+%%%
+% INPUT: a fact F_in
+% OUTPUT: a rewritten fact F_out
+% ---
+% Handles a fact F_in by tabling F/N,
+% then calling transform_pred/3 on F_in to produce F_out.
+%%%
+transform(F_in, F_out) :-
+	functor(F_in, F, N),
+	declare(F, N),
+	transform_pred(F_in, F_out, (Arg, Arg)).  % [?] Should a fact f(X) be transformed to F(X, Arg, Arg) or F(X, Arg)?  As implemented it is F(X, Arg, Arg).
+
+%%%
+% [transform_body/3]
+% ---
+% INPUT: A sequence of goals (G_in, Gs_in)
+% OUTPUT: A transformed sequence of goals (G_out, Gs_out)
+% ---
+% Transforms a sequence of goals (G_in, Gs_in) as follows:
+%     Apply transform_pred/3 on the single goal G_in to produce G_out,
+%     Recurse on Gs_in
+%%%
+transform_body((G_in, Gs_in), (G_out, Gs_out), (Arg_in, Arg_out)) :- !,
+	transform_body(G_in, G_out, (Arg_in, Arg)),
+	transform_body(Gs_in, Gs_out, (Arg, Arg_out)).
+
+%%%
+% INPUT: A goal G_in
+% OUTPUT: A transformed goal G_out
+% ---
+% Calls tranform_pred/3 on G_in to produce G_out.
+%%%
+transform_body(G_in, G_out, Args) :-
+	transform_pred(G_in, G_out, Args).
+
+%%%
+% [transform_pred/3]
+% ---
+% INPUT: true
+% OUTPUT: true
+% ---
+% Base case.
+%%%
+transform_pred(true, true, (Arg, Arg)) :- !.
+
+%%%
+% INPUT: A constraint of the form {C}, an argument list (Arg_in, Arg_out)
+% OUTPUT: Transformed constraint of the form contraint(C, Arg_in, Arg_out).
+%%%
+transform_pred('{}'(C), constraint(C, Arg_in, Arg_out), (Arg_in, Arg_out)) :- !.
+
+%%%
+% INPUT: An msw/3 predicate, an argument list (Arg_in, Arg_out)
+% OUTPUT: Transformed msw which has the appended arguments
+%%%
+transform_pred(msw(S,I,X), msw(S,I,X, Arg_in, Arg_out), (Arg_in, Arg_out)) :- !.
+
+%%%
+% INPUT: A predicate Pred_in, an argument list (Arg_in, Arg_out)
+% OUTPUT: Transformed predicate Pred_out
+% ---
+% Pred_out is Pred_in with (Arg_in, Arg_out) appended to the original arguments of the term.
+%%%
+transform_pred(Pred_in, Pred_out, (Arg_in, Arg_out)) :-
+	Pred_in =.. [P | Args],
+	basics:append(Args, [Arg_in, Arg_out], NewArgs),
+	Pred_out =.. [P | NewArgs].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
 :- table declare/2.
 declare(F, N) :-
 	M is N+2,
