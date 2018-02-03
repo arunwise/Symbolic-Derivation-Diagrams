@@ -200,7 +200,7 @@ set_id(X, (S, I))  :-
     S'=S,
     I'=I.
 
-% return
+% return id if it exists, otherwise create id with fresh variables
 read_id(X, (S, I)) :-
     (get_attr(X, id, (S, I))
     ->
