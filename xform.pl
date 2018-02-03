@@ -119,13 +119,13 @@ transform_pred(true, true, (Arg, Arg)) :- !.
 % INPUT: A constraint of the form {C}, an argument list (Arg_in, Arg_out)
 % OUTPUT: Transformed constraint of the form contraint(C, Arg_in, Arg_out).
 %%%
-transform_pred('{}'(C), constraint(C, Arg_in, Arg_out), (Arg_in, Arg_out)) :- !.
+transform_pred('{}'(C), constraint(C, (Arg_in, Arg_out)), (Arg_in, Arg_out)) :- !.
 
 %%%
 % INPUT: An msw/3 predicate, an argument list (Arg_in, Arg_out)
 % OUTPUT: Transformed msw which has the appended arguments
 %%%
-transform_pred(msw(S,I,X), msw(S,I,X, Arg_in, Arg_out), (Arg_in, Arg_out)) :- !.
+transform_pred(msw(S,I,X), msw(S,I,X, (Arg_in, Arg_out)), (Arg_in, Arg_out)) :- !.
 
 %%%
 % INPUT: A predicate Pred_in, an argument list (Arg_in, Arg_out)
