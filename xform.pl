@@ -188,8 +188,8 @@ msw(S, I, X, C_in, C_out) :-
 	(contains(C_in, X)
 	->  C_out = C_in
 	;   read_attr(X, constraint, C),   % ensure read_attr never fails
-	    create_osdd_one(One),
-	    create_osdd(X, [(C, One)], Osdd),   % osdd: X -- C --> 1
+	    one(One),
+	    make_tree(X, [C], [One], Osdd),   % osdd: X -- C --> 1
 	    and(C_in, Osdd, C_out)
 	).
 
