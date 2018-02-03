@@ -220,7 +220,11 @@ one(leaf(1)).
 
 % represent trees as tree(Root,[Edge1,Subtree1,Edge2,Subtree2,...])
 make_tree(Root, Edges, Subtrees, tree(Root, L)) :-
-    lists:zip(Edges,Subtrees,L).
+    myzip(Edges,Subtrees,L).
+
+myzip([], [], []).
+myzip([A|AR], [B|BR], [(A,B)|R]) :-
+    myzip(AR, BR, R).
 
 % for now we have dummy predicates for and/or
 and(T1, T2, and(T1,T2)).
