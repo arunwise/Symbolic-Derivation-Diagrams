@@ -183,9 +183,8 @@ declare(F, N) :-
 msw(S, I, X, C_in, C_out) :-
 	functor(S, F, N),
 	type(S, T),
-	write_attr(X, type, T),   % revise to ensure X's attribute called "type" is correctly set to T
+	set_type(X, T),   % revise to ensure X's attribute called "type" is correctly set to T
 	set_id(X, (S, I)),
-	%write_attr(X, id, (S, I)),
 	(contains(C_in, X)
 	->  C_out = C_in
 	;   read_attr(X, constraint, C),   % ensure read_attr never fails
@@ -195,27 +194,32 @@ msw(S, I, X, C_in, C_out) :-
 	).
 
 % set id if it doesn't exist, otherwise unify with existing id
-set_id(X, (S, I))  :-
-    read_id(X, (S', I')),
-    S'=S,
-    I'=I.
+set_id(X, (S, I)) :-
+	read_id(X, (S1, I1)),
+	S1=S, I1=I.
 
 % return id if it exists, otherwise create id with fresh variables
 read_id(X, (S, I)) :-
-    (get_attr(X, id, (S, I))
-    ->
-	true
-    ;
-    put_attr(X, id, (S', I')),
-    S'=S, I'=I
-    ).
+	(get_attr(X, id, (S, I))
+	->	true
+	;	put_attr(X, id, (S1, I1)),
+		S1=S, I1=I % [?] Are fresh variables needed?
+	).
 
 %%%
 %
 %%%
-write_attr(X, type, T) :-
-	put_attr(X, type, T).
+set_type(X, T) :-    
+	read_type(X, T1),
+	T1=T.
 
+read_type(X, T) :-
+	(get_attr(X, type, T)
+	->	true
+	;	put_attr(X, type, T1),
+		T1=T
+	).
+	
 %%%
 %
 %%%	    
@@ -268,12 +272,15 @@ or(T1, T2, or(T1,T2)).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%%
-% TEST: prints the type attribute of random variable X
-%     To be used after transforming the test program and asserting the type.
+% Usage: test_msw(gene, E, A, C, F).
+% To be used after transforming the test program and asserting the type and ID.
 %%%
 test_msw(S, I, X, C_in, C_out) :-
 	functor(S, F, N),
 	type(S, T),
-	write_attr(X, type, T),
-	get_attr(X, type, TestOut),
-	println(TestOut).
+	set_type(X, T),
+	set_id(X, (S, I)),
+	get_attr(X, type, Type),
+	get_attr(X, id, ID),
+	write('Attribute <test> is '), writeln(Type),
+	write('Attribute <id> is '), writeln(ID).
