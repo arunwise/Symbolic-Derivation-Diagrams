@@ -16,7 +16,7 @@
 transform_file(File, OutFile) :- !,
 	seeing(OF),
 	see(File),
-	abolish_table_pred(declare/2),
+	abolish_table_pred(declare/3),
 	read_and_transform(OutFile),
 	seen,
 	see(OF).
@@ -33,31 +33,39 @@ read_and_transform(File) :-
 	read(Clause),
 	(Clause == end_of_file
 	->	true
-	;	transform(Clause, XClause),
+	;	transform(Clause, XClause, File),
 		(XClause = none
 		-> 	read_and_transform(File)
 		;	num_vars:numbervars(XClause),
 			writeln(XClause),
-			open(File, append, Handle), 
-			writeln(Handle, XClause), 
+			open(File, append, Handle),
+			((H :- B) = XClause ->
+			     write(Handle, H),
+			     write(Handle, ' :- '),
+			     write(Handle, B),
+			     write(Handle, '.\n')
+			;
+			write(Handle, XClause),
+			write(Handle, '.\n')
+			), 
 			close(Handle),
 			read_and_transform(File)
 		)
 	).
 
 %%%
-% [transform/2]
+% [transform/3]
 % ---
 % INPUT: a clause of the form H_in :- B_in
 % OUTPUT: a rewritten clause H_out :- B_out
 % ---
-% First declare/2 writes a table directive for H_in,
+% First declare/3 writes a table directive for H_in,
 % then the rule H_in :- B_in is rewritten by transforming H_in -> H_out followed by B_in -> B_out.
 % The transformed predicates will include ExtraArgs which holds SDD subtrees as arguments.
 %%%
-transform((H_in :- B_in), (H_out :- B_out)) :- !,
+transform((H_in :- B_in), (H_out :- B_out), File) :- !,
 	functor(H_in, F, N),
-	declare(F, N),
+	declare(F, N, File),
 	transform_pred(H_in, H_out, ExtraArgs),
 	transform_body(B_in, B_out, ExtraArgs).
 
@@ -69,12 +77,12 @@ transform((H_in :- B_in), (H_out :- B_out)) :- !,
 % then calling transform_pred/3 on F_in to produce F_out.
 % If a clause is a values/2 declaration set F_out to none and call set_domain(F_in).
 %%%
-transform(F_in, F_out) :-
+transform(F_in, F_out, File) :-
 	functor(F_in, F, N),
 	(F = values
 	->  set_domain(F_in),
 		F_out = none
-	;	declare(F, N),
+	;	declare(F, N, File),
 		transform_pred(F_in, F_out, (Arg, Arg))
 	).
 
@@ -144,12 +152,15 @@ transform_pred(Pred_in, Pred_out, (Arg_in, Arg_out)) :-
 % INPUT: predicate F/N
 % OUTPUT: writes table definition to OutFile
 %%%
-:- table declare/2.
-declare(F, N) :-
+:- table declare/3.
+declare(F, N, File) :-
     N1 is N+1,
     placeholders('', N1, P),
     str_cat(P,'lattice(or/3)', P1),
-    fmt_write(':- table %s(%s).\n', args(F, P1)).
+    open(File, append, Handle),
+    fmt_write(Handle, ':- table %s(%s).\n', args(F, P1)),
+    close(Handle),
+    true.
 % [?] Should we pass OutFile from tranform_file/2 to handle where to write?
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
