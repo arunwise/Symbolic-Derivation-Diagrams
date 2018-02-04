@@ -78,20 +78,32 @@ transform((H_in :- B_in), (H_out :- B_out), File) :- !,
 % If a clause is a values/2 declaration set F_out to none and call set_domain(F_in).
 %%%
 transform(F_in, F_out, File) :-
-	functor(F_in, F, N),
-	(F = values
-	->  set_domain(F_in),
-		F_out = none
-	;	declare(F, N, File),
-		transform_pred(F_in, F_out, (Arg, Arg))
-	).
+    functor(F_in, F, N),
+    (F = values
+    -> set_domain(F_in, File)
+    ; declare(F, N, File)),
+    transform_pred(F_in, F_out, (Arg, Arg)).
+
+    %% functor(F_in, F, N),
+    %% 	(F = values
+    %% 	->  set_domain(F_in),
+    %% 		F_out = none
+    %% 	;	declare(F, N, File),
+    %% 		transform_pred(F_in, F_out, (Arg, Arg))
+    %% 	).
 
 %%%
 %
 %%%
-set_domain(X) :-
-	X =.. [values | [S, Values]],
-	assert(type(S, Values)).
+set_domain(Fin, File) :-
+    Fin =.. [values | [S, V]],
+    open(File, append, Handle),
+    write(Handle, type(S, V)),
+    write(Handle, '.\n').
+
+%% set_domain(X) :-
+%% 	X =.. [values | [S, Values]],
+%% 	assert(type(S, Values)).
 
 %%%
 % [transform_body/3]
@@ -137,6 +149,7 @@ transform_pred('{}'(C), constraint(C, Arg_in, Arg_out), (Arg_in, Arg_out)) :- !.
 %%%
 transform_pred(msw(S,I,X), msw(S,I,X, Arg_in, Arg_out), (Arg_in, Arg_out)) :- !.
 
+transform_pred(values(_X, _Y), values(_X, _Y), (Arg, Arg)) :- !.
 %%%
 % INPUT: A predicate Pred_in, an argument list (Arg_in, Arg_out)
 % OUTPUT: Transformed predicate Pred_out
