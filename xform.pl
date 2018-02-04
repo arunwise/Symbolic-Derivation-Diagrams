@@ -197,8 +197,8 @@ msw(S, I, X, C_in, C_out) :-
 %
 %%%	    
 constraint((Lhs=Rhs), C_in, C_out) :-
-	get_type(Lhs, T1),
-	get_type(Rhs, T2),
+	read_type(Lhs, T1),
+	read_type(Rhs, T2),
 	T1 = T2,
 	set_constraint(Lhs, (Lhs=Rhs)),
 	set_constraint(Rhs, (Lhs=Rhs)),
