@@ -1,5 +1,5 @@
 /*
- * Usage: transform_file('test_program.txt', 'test_program.osdd').
+ * Usage: transform_file('input_file', 'output_file').
  */
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
