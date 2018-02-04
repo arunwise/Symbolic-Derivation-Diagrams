@@ -123,6 +123,8 @@ transform_body(G_in, G_out, Args) :-
 %%%
 transform_pred(true, true, (Arg, Arg)) :- !.
 
+transform_pred(=(_X, _Y), =(_X, _Y), (Arg, Arg)) :- !.
+
 %%%
 % INPUT: A constraint of the form {C}, an argument list (Arg_in, Arg_out)
 % OUTPUT: Transformed constraint of the form contraint(C, Arg_in, Arg_out).
