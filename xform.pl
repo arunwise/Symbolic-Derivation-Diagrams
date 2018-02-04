@@ -215,6 +215,14 @@ constraint((Lhs=Rhs), C_in, C_out) :-
 	set_constraint(Rhs, (Lhs=Rhs)),
 	add_constraint_to_edges(C_in, [(Lhs, (Lhs=Rhs)), (Rhs, (Lhs=Rhs))], C_out).
 
+constraint((Lhs\=Rhs), C_in, C_out) :-
+	read_type(Lhs, T1),
+	read_type(Rhs, T2),
+	T1 = T2,
+	set_constraint(Lhs, (Lhs\=Rhs)),
+	set_constraint(Rhs, (Lhs\=Rhs)),
+	add_constraint_to_edges(C_in, [(Lhs, (Lhs\=Rhs)), (Rhs, (Lhs\=Rhs))], C_out).
+
 %%%
 % [set_attribute/2]
 % ---
