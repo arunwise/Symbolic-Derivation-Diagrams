@@ -233,8 +233,6 @@ read_type(X, T) :-
 	;	(atomic(X)
 		->  Type(_, T),
 		    basics:member(X, T)
-		    put_attr(X, type, T1),
-		    T1=T
 		;   put_attr(X, type, T1),
 		    T1=T
 		)
