@@ -231,7 +231,10 @@ read_type(X, T) :-
 	(get_attr(X, type, T)
 	->	true
 	;	(atomic(X)
-		->  T1=T  % [?] How should we handle atoms which are not in any values declaration?
+		->  Type(_, T),
+		    basics:member(X, T)
+		    put_attr(X, type, T1),
+		    T1=T
 		;   put_attr(X, type, T1),
 		    T1=T
 		)
