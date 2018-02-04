@@ -2,9 +2,9 @@
  * Usage: transform_file('test_program.txt', 'test_program.osdd').
  */
 
-%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Program transformation definitions
-%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 :- import get_attr/3, put_attr/3 from machine.
 
 %%%
@@ -152,9 +152,9 @@ declare(F, N) :-
     fmt_write(':- table %s(%s).\n', args(F, P1)).
 % [?] Should we pass OutFile from tranform_file/2 to handle where to write?
 
-%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % OSDD construction definitions
-%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 /*
   TODO
   ---
@@ -236,8 +236,11 @@ read_type(X, T) :-
 
 set_constraint(X, C) :-
 	read_constraint(X, C1),
-	basics:append(C1, [C], C2),
-	put_attr(X, constraint, C2).
+	(basics:member(C, C1)
+	->  true
+	;   basics:append(C1, [C], C2),
+	    put_attr(X, constraint, C2)
+	).
 
 read_constraint(X, C) :-
 	(get_attr(X, constraint, C)
@@ -245,9 +248,9 @@ read_constraint(X, C) :-
 	;	C=[]
 	).
 
-%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Tree Structure
-%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 one(leaf(1)).
 
 % represent trees as tree(Root,[Edge1,Subtree1,Edge2,Subtree2,...])
@@ -273,9 +276,9 @@ myzip([A|AR], [B|BR], [(A,B)|R]) :-
 and(T1, T2, and(T1,T2)).
 or(T1, T2, or(T1,T2)).
 
-%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Misc
-%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 placeholders(S, 0, S).
 placeholders(IS, N, OS):-
     N > 0,
@@ -306,6 +309,7 @@ test_msw(S, I, X, C_in, C_out) :-
 %%%
 test_constraint_attribute :-
 	set_constraint(Lhs, (lhs=b)),
+	set_constraint(Lhs, (lhs=b)),  % Do not add redundant constraint
 	set_constraint(Lhs, (lhs<a)),
 	set_constraint(Rhs, (rhs=b)),
 	set_constraint(Rhs, (rhs>a)),
