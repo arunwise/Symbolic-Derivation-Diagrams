@@ -163,7 +163,7 @@ declare(F, N) :-
   We can either name the types using unique generated names, or simply
   use the set of values to stand in for its name.
   Each switch has the type corresponding to its values declaration.
-  Each constant has the type corresponds to the declaration it is in.
+  Each constant has the type corresponding to the declaration it is in.
 
   get_type: gets the type of any term.
   If it is a variable, then it returns the type attribute of that variable (if defined), and an unbound fresh variable otherwise.
@@ -193,6 +193,23 @@ msw(S, I, X, C_in, C_out) :-
 	    and(C_in, Osdd, C_out)
 	).
 
+%%%
+%
+%%%	    
+constraint((Lhs=Rhs), C_in, C_out) :-
+	get_type(Lhs, T1),
+	get_type(Rhs, T2),
+	T1 = T2,
+	set_constraint(Lhs, (Lhs=Rhs)),
+	set_constraint(Rhs, (Lhs=Rhs)),
+	add_constraint_to_edges(C_in, [(Lhs, (Lhs=Rhs)), (Rhs, (Lhs=Rhs))], C_out).
+
+%%%
+% [set_attribute/2]
+% ---
+% All follow the same logic...
+%%%
+
 % set id if it doesn't exist, otherwise unify with existing id
 set_id(X, (S, I)) :-
 	read_id(X, (S1, I1)),
@@ -206,9 +223,6 @@ read_id(X, (S, I)) :-
 		S1=S, I1=I % [?] Are fresh variables needed?
 	).
 
-%%%
-%
-%%%
 set_type(X, T) :-    
 	read_type(X, T1),
 	T1=T.
@@ -219,25 +233,17 @@ read_type(X, T) :-
 	;	put_attr(X, type, T1),
 		T1=T
 	).
-	
-%%%
-%
-%%%	    
-constraint((Lhs=Rhs), C_in, C_out) :-
-	get_type(Lhs, T1),
-	get_type(Rhs, T2),
-	T1 = T2,
-	write_attr(Lhs, constraint, (Lhs=Rhs)),
-	write_attr(Rhs, constraint, (Lhs=Rhs)),
-	add_constraint_to_edges(C_in, [(Lhs, (Lhs=Rhs)), (Rhs, (Lhs=Rhs))], C_out).
 
+set_constraint(X, C) :-
+	read_constraint(X, C1),
+	basics:append(C1, [C], C2),
+	put_attr(X, constraint, C2).
 
-placeholders(S, 0, S).
-placeholders(IS, N, OS):-
-    N > 0,
-    str_cat(IS, '_,', S),
-    N1 is N-1,
-    placeholders(S, N1, OS).
+read_constraint(X, C) :-
+	(get_attr(X, constraint, C)
+	->	true
+	;	C=[]
+	).
 
 %%%%%%
 % Tree Structure
@@ -255,9 +261,9 @@ contains(X, tree(Y, L)) :-
     contains(X, L).
 
 contains(X, [(_C,T)|R]) :-
-    (contains(X, T) ->
-	 true
-    ;contains(X, R)).
+    (contains(X, T) 
+    -> true
+    ;  contains(X, R)).
 
 myzip([], [], []).
 myzip([A|AR], [B|BR], [(A,B)|R]) :-
@@ -266,6 +272,16 @@ myzip([A|AR], [B|BR], [(A,B)|R]) :-
 % for now we have dummy predicates for and/or
 and(T1, T2, and(T1,T2)).
 or(T1, T2, or(T1,T2)).
+
+%%%%%%
+% Misc
+%%%%%%
+placeholders(S, 0, S).
+placeholders(IS, N, OS):-
+    N > 0,
+    str_cat(IS, '_,', S),
+    N1 is N-1,
+    placeholders(S, N1, OS).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % TESTS
@@ -284,3 +300,17 @@ test_msw(S, I, X, C_in, C_out) :-
 	get_attr(X, id, ID),
 	write('Attribute <test> is '), writeln(Type),
 	write('Attribute <id> is '), writeln(ID).
+
+%%%
+% Tests constraint attribute setting.
+%%%
+test_constraint_attribute :-
+	set_constraint(Lhs, (lhs=b)),
+	set_constraint(Lhs, (lhs<a)),
+	set_constraint(Rhs, (rhs=b)),
+	set_constraint(Rhs, (rhs>a)),
+	set_constraint(Rhs, (rhs>c)),
+	get_attr(Lhs, constraint, C_Lhs),
+	get_attr(Rhs, constraint, C_Rhs),
+	write('Lhs: Attribute <constraint> is '), writeln(C_Lhs),
+	write('Rhs: Attribute <constraint> is '), writeln(C_Rhs).
