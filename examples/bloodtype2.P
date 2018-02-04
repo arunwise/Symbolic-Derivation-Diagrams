@@ -1,0 +1,22 @@
+father(adam, bob).
+mother(adam, mary).
+
+father_gene(Person, f(Person, Father)) :- father(Person, Father).
+mother_gene(Person, m(Person, Mother)) :- mother(Person, Mother).
+
+genotype(P, X, Y) :-
+    msw(gene, f(P, _F), X),
+    msw(gene, f(P, _M), Y).
+
+bloodtype(P, T) :- genotype(P, X, Y), bloodtype_rule(X, Y, T).
+
+bloodtype_rule(X, Y, T) :- {X=Y}, {X=T}. % aa,bb,oo
+
+bloodtype_rule(X, Y, T) :- {X=o}, {Y=T}.
+bloodtype_rule(X, Y, T) :- {Y=o}, {X=T}.
+
+bloodtype_rule(X, Y, T) :- {X=a}, {Y=b}, T=ab.
+bloodtype_rule(X, Y, T) :- {X=b}, {Y=a}, T=ab.
+
+values(gene, [a, b, o]).
+
