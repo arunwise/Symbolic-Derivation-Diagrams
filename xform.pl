@@ -230,8 +230,11 @@ set_type(X, T) :-
 read_type(X, T) :-
 	(get_attr(X, type, T)
 	->	true
-	;	put_attr(X, type, T1),
-		T1=T
+	;	(atomic(X)
+		->  T1=T  % [?] How should we handle atoms which are not in any values declaration?
+		;   put_attr(X, type, T1),
+		    T1=T
+		)
 	).
 
 set_constraint(X, C) :-
