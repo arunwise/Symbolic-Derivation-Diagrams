@@ -65,13 +65,23 @@ constraint(Lhs=Rhs, C_in, C_out) :-
     ),
     T1 = T2,
     (var(Lhs) ->
-	 set_constraint(Lhs, Lhs=Rhs),
-         update_edges(C_in, Lhs, Lhs=Rhs, C_tmp)
-    ; true),
+	 set_constraint(Lhs, Lhs=Rhs)
+    ;
+    true),
     (var(Rhs) ->
-	 set_constraint(Rhs, Lhs=Rhs),
-	 update_edges(C_tmp, Rhs, Lhs=Rhs, C_out)
-    ; true).
+	 set_constraint(Rhs, Lhs=Rhs)
+    ;
+    true),
+    update_edges(C_in, Lhs, Lhs=Rhs, C_tmp),
+    update_edges(C_tmp, Rhs, Lhs=Rhs, C_out).
+    %% (var(Lhs) ->
+    %% 	 set_constraint(Lhs, Lhs=Rhs),
+    %%      update_edges(C_in, Lhs, Lhs=Rhs, C_tmp)
+    %% ; true),
+    %% (var(Rhs) ->
+    %% 	 set_constraint(Rhs, Lhs=Rhs),
+    %% 	 update_edges(C_tmp, Rhs, Lhs=Rhs, C_out)
+    %% ; true).
 
 constraint(Lhs\=Rhs, C_in, C_out) :-
     % at most one of Lhs and Rhs can be a ground term
@@ -86,13 +96,23 @@ constraint(Lhs\=Rhs, C_in, C_out) :-
     ),
     T1 = T2,
     (var(Lhs) ->
-	 set_constraint(Lhs, Lhs\=Rhs),
-	 update_edges(C_in, Lhs, Lhs\=Rhs, C_tmp)
-    ; true),
+	 set_constraint(Lhs, Lhs\=Rhs)
+    ;
+    true),
     (var(Rhs) ->
-	 set_constraint(Rhs, Lhs\=Rhs),
-	 update_edges(C_tmp, Rhs, Lhs\=Rhs, C_out)	 
-    ; true).
+	 set_constraint(Rhs, Lhs\=Rhs)
+    ;
+    true),
+    update_edges(C_in, Lhs, Lhs\=Rhs, C_tmp),
+    update_edges(C_tmp, Rhs, Lhs\=Rhs, C_out).
+    %% (var(Lhs) ->
+    %% 	 set_constraint(Lhs, Lhs\=Rhs),
+    %% 	 update_edges(C_in, Lhs, Lhs\=Rhs, C_tmp)
+    %% ; true),
+    %% (var(Rhs) ->
+    %% 	 set_constraint(Rhs, Lhs\=Rhs),
+    %% 	 update_edges(C_tmp, Rhs, Lhs\=Rhs, C_out)	 
+    %% ; true).
 
 % set type attribute of a variable
 set_type(X, T) :-
@@ -216,9 +236,9 @@ myzip([], [], []).
 myzip([A|AR], [B|BR], [(A,B)|R]) :-
     myzip(AR, BR, R).
 
-%% update_edges(C_in, X, _C, C_out) :-
-%%     atomic(X),
-%%     C_in = C_out.
+update_edges(C_in, X, _C, C_out) :-
+    atomic(X),
+    C_in = C_out.
 update_edges(and(T1,T2), X, C, and(T1out,T2out)) :-
     var(X),
     update_edges(T1, X, C, T1out),
