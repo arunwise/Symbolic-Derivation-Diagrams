@@ -295,16 +295,16 @@ one(leaf(1)).
 make_tree(Root, Edges, Subtrees, tree(Root, L)) :-
     myzip(Edges,Subtrees,L).
 
-contains(X, tree(Y, _)) :-
+contains(tree(Y, _), X) :-
     X==Y.
-contains(X, tree(Y, L)) :-
+contains(tree(Y, L), X) :-
     X \== Y,
-    contains(X, L).
+    contains(L, X).
 
-contains(X, [(_C,T)|R]) :-
-    (contains(X, T) 
+contains([(_C,T)|R], X) :-
+    (contains(T, X) 
     -> true
-    ;  contains(X, R)).
+    ;  contains(R, X)).
 
 myzip([], [], []).
 myzip([A|AR], [B|BR], [(A,B)|R]) :-
