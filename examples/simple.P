@@ -16,3 +16,6 @@ test6(X, Y) :- msw(alpha, 1, X), msw(num, 1, Y), {X=Y}.
 test7(X, Y) :- msw(alpha, 1, X), msw(num, 1, Y), {X\=Y}.
 
 test8(X, Y) :- msw(alpha, 1, X), X=Y.
+
+test9 :- msw(alpha, 1, X).
+test9 :- msw(num, 1, X).
