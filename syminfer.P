@@ -1,0 +1,161 @@
+%% Code for symbolic inference using OSDDs.
+:- import get_attr/3, put_attr/3, install_verify_attribute_handler/4, install_attribute_portray_hook/3 from machine.
+
+:- install_verify_attribute_handler(type, AttrValue, Target, type_handler(AttrValue, Target)).
+:- install_verify_attribute_handler(id, AttrValue, Target, id_handler(AttrValue, Target)).
+:- install_verify_attribute_handler(constraint, AttrValue, Target, constraint_handler(AttrValue, Target)).
+
+:- install_attribute_portray_hook(type, Attr, display_type(Attr)).
+:- install_attribute_portray_hook(id, Attr, display_id(Attr)).
+:- install_attribute_portray_hook(constraint, Attr, display_constr(Attr)).
+
+% type attribute handler
+type_handler(T, X) :-
+    (var(X) ->
+	 (get_attr(X, type, XType) ->
+	      % X is also attributed variable
+	      T = XType
+	 ; % X is not attributed variable
+	   true)
+    ; % X is not a variable
+      atomic(X),
+      type(_T, L),
+      basics:member(X, L)
+    ).
+
+% nothing needs to be done in id attribute handler
+id_handler(_I, _X) :-
+    true.
+
+% dont have to do anything since constraints will ge re-written
+constraint_handler(_C, _X) :-
+    true.
+
+% display handlers
+display_type(A) :- write(A).
+display_id(A) :- write(A).
+display_constr(A) :- write(A).
+
+msw(S, I, X, C_in, C_out) :-
+%	functor(S, F, N),
+	type(S, T),
+	set_type(X, T),
+	set_id(X, (S, I)),
+	(contains(C_in, X)
+	->  C_out = C_in
+	;   read_constraint(X, C),
+	    one(One),
+	    make_tree(X, [C], [One], Osdd),   % osdd: X -- C --> 1
+	    and(C_in, Osdd, C_out)
+	).
+
+%%%
+%
+%%%	    
+constraint((Lhs=Rhs), C_in, C_out) :-
+	read_type(Lhs, T1),
+	read_type(Rhs, T2),
+	T1 = T2,
+	set_constraint(Lhs, (Lhs=Rhs)),
+	set_constraint(Rhs, (Lhs=Rhs)),
+	add_constraint_to_edges(C_in, [(Lhs, (Lhs=Rhs)), (Rhs, (Lhs=Rhs))], C_out).
+
+constraint((Lhs\=Rhs), C_in, C_out) :-
+	read_type(Lhs, T1),
+	read_type(Rhs, T2),
+	T1 = T2,
+	set_constraint(Lhs, (Lhs\=Rhs)),
+	set_constraint(Rhs, (Lhs\=Rhs)),
+	add_constraint_to_edges(C_in, [(Lhs, (Lhs\=Rhs)), (Rhs, (Lhs\=Rhs))], C_out).
+
+% set type attribute of a variable
+set_type(X, T) :-
+    var(X),
+    (get_attr(X, type, T1)
+    ->
+	% We can't change type of a variable, therefore
+	T = T1
+    ;
+    put_attr(X, type, T)
+    ).
+
+% set id attribute of a variable
+set_id(X, (S, I)) :-
+    var(X),
+    (get_attr(X, (S1, I1))
+    ->
+	% We can't change id of a variable, therefore
+	S=S1, I=I1
+    ;
+    put_attr(X, id, (S, I))
+    ).
+
+% set constraint attribute of a variable
+set_constraint(X, C) :-
+    var(X),
+    (get_attr(X, constraint, C1)
+    ->
+	% we take conjunction of constraints
+	(basics:member(C, C1)
+	->
+	    true
+	;
+	basics:append(C1, [C], C2),
+	put_attr(X, constraint, C2)
+	)
+    ;
+    put_attr(X, constraint, C)
+    ).
+
+read_constraint(X, C) :-
+	(get_attr(X, constraint, C)
+	->	true
+	;	C=[]
+	).
+
+
+read_id(X, (S, I)) :-
+	(get_attr(X, id, (S, I))
+	->	true
+	;	put_attr(X, id, (S1, I1)),
+		S1=S, I1=I % [?] Are fresh variables needed?
+	).
+
+read_type(X, T) :-
+	(get_attr(X, type, T)
+	->	true
+	;	(atomic(X)
+		->  Type(_, T),
+		    basics:member(X, T)
+		;   put_attr(X, type, T1),
+		    T1=T
+		)
+	).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Tree Structure
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+one(leaf(1)).
+
+% represent trees as tree(Root,[Edge1,Subtree1,Edge2,Subtree2,...])
+make_tree(Root, Edges, Subtrees, tree(Root, L)) :-
+    myzip(Edges,Subtrees,L).
+
+contains(tree(Y, _), X) :-
+    X==Y.
+contains(tree(Y, L), X) :-
+    X \== Y,
+    contains(L, X).
+
+contains([(_C,T)|R], X) :-
+    (contains(T, X) 
+    -> true
+    ;  contains(R, X)).
+
+myzip([], [], []).
+myzip([A|AR], [B|BR], [(A,B)|R]) :-
+    myzip(AR, BR, R).
+
+% for now we have dummy predicates for and/or
+and(T1, T2, and(T1,T2)).
+or(T1, T2, or(T1,T2)).
