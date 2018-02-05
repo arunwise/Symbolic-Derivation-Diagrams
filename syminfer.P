@@ -36,6 +36,7 @@ display_type(A) :- write(A).
 display_id(A) :- write(A).
 display_constr(A) :- write(A).
 
+% definition of msw
 msw(S, I, X, C_in, C_out) :-
 %	functor(S, F, N),
 	type(S, T),
@@ -49,24 +50,48 @@ msw(S, I, X, C_in, C_out) :-
 	    and(C_in, Osdd, C_out)
 	).
 
-%%%
-%
-%%%	    
-constraint((Lhs=Rhs), C_in, C_out) :-
-	read_type(Lhs, T1),
-	read_type(Rhs, T2),
-	T1 = T2,
-	set_constraint(Lhs, (Lhs=Rhs)),
-	set_constraint(Rhs, (Lhs=Rhs)),
-	add_constraint_to_edges(C_in, [(Lhs, (Lhs=Rhs)), (Rhs, (Lhs=Rhs))], C_out).
+% definition of atomic constraints
+constraint(Lhs=Rhs, C_in, C_out) :-
+    % at most one of Lhs and Rhs can be a ground term
+    (var(Lhs); var(Rhs)),
+    (var(Lhs) ->
+	 read_type(Lhs, T1)
+    ; lookup_type(Lhs, T1)
+    ),
+    (var(Rhs) ->
+	 read_type(Rhs, T2)
+    ; lookup_type(Rhs, T2)
+    ),
+    T1 = T2,
+    (var(Lhs) ->
+	 set_constraint(Lhs, Lhs=Rhs)
+    ; true),
+    (var(Rhs) ->
+	 set_constraint(Rhs, Lhs=Rhs)
+    ; true),
+    update_edges(C_in, Lhs, Lhs=Rhs, C_tmp),
+    update_edges(C_tmp, Rhs, Lhs=Rhs, C_out).
 
-constraint((Lhs\=Rhs), C_in, C_out) :-
-	read_type(Lhs, T1),
-	read_type(Rhs, T2),
-	T1 = T2,
-	set_constraint(Lhs, (Lhs\=Rhs)),
-	set_constraint(Rhs, (Lhs\=Rhs)),
-	add_constraint_to_edges(C_in, [(Lhs, (Lhs\=Rhs)), (Rhs, (Lhs\=Rhs))], C_out).
+constraint(Lhs\=Rhs, C_in, C_out) :-
+    % at most one of Lhs and Rhs can be a ground term
+    (var(Lhs); var(Rhs)),
+    (var(Lhs) ->
+	 read_type(Lhs, T1)
+    ; lookup_type(Lhs, T1)
+    ),
+    (var(Rhs) ->
+	 read_type(Rhs, T2)
+    ; lookup_type(Rhs, T2)
+    ),
+    T1 = T2,
+    (var(Lhs) ->
+	 set_constraint(Lhs, Lhs\=Rhs)
+    ; true),
+    (var(Rhs) ->
+	 set_constraint(Rhs, Lhs\=Rhs)
+    ; true),
+    update_edges(C_in, Lhs, Lhs\=Rhs, C_tmp),
+    update_edges(C_tmp, Rhs, Lhs\=Rhs, C_out).
 
 % set type attribute of a variable
 set_type(X, T) :-
@@ -104,33 +129,41 @@ set_constraint(X, C) :-
 	put_attr(X, constraint, C2)
 	)
     ;
-    put_attr(X, constraint, C)
+    put_attr(X, constraint, [C])
     ).
 
+% read constraint attribute, if it doesn't exist create empty constraint
 read_constraint(X, C) :-
-	(get_attr(X, constraint, C)
-	->	true
-	;	C=[]
-	).
+    var(X),
+    (get_attr(X, constraint, C)
+    ->	true
+    ;	C=[]
+    ).
 
+% read type attribute
+% If X is a variable and its type is not set, we set it to an unbound value
+read_type(X, T) :-
+    var(X),
+    (get_attr(X, type, T)
+    ->	true
+    ;   put_attr(X, type, T1),
+	T=T1
+    ).
+
+% lookup type of a constant
+lookup_type(X, T) :-
+    atomic(X)
+    type(_, T),
+    basics:member(X, T), !.
 
 read_id(X, (S, I)) :-
-	(get_attr(X, id, (S, I))
-	->	true
-	;	put_attr(X, id, (S1, I1)),
-		S1=S, I1=I % [?] Are fresh variables needed?
-	).
+    var(X),
+    (get_attr(X, id, (S, I))
+    ->	true
+    ;	put_attr(X, id, (S1, I1)),
+	S1=S, I1=I % [?] Are fresh variables needed?
+    ).
 
-read_type(X, T) :-
-	(get_attr(X, type, T)
-	->	true
-	;	(atomic(X)
-		->  Type(_, T),
-		    basics:member(X, T)
-		;   put_attr(X, type, T1),
-		    T1=T
-		)
-	).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Tree Structure
@@ -146,11 +179,18 @@ contains(tree(Y, _), X) :-
 contains(tree(Y, L), X) :-
     X \== Y,
     contains(L, X).
-
 contains([(_C,T)|R], X) :-
     (contains(T, X) 
     -> true
     ;  contains(R, X)).
+contains(and(T1, T2), X) :-
+    contains(T1, X).
+contains(and(T1, T2), X) :-
+    contains(T2, X).
+contains(or(T1, T2), X) :-
+    contains(T1, X).
+contains(or(T1, T2), X) :-
+    contains(T2, X).
 
 myzip([], [], []).
 myzip([A|AR], [B|BR], [(A,B)|R]) :-
@@ -159,3 +199,26 @@ myzip([A|AR], [B|BR], [(A,B)|R]) :-
 % for now we have dummy predicates for and/or
 and(T1, T2, and(T1,T2)).
 or(T1, T2, or(T1,T2)).
+
+update_edges(C_in, X, _C, C_out) :-
+    atomic(X),
+    C_in = C_out.
+update_edges(and(T1,T2), X, C, and(T1out,T2out)) :-
+    var(X),
+    update_edges(T1, X, C, T1out),
+    update_edges(T2, X, C, T2out).
+update_edges(or(T1,T2), X, C, or(T1out,T2out)) :-
+    var(X),
+    update_edges(T1, X, C, T1out),
+    update_edges(T2, X, C, T2out).
+update_edges(tree(X, [(C1,S)]), Y, C, tree(X, [(C2, S)])) :-
+    X==Y,
+    basics:append(C1, [C], C2), !.
+update_edges(tree(X, S1), Y, C, tree(X, S2)) :-
+    X \== Y,
+    update_edges(S1, Y, C, S2).
+update_edges([], _Y, _C, []).
+update_edges([(_E, T) | R], Y, C, [(_E, T1)| R1]) :-
+    update_edges(T, Y, C, T1),
+    update_edges(R, Y, C, R1).
+update_edges(leaf(_X), _Y, _C, leaf(_X)).
