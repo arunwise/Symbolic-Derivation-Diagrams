@@ -19,15 +19,16 @@ type_handler(T, X) :-
 	   true)
     ; % X is not a variable
       atomic(X),
-      type(_T, L),
-      basics:member(X, L)
+      %type(_S, T),
+      basics:member(X, T)
     ).
 
 % nothing needs to be done in id attribute handler
 id_handler(_I, _X) :-
     true.
 
-% dont have to do anything since constraints will ge re-written
+% dont have to do anything since constraints will get re-written due to unification
+% Going forward we may need to invoke a constraint solver to check satisfiability
 constraint_handler(_C, _X) :-
     true.
 
@@ -64,13 +65,13 @@ constraint(Lhs=Rhs, C_in, C_out) :-
     ),
     T1 = T2,
     (var(Lhs) ->
-	 set_constraint(Lhs, Lhs=Rhs)
+	 set_constraint(Lhs, Lhs=Rhs),
+         update_edges(C_in, Lhs, Lhs=Rhs, C_tmp)
     ; true),
     (var(Rhs) ->
-	 set_constraint(Rhs, Lhs=Rhs)
-    ; true),
-    update_edges(C_in, Lhs, Lhs=Rhs, C_tmp),
-    update_edges(C_tmp, Rhs, Lhs=Rhs, C_out).
+	 set_constraint(Rhs, Lhs=Rhs),
+	 update_edges(C_tmp, Rhs, Lhs=Rhs, C_out)
+    ; true).
 
 constraint(Lhs\=Rhs, C_in, C_out) :-
     % at most one of Lhs and Rhs can be a ground term
@@ -85,13 +86,13 @@ constraint(Lhs\=Rhs, C_in, C_out) :-
     ),
     T1 = T2,
     (var(Lhs) ->
-	 set_constraint(Lhs, Lhs\=Rhs)
+	 set_constraint(Lhs, Lhs\=Rhs),
+	 update_edges(C_in, Lhs, Lhs\=Rhs, C_tmp)
     ; true),
     (var(Rhs) ->
-	 set_constraint(Rhs, Lhs\=Rhs)
-    ; true),
-    update_edges(C_in, Lhs, Lhs\=Rhs, C_tmp),
-    update_edges(C_tmp, Rhs, Lhs\=Rhs, C_out).
+	 set_constraint(Rhs, Lhs\=Rhs),
+	 update_edges(C_tmp, Rhs, Lhs\=Rhs, C_out)	 
+    ; true).
 
 % set type attribute of a variable
 set_type(X, T) :-
@@ -137,7 +138,9 @@ read_constraint(X, C) :-
     var(X),
     (get_attr(X, constraint, C)
     ->	true
-    ;	C=[]
+    ;
+    C=[],
+    put_attr(X, constraint, C)
     ).
 
 % read type attribute
@@ -146,8 +149,9 @@ read_type(X, T) :-
     var(X),
     (get_attr(X, type, T)
     ->	true
-    ;   put_attr(X, type, T1),
-	T=T1
+    ;
+    var(T),
+    put_attr(X, type, T),
     ).
 
 % lookup type of a constant
@@ -156,12 +160,15 @@ lookup_type(X, T) :-
     type(_, T),
     basics:member(X, T), !.
 
+% read id attribute, if it doesn't exist set it to unbound pair of variables
 read_id(X, (S, I)) :-
     var(X),
     (get_attr(X, id, (S, I))
     ->	true
-    ;	put_attr(X, id, (S1, I1)),
-	S1=S, I1=I % [?] Are fresh variables needed?
+    ;
+    var(S), var(I),
+    put_attr(X, id, (S, I))
+    %S1=S, I1=I % [?] Are fresh variables needed?
     ).
 
 
@@ -169,13 +176,26 @@ read_id(X, (S, I)) :-
 % Tree Structure
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 one(leaf(1)).
+zero(leaf(0)).
 
-% represent trees as tree(Root,[Edge1,Subtree1,Edge2,Subtree2,...])
+% represent trees as tree(Root,[(Edge1, Subtree1), (Edge2, Subtree2), ...])
 make_tree(Root, Edges, Subtrees, tree(Root, L)) :-
-    myzip(Edges,Subtrees,L).
+    myzip(Edges, Subtrees, L).
 
-contains(tree(Y, _), X) :-
-    X==Y.
+% for now we have dummy predicates for and/or
+and(leaf(1), T, T) :- !.
+and(T, leaf(1), T) :- !.
+and(leaf(0), T, leaf(0)) :- !.
+and(T, leaf(0), leaf(0)) :- !.
+or(leaf(1), T, leaf(1)) :- !.
+or(T, leaf(1), leaf(1)) :- !.
+or(leaf(0), T, T) :- !.
+or(T, leaf(0), T) :- !.
+and(T1, T2, and(T1,T2)).
+or(T1, T2, or(T1,T2)).
+
+% Check if OSDD contains a variable X
+contains(tree(Y, _), X) :- X==Y, !.
 contains(tree(Y, L), X) :-
     X \== Y,
     contains(L, X).
@@ -184,25 +204,21 @@ contains([(_C,T)|R], X) :-
     -> true
     ;  contains(R, X)).
 contains(and(T1, T2), X) :-
-    contains(T1, X).
+    contains(T1, X), !.
 contains(and(T1, T2), X) :-
-    contains(T2, X).
+    contains(T2, X), !.
 contains(or(T1, T2), X) :-
-    contains(T1, X).
+    contains(T1, X), !.
 contains(or(T1, T2), X) :-
-    contains(T2, X).
+    contains(T2, X), !.
 
 myzip([], [], []).
 myzip([A|AR], [B|BR], [(A,B)|R]) :-
     myzip(AR, BR, R).
 
-% for now we have dummy predicates for and/or
-and(T1, T2, and(T1,T2)).
-or(T1, T2, or(T1,T2)).
-
-update_edges(C_in, X, _C, C_out) :-
-    atomic(X),
-    C_in = C_out.
+%% update_edges(C_in, X, _C, C_out) :-
+%%     atomic(X),
+%%     C_in = C_out.
 update_edges(and(T1,T2), X, C, and(T1out,T2out)) :-
     var(X),
     update_edges(T1, X, C, T1out),
