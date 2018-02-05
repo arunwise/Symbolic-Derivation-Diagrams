@@ -10,10 +10,10 @@ genotype(P, X, Y) :-
 
 bloodtype(P, T) :- genotype(P, X, Y), bloodtype_rule(X, Y, T).
 
-bloodtype_rule(X, Y, T) :- {X=Y}, X=T. % aa,bb,oo
+bloodtype_rule(X, Y, X) :- {X=Y}. % aa,bb,oo
 
-bloodtype_rule(X, Y, T) :- {X=o}, Y=T.
-bloodtype_rule(X, Y, T) :- {Y=o}, X=T.
+bloodtype_rule(X, Y, Y) :- {X=o}.
+bloodtype_rule(X, Y, X) :- {Y=o}.
 
 bloodtype_rule(X, Y, T) :- {X=a}, {Y=b}, T=ab.
 bloodtype_rule(X, Y, T) :- {X=b}, {Y=a}, T=ab.
