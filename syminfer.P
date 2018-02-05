@@ -108,7 +108,7 @@ set_type(X, T) :-
 % set id attribute of a variable
 set_id(X, (S, I)) :-
     var(X),
-    (get_attr(X, (S1, I1))
+    (get_attr(X, id, (S1, I1))
     ->
 	% We can't change id of a variable, therefore
 	S=S1, I=I1
@@ -151,12 +151,12 @@ read_type(X, T) :-
     ->	true
     ;
     var(T),
-    put_attr(X, type, T),
+    put_attr(X, type, T)
     ).
 
 % lookup type of a constant
 lookup_type(X, T) :-
-    atomic(X)
+    atomic(X),
     type(_, T),
     basics:member(X, T), !.
 

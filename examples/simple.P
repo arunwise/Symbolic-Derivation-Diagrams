@@ -1,0 +1,18 @@
+values(alpha, [a, b, c]).
+values(num, [1, 2, 3]).
+
+test1(X) :- msw(alpha, 1, X).
+
+test2(X) :- msw(alpha, 1, X), {X = a}.
+
+test3(X) :- msw(alpha, 1, X), {X = 1}.
+
+test4(X, Y) :- msw(alpha, 1, X), msw(alpha, 2, Y), {X=Y}.
+
+test5(X, Y) :- msw(alpha, 1, X), msw(alpha, 2, Y), {X\=Y}.
+
+test6(X, Y) :- msw(alpha, 1, X), msw(num, 1, Y), {X=Y}.
+
+test7(X, Y) :- msw(alpha, 1, X), msw(num, 1, Y), {X\=Y}.
+
+test8(X, Y) :- msw(alpha, 1, X), X=Y.
