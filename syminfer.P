@@ -32,10 +32,22 @@ id_handler(_I, _X) :-
 constraint_handler(_C, _X) :-
     true.
 
+% control display of attributes
+display_attributes(off).
+
 % display handlers
-display_type(A) :- write(A).
-display_id(A) :- write(A).
-display_constr(A) :- write(A).
+display_type(A) :-
+    (display_attributes(on) ->
+	 write(A)
+    ;true).
+display_id(A) :-
+    (display_attributes(on) ->
+	 write(A)
+    ;true).
+display_constr(A) :-
+    (display_attributes(on) ->
+	 write(A)
+    ; true).
 
 % definition of msw
 msw(S, I, X, C_in, C_out) :-
