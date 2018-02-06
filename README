@@ -1,0 +1,6 @@
+1. To transform PLP programs
+  - consult xform.pl
+  - use   transform_file('inputfile', 'outputfile')
+2. To generate OSDD for query q(v1,...,vn) 
+  - consult syminfer.P and transformed file 'outputfile'
+  - evaluate q(v1,....,vn,leaf(1),O) where O contains the required OSDD
