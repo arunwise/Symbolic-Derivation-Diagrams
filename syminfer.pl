@@ -135,12 +135,12 @@ satisfiable(X, [Lhs = Rhs|Cs], T_in, T_out) :-
     writeln('START satisfiable'), write('LHS: '), writeln(Lhs), write('RHS: '), writeln(Rhs), write('Domain: '), writeln(T_in),
     (X = Lhs
     ->  (var(Rhs)
-        ->  satisfiable(X, Cs, T_in, T_out)  % [?] Not clear how to handle
+        ->  T=T_in  % [?] Not clear how to handle
         ;   basics:member(Rhs, T_in), T = Rhs  % If Rhs is not a variable, check if it is in the domain of T, if so restrict T to Rhs
         )
     ;   (X = Rhs
         ->  (var(Lhs)
-            ->  satisfiable(X, Cs, T_in, T_out)
+            ->  T=T_in
             ;   basics:member(Lhs, T_in), T = Lhs
             )
         ;   false
