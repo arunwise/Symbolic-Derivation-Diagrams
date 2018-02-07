@@ -3,3 +3,6 @@
 *.DS_Store
 examples/transformed
 examples/transformed/*
+*~
+*.dot
+*.pdf
