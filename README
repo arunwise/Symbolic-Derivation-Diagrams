@@ -4,3 +4,9 @@
 2. To generate OSDD for query q(v1,...,vn) 
   - consult syminfer.P and transformed file 'outputfile'
   - evaluate q(v1,....,vn,leaf(1),O) where O contains the required OSDD
+3. To visualize OSDDs
+   - In the XSB interpreter:  set_prolog_flag(write_attributes, ignore)
+   - Generate OSDD O and use writeDot(O, 'dotfile.dot')
+   - Install and use 'dot' tool to generate PNG/PDF or other format file
+     $ dot -Tpdf dotfile.dot -o dotfile.pdf
+   
