@@ -120,11 +120,12 @@ id_handler(I, X) :- true.
 % Else X is a constant,
 %     and X unifies when X is a member of C.
 % ---
-% TESTS: set_constraint(X, [a = X, X \= b]), set_constraint(Y, [Y = d]), set_type(Y, [c, e, a]), X=Y.
-%        set_constraint(X, [X \= b, a = X]), set_constraint(Y, [Y \= e, Y=Z]), set_type(Y, [c, e, a]), X=Y.
-%        set_constraint(X, [X \= b, a \= X]), set_constraint(Y, [Y \= e, Y \= c]), set_type(Y, [c, e, a]), X=Y.
+% TESTS: set_constraint(X, [a = X, X \= b]), set_constraint(Y, [Y = d]), set_type(Y, [c, e, a]), X=Y.  [no]
+%        set_constraint(X, [X \= b, a = X]), set_constraint(Y, [Y \= e, Y=Z]), set_type(Y, [c, e, a]), X=Y.  [yes]
+%        set_constraint(X, [X \= b, a \= X]), set_constraint(Y, [Y \= e, Y \= c]), set_type(Y, [c, e, a]), X=Y.  [no]
+%        set_constraint(X, [X \= b, a = X, X \= Y]), set_constraint(Y, [Y \= e, Y=Z]), set_type(Y, [c, e, a]), X=Y.  [no]
 constraint_handler(C, X) :-
-    writeln('START constraint_handler'),
+    writeln('START constraint_handler'), write(C),
     (var(X), get_attr(X, constraint, CX)
     ->  listutil:merge(C, CX, _C), 
         write('Merged constraints: '), writeln(_C), writeln('END constraint_handler\n'),
@@ -149,7 +150,7 @@ satisfiable(X, [Lhs = Rhs|Cs], T_in, T_out) :-
     writeln('START satisfiable'), write('LHS: '), writeln(Lhs), write('RHS: '), writeln(Rhs), write('Domain: '), writeln(T_in),
     (X = Lhs
     ->  (var(Rhs)
-        ->  T = T_in  % [?] Not clear how to handle
+        ->  T = T_in
         ;   basics:member(Rhs, T_in), T = Rhs  % If Rhs is not a variable, check if it is in the domain of T, if so restrict T to Rhs
         )
     ;   (X = Rhs
@@ -174,7 +175,10 @@ satisfiable(X, [Lhs \= Rhs|Cs], T_in, T_out) :-
     writeln('START satisfiable'), write('LHS: '), writeln(Lhs), write('RHS: '), writeln(Rhs), write('Domain: '), writeln(T_in),
     (X = Lhs
     ->  (var(Rhs)
-        ->  T = T_in  % [?] Not clear how to handle
+        ->  (Rhs = Lhs
+            ->  false
+            ;   T = T_in
+            )
         ;   (basics:member(Rhs, T_in)
             ->  basics:select(Rhs, T_in, T)
             ;   T = T_in
@@ -182,7 +186,10 @@ satisfiable(X, [Lhs \= Rhs|Cs], T_in, T_out) :-
         )
     ;   (X = Rhs
         ->  (var(Lhs)
-            ->  T = T_in
+            ->  (Lhs = Rhs
+                ->  false
+                ;   T = T_in
+                )
             ;   (basics:member(Lhs, T_in)
                 ->  basics:select(Lhs, T_in, T)
                 ;   T = T_in
