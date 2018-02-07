@@ -119,14 +119,19 @@ type_handler(T, X) :-
 % ID attribute handler
 % Nothing needs to be done in id attribute handler
 %
-id_handler(_I, _X) :- true.
+id_handler(I, X) :- true.
 
 %
 % Constraint attribute handler
 % Constraints will be re-written due to unification
-% NOTE: Going forward we may need to invoke a constraint solver to check satisfiability
 %
-constraint_handler(_C, _X) :- true.
+constraint_handler(_C, X) :-
+    (var(X), get_attr(X, constraint, CX)
+    ->  satisfiable(_C, CX)
+    ;   basics:member(X, _C)
+    ).
+
+satisfiable(X, Y) :- true.
 
 %
 % Display handlers
@@ -182,10 +187,10 @@ set_constraint(X, C) :-
     (get_attr(X, constraint, C1)
     ->  (basics:member(C, C1)
         ->  true
-        ;   basics:append(C1, [C], C2),
+        ;   basics:append(C1, C, C2),
             put_attr(X, constraint, C2)
         )
-    ;   put_attr(X, constraint, [C])
+    ;   put_attr(X, constraint, C)
     ).
 
 %
@@ -339,7 +344,7 @@ ord([A1 | A1Rest], [A2 | A2Rest], C, O) :-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Misc
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-display_attributes(off).  % control display of attributes
+display_attributes(on).  % control display of attributes
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Visualization using DOT
