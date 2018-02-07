@@ -113,9 +113,16 @@ type_handler(T, X) :-
 % Nothing needs to be done in id attribute handler
 id_handler(I, X) :- true.
 
-% Constraint attribute handler
+% Constraint attribute handler.
+% If X is a variable which has a constraint list CX,
+%     merge C and CX and see if the new list is satisfiable w.r.t. the domain of X,
+%     apply the new constraints and restricted domain as attributes of X.
+% Else X is a constant,
+%     and X unifies when X is a member of C.
+% ---
 % TESTS: set_constraint(X, [a = X, X \= b]), set_constraint(Y, [Y = d]), set_type(Y, [c, e, a]), X=Y.
 %        set_constraint(X, [X \= b, a = X]), set_constraint(Y, [Y \= e, Y=Z]), set_type(Y, [c, e, a]), X=Y.
+%        set_constraint(X, [X \= b, a \= X]), set_constraint(Y, [Y \= e, Y \= c]), set_type(Y, [c, e, a]), X=Y.
 constraint_handler(C, X) :-
     writeln('START constraint_handler'),
     (var(X), get_attr(X, constraint, CX)
@@ -128,19 +135,26 @@ constraint_handler(C, X) :-
     ;   basics:member(X, C)
     ).
 
-% We assume that the constraints are consistent within a variables constraint list.
-satisfiable(_, [], T, T).
+% An empty list of constraints is satisfiable given that the domain is not empty.
+satisfiable(_, [], T, T) :- T \= [].
 
+% Handles equality constraints.
+% If the constraint is of the form X = a (or a = X) and a is in the domain of X,
+%     restrict the domain of X to be a
+% Else if the constraint is of the form X = Y (or Y = X),
+%     continue without modifying the domain of X
+% Else,
+%     fail.
 satisfiable(X, [Lhs = Rhs|Cs], T_in, T_out) :- 
     writeln('START satisfiable'), write('LHS: '), writeln(Lhs), write('RHS: '), writeln(Rhs), write('Domain: '), writeln(T_in),
     (X = Lhs
     ->  (var(Rhs)
-        ->  T=T_in  % [?] Not clear how to handle
+        ->  T = T_in  % [?] Not clear how to handle
         ;   basics:member(Rhs, T_in), T = Rhs  % If Rhs is not a variable, check if it is in the domain of T, if so restrict T to Rhs
         )
     ;   (X = Rhs
         ->  (var(Lhs)
-            ->  T=T_in
+            ->  T = T_in
             ;   basics:member(Lhs, T_in), T = Lhs
             )
         ;   false
@@ -149,6 +163,13 @@ satisfiable(X, [Lhs = Rhs|Cs], T_in, T_out) :-
     write('Domain Out: '), writeln(T), writeln('END satisfiable\n'),
     satisfiable(X, Cs, T, T_out).
 
+% Handles inequality constraints.
+% If the constraint is of the form X \= a (or a \= X) and a is in the domain of X,
+%     remove a from the domain of X
+% Else if the constraint is of the form X \= Y (or Y \= X), 
+%     continue without modifying the domain of X
+% Else,
+%     fail.
 satisfiable(X, [Lhs \= Rhs|Cs], T_in, T_out) :- 
     writeln('START satisfiable'), write('LHS: '), writeln(Lhs), write('RHS: '), writeln(Rhs), write('Domain: '), writeln(T_in),
     (X = Lhs
@@ -156,14 +177,16 @@ satisfiable(X, [Lhs \= Rhs|Cs], T_in, T_out) :-
         ->  satisfiable(X, Cs, T_in, T_out)  % [?] Not clear how to handle
         ;   (basics:member(Rhs, T_in)
             ->  basics:select(Rhs, T_in, T)
-            ;   T=T_in)
+            ;   T = T_in
+            )
         )
     ;   (X = Rhs
         ->  (var(Lhs)
             ->  satisfiable(X, Cs, T_in, T_out)
             ;   (basics:member(Lhs, T_in)
                 ->  basics:select(Lhs, T_in, T)
-                ;   T=T_in)
+                ;   T = T_in
+                )
             )
         ;   false
         )
