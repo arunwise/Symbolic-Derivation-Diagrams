@@ -243,16 +243,16 @@ make_tree(Root, Edges, Subtrees, tree(Root, L)) :-
     myzip(Edges, Subtrees, L).
 
 % for now we have dummy predicates for and/or
-and(leaf(1), T, T) :- !.
-and(T, leaf(1), T) :- !.
-and(leaf(0), T, leaf(0)) :- !.
-and(T, leaf(0), leaf(0)) :- !.
-or(leaf(1), T, leaf(1)) :- !.
-or(T, leaf(1), leaf(1)) :- !.
-or(leaf(0), T, T) :- !.
-or(T, leaf(0), T) :- !.
-and(T1, T2, and(T1,T2)).
-or(T1, T2, or(T1,T2)).
+and(leaf(1), _T, _T) :- !.
+and(_T, leaf(1), _T) :- !.
+and(leaf(0), _T, leaf(0)) :- !.
+and(_T, leaf(0), leaf(0)) :- !.
+or(leaf(1), _T, leaf(1)) :- !.
+or(_T, leaf(1), leaf(1)) :- !.
+or(leaf(0), _T, _T) :- !.
+or(_T, leaf(0), _T) :- !.
+and(_T1, _T2, and(_T1, _T2)).
+or(_T1, _T2, or(_T1, _T2)).
 
 % Check if OSDD contains a variable X
 contains(tree(Y, _), X) :- X==Y, !.
@@ -263,13 +263,13 @@ contains([(_C,T)|R], X) :-
     (contains(T, X) 
     -> true
     ;  contains(R, X)).
-contains(and(T1, T2), X) :-
+contains(and(T1, _T2), X) :-
     contains(T1, X), !.
-contains(and(T1, T2), X) :-
+contains(and(_T1, T2), X) :-
     contains(T2, X), !.
-contains(or(T1, T2), X) :-
+contains(or(T1, _T2), X) :-
     contains(T1, X), !.
-contains(or(T1, T2), X) :-
+contains(or(_T1, T2), X) :-
     contains(T2, X), !.
 
 myzip([], [], []).
@@ -340,3 +340,88 @@ ord([A1 | A1Rest], [A2 | A2Rest], C, O) :-
 % Misc
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 display_attributes(off).  % control display of attributes
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Visualization using DOT
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+writeDot(OSDD, DotFile) :-
+    paths(OSDD, Paths),
+    current_prolog_flag(write_attributes, F),
+    set_prolog_flag(write_attributes, ignore),
+    open(DotFile, write, Handle),
+    write(Handle, 'digraph osdd {\n'),
+    writeDotPaths(Paths, Handle),
+    write(Handle, '}\n'),
+    close(Handle),
+    set_prolog_flag(write_attributes, F).
+
+writeDotPaths([], _H).
+writeDotPaths([P|R], Handle) :-
+    writeDotPath(P, Handle),
+    writeDotPaths(R, Handle).
+
+writeDotPath([(Var,Label)], Handle) :-
+    (Label=0;Label=1),
+    write(Handle, Var),
+    write(Handle, ' [label='),
+    write(Handle, Label),
+    write(Handle, '];\n').
+
+writeDotPath([(V1,L1), E| R], Handle) :-
+    R = [(V2,_L2)|_],
+    write(Handle, V1), write(Handle, ' [label='), write(Handle, L1), write(Handle, '];\n'),
+    write(Handle, V1), write(Handle, ' -> '), write(Handle, V2), write(Handle, ' [label='), write(Handle, '"'),writeDotConstraint(Handle, E), write(Handle, '"'), write(Handle, '];\n'),
+    writeDotPath(R, Handle).
+
+writeDotConstraint(Handle, null) :-
+    write(Handle, '').
+writeDotConstraint(Handle, []) :-
+    write(Handle, '').
+writeDotConstraint(Handle, [C]) :-
+    write1(Handle, C).
+writeDotConstraint(Handle, [C|R]) :-
+    R \= [],
+    write1(Handle, C), write(Handle, ','),
+    writeDotConstraint(Handle, R).
+
+write1(Handle, X=Y) :-
+    write(Handle, X=Y).
+write1(Handle, X\=Y) :-
+    write(Handle, X), write(Handle, '\\\='), write(Handle, Y).
+write1(Handle, X<Y) :-
+    write(Handle, X<Y).
+
+%% collect paths in an OSDD
+% paths are simply sequences (lists) of node,edge,node... values nodes
+% are represented by pairs (VarName, Label). This is needed because,
+% otherwise leaves "and", "or" nodes will get combined.
+paths(leaf(X), [[(_Y,X)]]). % fresh variable Y helps distinguish from other nodes with same value of X
+
+paths(and(T1, T2), P) :-
+    paths(T1, P1),
+    addprefix([(Y,and),null], P1, P1A),
+    paths(T2, P2),
+    addprefix([(Y,and),null], P2, P2A),
+    basics:append(P1A, P2A, P).
+
+paths(or(T1, T2), P) :-
+    paths(T1, P1),
+    addprefix([(Y,or),null], P1, P1A),
+    paths(T2, P2),
+    addprefix([(Y,or),null], P2, P2A),
+    basics:append(P1A, P2A, P).
+
+paths(tree(Root, Subtrees), P) :-
+    paths1(Root, Subtrees, [], P).
+
+paths1(_Root, [], _P, _P).
+paths1(Root, [(E,T)|R], Pin, Pout) :-
+    paths(T, P1),
+    addprefix([(Root,Root),E], P1, P2),
+    basics:append(Pin, P2, P3),
+    paths1(Root, R, P3, Pout).
+
+addprefix(_L, [], []).
+addprefix(L, [P|R], [P1|RR]) :-
+    basics:append(L, P, P1),
+    addprefix(L, R, RR).
