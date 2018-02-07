@@ -2,7 +2,7 @@
   - consult xform.pl
   - use   transform_file('inputfile', 'outputfile')
 2. To generate OSDD for query q(v1,...,vn) 
-  - consult syminfer.P and transformed file 'outputfile'
+  - consult syminfer.pl and transformed file 'outputfile'
   - evaluate q(v1,....,vn,leaf(1),O) where O contains the required OSDD
 3. To visualize OSDDs
    - In the XSB interpreter:  set_prolog_flag(write_attributes, ignore)
