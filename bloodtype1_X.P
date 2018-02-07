@@ -1,0 +1,11 @@
+type(gene,[a,b,o]).
+values(gene,[a,b,o]).
+:- table bloodtype(_,_,lattice(or/3)).
+bloodtype(A,B,C) :- (genotype(D,E,B,F),constraint(D = E,F,G),constraint(A = D,G,C)).
+bloodtype(A,B,C) :- (genotype(D,E,B,F),constraint(D = o,F,G),constraint(A = E,G,C)).
+bloodtype(A,B,C) :- (genotype(D,E,B,F),constraint(E = o,F,G),constraint(A = D,G,C)).
+bloodtype(A,B,C) :- (genotype(D,E,B,F),constraint(D = a,F,G),constraint(E = b,G,C),A = ab).
+bloodtype(A,B,C) :- (genotype(D,E,B,F),constraint(D = b,F,G),constraint(E = a,G,C),A = ab).
+:- table genotype(_,_,_,lattice(or/3)).
+genotype(A,B,C,D) :- (msw(gene,E,A,C,F),msw(gene,G,B,F,D)).
+sick(mary,A,A).

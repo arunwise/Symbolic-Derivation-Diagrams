@@ -125,13 +125,27 @@ id_handler(I, X) :- true.
 % Constraint attribute handler
 % Constraints will be re-written due to unification
 %
-constraint_handler(_C, X) :-
+constraint_handler(C, X) :-
     (var(X), get_attr(X, constraint, CX)
-    ->  satisfiable(_C, CX)
-    ;   basics:member(X, _C)
+    ->  satisfiable(C, CX),
+        listutil:merge(C, CX, _C),
+        put_attr(X, constraint, _C)
+    ;   basics:member(X, C)
     ).
 
-satisfiable(X, Y) :- true.
+%
+% We assume that the constraints are consistent within a variables constraint list.
+%
+satisfiable([], _).
+
+satisfiable([C|Cs], C2) :- 
+    consistent(C, C2),
+    satisfiable(Cs, C2).
+
+consistent(_C, [C|Cs]) :-
+    % check if _C is consistent with C
+    consistent(_C, Cs).
+
 
 %
 % Display handlers
