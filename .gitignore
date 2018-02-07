@@ -1,4 +1,5 @@
 *.xwam
 *.osdd
 *.DS_Store
-
+examples/transformed
+examples/transformed/*
