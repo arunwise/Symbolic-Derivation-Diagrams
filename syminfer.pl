@@ -1,4 +1,6 @@
-%% Code for symbolic inference using OSDDs.
+/*
+ *  Code for symbolic inference using OSDDs.
+ */ 
 :- import get_attr/3, put_attr/3, install_verify_attribute_handler/4, install_attribute_portray_hook/3 from machine.
 
 :- install_verify_attribute_handler(type, AttrValue, Target, type_handler(AttrValue, Target)).
@@ -9,200 +11,223 @@
 :- install_attribute_portray_hook(id, Attr, display_id(Attr)).
 :- install_attribute_portray_hook(constraint, Attr, display_constr(Attr)).
 
-% type attribute handler
-type_handler(T, X) :-
-    (var(X) ->
-	 (get_attr(X, type, XType) ->
-	      % X is also attributed variable
-	      T = XType
-	 ; % X is not attributed variable
-	   true)
-    ; % X is not a variable
-      atomic(X),
-      %type(_S, T),
-      basics:member(X, T)
-    ).
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Constraint definitions
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% nothing needs to be done in id attribute handler
-id_handler(_I, _X) :-
-    true.
-
-% dont have to do anything since constraints will get re-written due to unification
-% Going forward we may need to invoke a constraint solver to check satisfiability
-constraint_handler(_C, _X) :-
-    true.
-
-% control display of attributes
-display_attributes(off).
-
-% display handlers
-display_type(A) :-
-    (display_attributes(on) ->
-	 write(A)
-    ;true).
-display_id(A) :-
-    (display_attributes(on) ->
-	 write(A)
-    ;true).
-display_constr(A) :-
-    (display_attributes(on) ->
-	 write(A)
-    ; true).
-
+%
 % definition of msw
+%
 msw(S, I, X, C_in, C_out) :-
-%	functor(S, F, N),
-	type(S, T),
-	set_type(X, T),
-	set_id(X, (S, I)),
-	(contains(C_in, X)
-	->  C_out = C_in
-	;   read_constraint(X, C),
-	    one(One),
-	    make_tree(X, [C], [One], Osdd),   % osdd: X -- C --> 1
-	    and(C_in, Osdd, C_out)
-	).
+%   functor(S, F, N),
+    type(S, T),
+    set_type(X, T),
+    set_id(X, (S, I)),
+    (contains(C_in, X)
+    ->  C_out = C_in
+    ;   read_constraint(X, C),
+        one(One),
+        make_tree(X, [C], [One], Osdd),   % osdd: X -- C --> 1
+        and(C_in, Osdd, C_out)
+    ).
 
 % definition of atomic constraints
 constraint(Lhs=Rhs, C_in, C_out) :-
     % at most one of Lhs and Rhs can be a ground term
     (var(Lhs); var(Rhs)),
     (var(Lhs) ->
-	 read_type(Lhs, T1)
+     read_type(Lhs, T1)
     ; lookup_type(Lhs, T1)
     ),
     (var(Rhs) ->
-	 read_type(Rhs, T2)
+     read_type(Rhs, T2)
     ; lookup_type(Rhs, T2)
     ),
     T1 = T2,
     (var(Lhs) ->
-	 set_constraint(Lhs, Lhs=Rhs)
+     set_constraint(Lhs, Lhs=Rhs)
     ;
     true),
     (var(Rhs) ->
-	 set_constraint(Rhs, Lhs=Rhs)
+     set_constraint(Rhs, Lhs=Rhs)
     ;
     true),
     update_edges(C_in, Lhs, Lhs=Rhs, C_tmp),
     update_edges(C_tmp, Rhs, Lhs=Rhs, C_out).
     %% (var(Lhs) ->
-    %% 	 set_constraint(Lhs, Lhs=Rhs),
+    %%   set_constraint(Lhs, Lhs=Rhs),
     %%      update_edges(C_in, Lhs, Lhs=Rhs, C_tmp)
     %% ; true),
     %% (var(Rhs) ->
-    %% 	 set_constraint(Rhs, Lhs=Rhs),
-    %% 	 update_edges(C_tmp, Rhs, Lhs=Rhs, C_out)
+    %%   set_constraint(Rhs, Lhs=Rhs),
+    %%   update_edges(C_tmp, Rhs, Lhs=Rhs, C_out)
     %% ; true).
 
 constraint(Lhs\=Rhs, C_in, C_out) :-
     % at most one of Lhs and Rhs can be a ground term
     (var(Lhs); var(Rhs)),
     (var(Lhs) ->
-	 read_type(Lhs, T1)
+     read_type(Lhs, T1)
     ; lookup_type(Lhs, T1)
     ),
     (var(Rhs) ->
-	 read_type(Rhs, T2)
+     read_type(Rhs, T2)
     ; lookup_type(Rhs, T2)
     ),
     T1 = T2,
     (var(Lhs) ->
-	 set_constraint(Lhs, Lhs\=Rhs)
+     set_constraint(Lhs, Lhs\=Rhs)
     ;
     true),
     (var(Rhs) ->
-	 set_constraint(Rhs, Lhs\=Rhs)
+     set_constraint(Rhs, Lhs\=Rhs)
     ;
     true),
     update_edges(C_in, Lhs, Lhs\=Rhs, C_tmp),
     update_edges(C_tmp, Rhs, Lhs\=Rhs, C_out).
     %% (var(Lhs) ->
-    %% 	 set_constraint(Lhs, Lhs\=Rhs),
-    %% 	 update_edges(C_in, Lhs, Lhs\=Rhs, C_tmp)
+    %%   set_constraint(Lhs, Lhs\=Rhs),
+    %%   update_edges(C_in, Lhs, Lhs\=Rhs, C_tmp)
     %% ; true),
     %% (var(Rhs) ->
-    %% 	 set_constraint(Rhs, Lhs\=Rhs),
-    %% 	 update_edges(C_tmp, Rhs, Lhs\=Rhs, C_out)	 
+    %%   set_constraint(Rhs, Lhs\=Rhs),
+    %%   update_edges(C_tmp, Rhs, Lhs\=Rhs, C_out)   
     %% ; true).
 
-% set type attribute of a variable
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Attribute handlers
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%
+% Type attribute handler
+%
+type_handler(T, X) :-
+    (var(X) 
+    ->  (get_attr(X, type, _T)
+        ->  T = _T     % X is also attributed variable
+        ;   true       % X is not attributed variable
+        )
+    ;   atomic(X),     % [?] Is this redundant?
+        %type(_S, T),
+        basics:member(X, T)
+    ).
+
+%
+% ID attribute handler
+% Nothing needs to be done in id attribute handler
+%
+id_handler(_I, _X) :- true.
+
+%
+% Constraint attribute handler
+% Constraints will be re-written due to unification
+% NOTE: Going forward we may need to invoke a constraint solver to check satisfiability
+%
+constraint_handler(_C, _X) :- true.
+
+%
+% Display handlers
+% Assert display_attributes(on) to display the value of the attribute
+%
+display_type(A) :-
+    (display_attributes(on) 
+    ->  write(A)
+    ;   true
+    ).
+
+display_id(A) :-
+    (display_attributes(on) 
+    ->  write(A)
+    ;   true
+    ).
+
+display_constr(A) :-
+    (display_attributes(on)
+    ->  write(A)
+    ;   true
+    ).
+
+%
+% Sets type attribute of a variable to the domain to the variable.
+%
 set_type(X, T) :-
     var(X),
     (get_attr(X, type, T1)
-    ->
-	% We can't change type of a variable, therefore
-	T = T1
-    ;
-    put_attr(X, type, T)
+    ->  T = T1  % We can't change type of a variable
+    ;   put_attr(X, type, T)
     ).
 
-% set id attribute of a variable
+%
+% Sets id attribute of a random variable to (S, I).
+% Where S is the switch name and I is the instance.
+%
 set_id(X, (S, I)) :-
     var(X),
     (get_attr(X, id, (S1, I1))
-    ->
-	% We can't change id of a variable, therefore
-	S=S1, I=I1
-    ;
-    put_attr(X, id, (S, I))
+    ->  S=S1, I=I1  % We can't change id of a variable
+    ;   put_attr(X, id, (S, I))
     ).
 
-% set constraint attribute of a variable
+%
+% Sets constraint attribute of a variable.
+% If X already has a constraint list and C is not already in the list, 
+%     append C to the constraint list.
+% Otherwise initialize the constraint list of X to [C].
+%
 set_constraint(X, C) :-
     var(X),
     (get_attr(X, constraint, C1)
-    ->
-	% we take conjunction of constraints
-	(basics:member(C, C1)
-	->
-	    true
-	;
-	basics:append(C1, [C], C2),
-	put_attr(X, constraint, C2)
-	)
-    ;
-    put_attr(X, constraint, [C])
+    ->  (basics:member(C, C1)
+        ->  true
+        ;   basics:append(C1, [C], C2),
+            put_attr(X, constraint, C2)
+        )
+    ;   put_attr(X, constraint, [C])
     ).
 
-% read constraint attribute, if it doesn't exist create empty constraint
+%
+% Reads constraint attribute, if it doesn't exist set to empty constraint.
+%
 read_constraint(X, C) :-
     var(X),
     (get_attr(X, constraint, C)
-    ->	true
-    ;
-    C=[],
-    put_attr(X, constraint, C)
+    ->  true
+    ;   C=[],
+        put_attr(X, constraint, C)
     ).
 
-% read type attribute
-% If X is a variable and its type is not set, we set it to an unbound value
+%
+% Reads type attribute.
+% If X is a variable and its type is not set, we set it to an unbound value.
+%
 read_type(X, T) :-
     var(X),
     (get_attr(X, type, T)
-    ->	true
-    ;
-    var(T),
-    put_attr(X, type, T)
+    ->  true
+    ;   var(T),
+        put_attr(X, type, T)
     ).
 
-% lookup type of a constant
+%
+% Lookup type of a constant by searching for a type T which X is an element of.
+% NOTE: Should set T to the greatest superset.
+%
 lookup_type(X, T) :-
     atomic(X),
     type(_, T),
     basics:member(X, T), !.
 
-% read id attribute, if it doesn't exist set it to unbound pair of variables
+%
+% Reads id attribute, if it doesn't exist set it to unbound pair of variables.
+%
 read_id(X, (S, I)) :-
     var(X),
     (get_attr(X, id, (S, I))
-    ->	true
-    ;
-    var(S), var(I),
-    put_attr(X, id, (S, I))
-    %S1=S, I1=I % [?] Are fresh variables needed?
+    ->  true
+    ;   var(S), var(I),  % [?] Is this needed?
+        put_attr(X, id, (S, I))
+        %S1=S, I1=I % [?] Are fresh variables needed?
     ).
-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Tree Structure
@@ -307,3 +332,9 @@ ord([A1 | A1Rest], [A2 | A2Rest], C, O) :-
     % check whether constraint formula (which ?) entails A1 < A2 or A1
     % > A2 or there is no ordering
     true.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Misc
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+display_attributes(off).  % control display of attributes
