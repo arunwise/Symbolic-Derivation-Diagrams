@@ -15,13 +15,11 @@
 % Constraint processing definitions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%
 % Definition of msw constraint processing.
 %     First set the type of X to be the domain of S,
 %     Then set the ID of X to be the pair (S, I),
 %     If X is in C_in ...?
 %     Otherwise, construct the OSDD rooted at X.
-%
 msw(S, I, X, C_in, C_out) :-
 %   functor(S, F, N),
     type(S, T),
@@ -35,9 +33,7 @@ msw(S, I, X, C_in, C_out) :-
         and(C_in, Osdd, C_out)
     ).
 
-%
 % Definition of atomic constraint processing.
-%
 constraint(Lhs=Rhs, C_in, C_out) :-
     (var(Lhs); var(Rhs)),  % at most one of Lhs and Rhs can be a ground term
     (var(Lhs) 
@@ -101,9 +97,7 @@ constraint(Lhs\=Rhs, C_in, C_out) :-
 % Attribute processing definitions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%
 % Type attribute handler
-%
 type_handler(T, X) :-
     (var(X) 
     ->  (get_attr(X, type, _T)
@@ -115,42 +109,69 @@ type_handler(T, X) :-
         basics:member(X, T)
     ).
 
-%
 % ID attribute handler
 % Nothing needs to be done in id attribute handler
-%
 id_handler(I, X) :- true.
 
-%
 % Constraint attribute handler
-% Constraints will be re-written due to unification
-%
+% TESTS: set_constraint(X, [a = X, X \= b]), set_constraint(Y, [Y = d]), set_type(Y, [c, e, a]), X=Y.
+%        set_constraint(X, [X \= b, a = X]), set_constraint(Y, [Y \= e]), set_type(Y, [c, e, a]), X=Y.
 constraint_handler(C, X) :-
+    writeln('START constraint_handler'),
     (var(X), get_attr(X, constraint, CX)
-    ->  satisfiable(C, CX),
-        listutil:merge(C, CX, _C),
+    ->  listutil:merge(C, CX, _C), writeln(_C), writeln('END constraint_handler'),
+        read_type(X, T),
+        satisfiable(X, _C, T, T_restricted),
+        put_attr(X, type, T_restricted),
         put_attr(X, constraint, _C)
     ;   basics:member(X, C)
     ).
 
-%
 % We assume that the constraints are consistent within a variables constraint list.
-%
-satisfiable([], _).
+satisfiable(_, [], T, T).
 
-satisfiable([C|Cs], C2) :- 
-    consistent(C, C2),
-    satisfiable(Cs, C2).
+satisfiable(X, [Lhs = Rhs|Cs], T_in, T_out) :- 
+    writeln('START satisfiable'), write('LHS: '), writeln(Lhs), write('RHS: '), writeln(Rhs), write('Domain: '), writeln(T_in),
+    (X = Lhs
+    ->  (var(Rhs)
+        ->  true  % [?] Not clear how to handle
+        ;   basics:member(Rhs, T_in), T = Rhs % If Rhs is not a variable, check if it is in the domain of T, if so restrict T to Rhs
+        )
+    ;   (X = Rhs
+        ->  (var(Lhs)
+            ->  true
+            ;   basics:member(Lhs, T_in), T = Lhs
+            )
+        ;   false
+        )
+    ),
+    write('Domain Out: '), writeln(T), writeln('END satisfiable\n'),
+    satisfiable(X, Cs, T, T_out).
 
-consistent(_C, [C|Cs]) :-
-    % check if _C is consistent with C
-    consistent(_C, Cs).
+satisfiable(X, [Lhs \= Rhs|Cs], T_in, T_out) :- 
+    writeln('START satisfiable'), write('LHS: '), writeln(Lhs), write('RHS: '), writeln(Rhs), write('Domain: '), writeln(T_in),
+    (X = Lhs
+    ->  (var(Rhs)
+        ->  true  % [?] Not clear how to handle
+        ;   (basics:member(Rhs, T_in)
+            ->  basics:select(Rhs, T_in, T)
+            ;   T=T_in)
+        )
+    ;   (X = Rhs
+        ->  (var(Lhs)
+            ->  true
+            ;   (basics:member(Lhs, T_in)
+                ->  basics:select(Lhs, T_in, T)
+                ;   T=T_in)
+            )
+        ;   false
+        )
+    ),
+    write('Domain Out: '), writeln(T), writeln('END satisfiable\n'),
+    satisfiable(X, Cs, T, T_out).
 
-
-%
 % Display handlers
 % Assert display_attributes(on) to display the value of the attribute
-%
 display_type(A) :-
     (display_attributes(on) 
     ->  write(A)
@@ -169,9 +190,7 @@ display_constr(A) :-
     ;   true
     ).
 
-%
 % Sets type attribute of a variable to the domain to the variable.
-%
 set_type(X, T) :-
     var(X),
     (get_attr(X, type, T1)
@@ -179,10 +198,8 @@ set_type(X, T) :-
     ;   put_attr(X, type, T)
     ).
 
-%
 % Sets id attribute of a random variable to (S, I).
 % Where S is the switch name and I is the instance.
-%
 set_id(X, (S, I)) :-
     var(X),
     (get_attr(X, id, (S1, I1))
@@ -190,12 +207,10 @@ set_id(X, (S, I)) :-
     ;   put_attr(X, id, (S, I))
     ).
 
-%
 % Sets constraint attribute of a variable.
 % If X already has a constraint list and C is not already in the list, 
 %     append C to the constraint list.
 % Otherwise initialize the constraint list of X to [C].
-%
 set_constraint(X, C) :-
     var(X),
     (get_attr(X, constraint, C1)
@@ -207,9 +222,7 @@ set_constraint(X, C) :-
     ;   put_attr(X, constraint, C)
     ).
 
-%
 % Reads constraint attribute, if it doesn't exist set to empty constraint.
-%
 read_constraint(X, C) :-
     var(X),
     (get_attr(X, constraint, C)
@@ -218,10 +231,8 @@ read_constraint(X, C) :-
         put_attr(X, constraint, C)
     ).
 
-%
 % Reads type attribute.
 % If X is a variable and its type is not set, we set it to an unbound value.
-%
 read_type(X, T) :-
     var(X),
     (get_attr(X, type, T)
@@ -230,18 +241,14 @@ read_type(X, T) :-
         put_attr(X, type, T)
     ).
 
-%
 % Lookup type of a constant by searching for a type T which X is an element of.
 % NOTE: Should set T to the greatest superset.
-%
 lookup_type(X, T) :-
     atomic(X),
     type(_, T),
     basics:member(X, T), !.
 
-%
 % Reads id attribute, if it doesn't exist set it to unbound pair of variables.
-%
 read_id(X, (S, I)) :-
     var(X),
     (get_attr(X, id, (S, I))
