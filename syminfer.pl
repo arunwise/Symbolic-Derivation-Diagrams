@@ -12,11 +12,15 @@
 :- install_attribute_portray_hook(constraint, Attr, display_constr(Attr)).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Constraint definitions
+% Constraint processing definitions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %
-% definition of msw
+% Definition of msw constraint processing.
+%     First set the type of X to be the domain of S,
+%     Then set the ID of X to be the pair (S, I),
+%     If X is in C_in ...?
+%     Otherwise, construct the OSDD rooted at X.
 %
 msw(S, I, X, C_in, C_out) :-
 %   functor(S, F, N),
@@ -31,27 +35,28 @@ msw(S, I, X, C_in, C_out) :-
         and(C_in, Osdd, C_out)
     ).
 
-% definition of atomic constraints
+%
+% Definition of atomic constraint processing.
+%
 constraint(Lhs=Rhs, C_in, C_out) :-
-    % at most one of Lhs and Rhs can be a ground term
-    (var(Lhs); var(Rhs)),
-    (var(Lhs) ->
-     read_type(Lhs, T1)
-    ; lookup_type(Lhs, T1)
+    (var(Lhs); var(Rhs)),  % at most one of Lhs and Rhs can be a ground term
+    (var(Lhs) 
+    ->  read_type(Lhs, T1)
+    ;   lookup_type(Lhs, T1)
     ),
-    (var(Rhs) ->
-     read_type(Rhs, T2)
-    ; lookup_type(Rhs, T2)
+    (var(Rhs) 
+    ->  read_type(Rhs, T2)
+    ;   lookup_type(Rhs, T2)
     ),
     T1 = T2,
-    (var(Lhs) ->
-     set_constraint(Lhs, Lhs=Rhs)
-    ;
-    true),
-    (var(Rhs) ->
-     set_constraint(Rhs, Lhs=Rhs)
-    ;
-    true),
+    (var(Lhs) 
+    ->  set_constraint(Lhs, Lhs=Rhs)
+    ;   true
+    ),
+    (var(Rhs) 
+    ->  set_constraint(Rhs, Lhs=Rhs)
+    ;   true
+    ),
     update_edges(C_in, Lhs, Lhs=Rhs, C_tmp),
     update_edges(C_tmp, Rhs, Lhs=Rhs, C_out).
     %% (var(Lhs) ->
@@ -64,25 +69,23 @@ constraint(Lhs=Rhs, C_in, C_out) :-
     %% ; true).
 
 constraint(Lhs\=Rhs, C_in, C_out) :-
-    % at most one of Lhs and Rhs can be a ground term
-    (var(Lhs); var(Rhs)),
-    (var(Lhs) ->
-     read_type(Lhs, T1)
-    ; lookup_type(Lhs, T1)
+    (var(Lhs); var(Rhs)),  % at most one of Lhs and Rhs can be a ground term
+    (var(Lhs) 
+    ->  read_type(Lhs, T1)
+    ;   lookup_type(Lhs, T1)
     ),
-    (var(Rhs) ->
-     read_type(Rhs, T2)
-    ; lookup_type(Rhs, T2)
+    (var(Rhs) 
+    ->  read_type(Rhs, T2)
+    ;   lookup_type(Rhs, T2)
     ),
     T1 = T2,
-    (var(Lhs) ->
-     set_constraint(Lhs, Lhs\=Rhs)
-    ;
-    true),
-    (var(Rhs) ->
-     set_constraint(Rhs, Lhs\=Rhs)
-    ;
-    true),
+    (var(Lhs) 
+    ->  set_constraint(Lhs, Lhs\=Rhs)
+    ;   true
+    ),
+    (var(Rhs) 
+    ->  set_constraint(Rhs, Lhs\=Rhs)
+    ;   true),
     update_edges(C_in, Lhs, Lhs\=Rhs, C_tmp),
     update_edges(C_tmp, Rhs, Lhs\=Rhs, C_out).
     %% (var(Lhs) ->
@@ -95,7 +98,7 @@ constraint(Lhs\=Rhs, C_in, C_out) :-
     %% ; true).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Attribute handlers
+% Attribute processing definitions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %
@@ -336,5 +339,4 @@ ord([A1 | A1Rest], [A2 | A2Rest], C, O) :-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Misc
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 display_attributes(off).  % control display of attributes
