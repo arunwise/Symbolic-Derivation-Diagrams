@@ -115,11 +115,12 @@ id_handler(I, X) :- true.
 
 % Constraint attribute handler
 % TESTS: set_constraint(X, [a = X, X \= b]), set_constraint(Y, [Y = d]), set_type(Y, [c, e, a]), X=Y.
-%        set_constraint(X, [X \= b, a = X]), set_constraint(Y, [Y \= e]), set_type(Y, [c, e, a]), X=Y.
+%        set_constraint(X, [X \= b, a = X]), set_constraint(Y, [Y \= e, Y=Z]), set_type(Y, [c, e, a]), X=Y.
 constraint_handler(C, X) :-
     writeln('START constraint_handler'),
     (var(X), get_attr(X, constraint, CX)
-    ->  listutil:merge(C, CX, _C), writeln(_C), writeln('END constraint_handler'),
+    ->  listutil:merge(C, CX, _C), 
+        write('Merged constraints: '), writeln(_C), writeln('END constraint_handler\n'),
         read_type(X, T),
         satisfiable(X, _C, T, T_restricted),
         put_attr(X, type, T_restricted),
@@ -134,12 +135,12 @@ satisfiable(X, [Lhs = Rhs|Cs], T_in, T_out) :-
     writeln('START satisfiable'), write('LHS: '), writeln(Lhs), write('RHS: '), writeln(Rhs), write('Domain: '), writeln(T_in),
     (X = Lhs
     ->  (var(Rhs)
-        ->  true  % [?] Not clear how to handle
-        ;   basics:member(Rhs, T_in), T = Rhs % If Rhs is not a variable, check if it is in the domain of T, if so restrict T to Rhs
+        ->  satisfiable(X, Cs, T_in, T_out)  % [?] Not clear how to handle
+        ;   basics:member(Rhs, T_in), T = Rhs  % If Rhs is not a variable, check if it is in the domain of T, if so restrict T to Rhs
         )
     ;   (X = Rhs
         ->  (var(Lhs)
-            ->  true
+            ->  satisfiable(X, Cs, T_in, T_out)
             ;   basics:member(Lhs, T_in), T = Lhs
             )
         ;   false
@@ -152,14 +153,14 @@ satisfiable(X, [Lhs \= Rhs|Cs], T_in, T_out) :-
     writeln('START satisfiable'), write('LHS: '), writeln(Lhs), write('RHS: '), writeln(Rhs), write('Domain: '), writeln(T_in),
     (X = Lhs
     ->  (var(Rhs)
-        ->  true  % [?] Not clear how to handle
+        ->  satisfiable(X, Cs, T_in, T_out)  % [?] Not clear how to handle
         ;   (basics:member(Rhs, T_in)
             ->  basics:select(Rhs, T_in, T)
             ;   T=T_in)
         )
     ;   (X = Rhs
         ->  (var(Lhs)
-            ->  true
+            ->  satisfiable(X, Cs, T_in, T_out)
             ;   (basics:member(Lhs, T_in)
                 ->  basics:select(Lhs, T_in, T)
                 ;   T=T_in)
