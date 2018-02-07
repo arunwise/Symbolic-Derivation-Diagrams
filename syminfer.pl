@@ -368,7 +368,7 @@ writeDot(OSDD, DotFile) :-
     current_prolog_flag(write_attributes, F),
     set_prolog_flag(write_attributes, ignore),
     open(DotFile, write, Handle),
-    write(Handle, 'digraph osdd {\n'),
+    write(Handle, 'strict digraph osdd {\n'),
     writeDotPaths(Paths, Handle),
     write(Handle, '}\n'),
     close(Handle),
