@@ -401,7 +401,7 @@ ord([A1 | A1Rest], [A2 | A2Rest], C, O) :-
 %     nc <=> an order can not be determined
 % ---
 % TESTS: set_type(X, [a, b, c]), set_type(Y, [a, b, c]), ord_constrvars(X, Y, [c < X, Y < b], O).
-%        set_type(X, [a, b, c]), set_type(Y, [a, b, c]), ord_constrvars(X, Y, [X < Y, c = Y], O).  [lt]
+%        set_type(X, [a, b, c]), set_type(Y, [a, b, c]), ord_constrvars(X, Y, [X = a, X < Y, c = Y], O).  [lt]
 %        set_type(X, [a, b, c]), set_type(Y, [a, b, c]), ord_constrvars(X, Y, [Y < X, X = a], O).  [gt]
 %        set_type(X, [a, b, c]), set_type(Y, [a, b, c]), ord_constrvars(X, Y, [X = Y, b = Y], O).  [eq]
 ord_constrvars(X, Y, C, O) :- 
@@ -413,23 +413,16 @@ ord_constrvars(X, Y, C, O) :-
     read_type(Y, TY),
     process_constraints(X, TX, Y, TY, [], C, O).
 
-% Preprocesses constraint list
-% ---
-% TESTS: order_constraints([c < X, Y < b, Z = Y, X = a], C).
-order_constraints([C|Cs], _C) :-
-    writeln(C),
-    order_constraints(Cs, _C).
-
 % Processes the constraint list
-process_constraints(X, _, Y, _, _, [X < Y|_], lt) :- !.
-process_constraints(X, _, Y, _, _, [Y < X|_], gt) :- !.
-process_constraints(X, _, Y, _, _, [X = Y|_], eq) :- !.
-process_constraints(X, _, Y, _, _, [Y = X|_], eq) :- !.
+process_constraints(X, _, Y, _, _, [X < Y|_], lt) :- var(X), var(Y), !.
+process_constraints(X, _, Y, _, _, [Y < X|_], gt) :- var(X), var(Y), !.
+process_constraints(X, _, Y, _, _, [X = Y|_], eq) :- var(X), var(Y), !.
+process_constraints(X, _, Y, _, _, [Y = X|_], eq) :- var(X), var(Y), !.
 process_constraints(_, _, _, _, _, [], _) :- !.
 
 process_constraints(X, XT, Y, YT, Vars, [C|Cs], O) :-
     writeln(C),
-    (C = (Lhs < Rhs)
+    /*(C = (Lhs < Rhs)
     ->  (Lhs = X
         ->
         ;
@@ -441,8 +434,8 @@ process_constraints(X, XT, Y, YT, Vars, [C|Cs], O) :-
     (C = (Lhs \= Rhs)
     ->
     ;
-    ))),
-    process_constraints(X, Y, Vars, Cs, O).
+    ))),*/
+    process_constraints(X, XT, Y, YT, Vars, Cs, O).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Misc
