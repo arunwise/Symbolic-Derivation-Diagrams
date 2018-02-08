@@ -393,6 +393,57 @@ ord([A1 | A1Rest], [A2 | A2Rest], C, O) :-
     % > A2 or there is no ordering
     true.
 
+% Computes the ordering relation O between X and Y given constraints C
+% O can take the following values {lt, gt, eq, nc} where:
+%     lt <=> X < Y
+%     gt <=> X > Y
+%     eq <=> X == Y
+%     nc <=> an order can not be determined
+% ---
+% TESTS: set_type(X, [a, b, c]), set_type(Y, [a, b, c]), ord_constrvars(X, Y, [c < X, Y < b], O).
+%        set_type(X, [a, b, c]), set_type(Y, [a, b, c]), ord_constrvars(X, Y, [X < Y, c = Y], O).  [lt]
+%        set_type(X, [a, b, c]), set_type(Y, [a, b, c]), ord_constrvars(X, Y, [Y < X, X = a], O).  [gt]
+%        set_type(X, [a, b, c]), set_type(Y, [a, b, c]), ord_constrvars(X, Y, [X = Y, b = Y], O).  [eq]
+ord_constrvars(X, Y, C, O) :- 
+    write('X: '), writeln(X),
+    write('Y: '), writeln(Y),
+    write('C: '), writeln(C),
+    write('O: '), writeln(O),
+    read_type(X, TX),
+    read_type(Y, TY),
+    process_constraints(X, TX, Y, TY, [], C, O).
+
+% Preprocesses constraint list
+% ---
+% TESTS: order_constraints([c < X, Y < b, Z = Y, X = a], C).
+order_constraints([C|Cs], _C) :-
+    writeln(C),
+    order_constraints(Cs, _C).
+
+% Processes the constraint list
+process_constraints(X, _, Y, _, _, [X < Y|_], lt) :- !.
+process_constraints(X, _, Y, _, _, [Y < X|_], gt) :- !.
+process_constraints(X, _, Y, _, _, [X = Y|_], eq) :- !.
+process_constraints(X, _, Y, _, _, [Y = X|_], eq) :- !.
+process_constraints(_, _, _, _, _, [], _) :- !.
+
+process_constraints(X, XT, Y, YT, Vars, [C|Cs], O) :-
+    writeln(C),
+    (C = (Lhs < Rhs)
+    ->  (Lhs = X
+        ->
+        ;
+        )
+    ;
+    (C = (Lhs = Rhs)
+    ->
+    ;
+    (C = (Lhs \= Rhs)
+    ->
+    ;
+    ))),
+    process_constraints(X, Y, Vars, Cs, O).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Misc
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
