@@ -46,23 +46,15 @@ constraint(Lhs=Rhs, C_in, C_out) :-
     ),
     T1 = T2,
     (var(Lhs) 
-    ->  set_constraint(Lhs, Lhs=Rhs)
+    ->  set_constraint(Lhs, [Lhs=Rhs])
     ;   true
     ),
     (var(Rhs) 
-    ->  set_constraint(Rhs, Lhs=Rhs)
+    ->  set_constraint(Rhs, [Lhs=Rhs])
     ;   true
     ),
     update_edges(C_in, Lhs, Lhs=Rhs, C_tmp),
     update_edges(C_tmp, Rhs, Lhs=Rhs, C_out).
-    %% (var(Lhs) ->
-    %%   set_constraint(Lhs, Lhs=Rhs),
-    %%      update_edges(C_in, Lhs, Lhs=Rhs, C_tmp)
-    %% ; true),
-    %% (var(Rhs) ->
-    %%   set_constraint(Rhs, Lhs=Rhs),
-    %%   update_edges(C_tmp, Rhs, Lhs=Rhs, C_out)
-    %% ; true).
 
 constraint(Lhs\=Rhs, C_in, C_out) :-
     (var(Lhs); var(Rhs)),  % at most one of Lhs and Rhs can be a ground term
@@ -76,22 +68,14 @@ constraint(Lhs\=Rhs, C_in, C_out) :-
     ),
     T1 = T2,
     (var(Lhs) 
-    ->  set_constraint(Lhs, Lhs\=Rhs)
+    ->  set_constraint(Lhs, [Lhs\=Rhs])
     ;   true
     ),
     (var(Rhs) 
-    ->  set_constraint(Rhs, Lhs\=Rhs)
+    ->  set_constraint(Rhs, [Lhs\=Rhs])
     ;   true),
     update_edges(C_in, Lhs, Lhs\=Rhs, C_tmp),
     update_edges(C_tmp, Rhs, Lhs\=Rhs, C_out).
-    %% (var(Lhs) ->
-    %%   set_constraint(Lhs, Lhs\=Rhs),
-    %%   update_edges(C_in, Lhs, Lhs\=Rhs, C_tmp)
-    %% ; true),
-    %% (var(Rhs) ->
-    %%   set_constraint(Rhs, Lhs\=Rhs),
-    %%   update_edges(C_tmp, Rhs, Lhs\=Rhs, C_out)   
-    %% ; true).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Attribute processing definitions
@@ -241,7 +225,7 @@ set_id(X, (S, I)) :-
 % Sets constraint attribute of a variable.
 % If X already has a constraint list and C is not already in the list, 
 %     append C to the constraint list.
-% Otherwise initialize the constraint list of X to [C].
+% Otherwise initialize the constraint list of X to C.
 set_constraint(X, C) :-
     var(X),
     (get_attr(X, constraint, C1)
