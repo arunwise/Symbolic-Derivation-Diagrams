@@ -400,9 +400,9 @@ ord([A1 | A1Rest], [A2 | A2Rest], C, O) :-
 %     eq <=> X == Y
 %     nc <=> an order can not be determined
 % ---
-% TESTS: set_type(X, [a, b, c]), set_type(Y, [a, b, c]), ord_constrvars(X, Y, [c < X, Y < b], O).
+% TESTS: set_type(X, [a, b, c]), set_type(Y, [a, b, c]), ord_constrvars(X, Y, [c < X, Y < b], O).  [nc]
 %        set_type(X, [a, b, c]), set_type(Y, [a, b, c]), ord_constrvars(X, Y, [X = a, X < Y, c = Y], O).  [lt]
-%        set_type(X, [a, b, c]), set_type(Y, [a, b, c]), ord_constrvars(X, Y, [Y < X, X = a], O).  [gt]
+%        set_type(X, [a, b, c]), set_type(Y, [a, b, c]), ord_constrvars(X, Y, [Y < Z, Y < X, X = a], O).  [gt]
 %        set_type(X, [a, b, c]), set_type(Y, [a, b, c]), ord_constrvars(X, Y, [X = Y, b = Y], O).  [eq]
 ord_constrvars(X, Y, C, O) :- 
     write('X: '), writeln(X),
@@ -414,28 +414,28 @@ ord_constrvars(X, Y, C, O) :-
     process_constraints(X, TX, Y, TY, [], C, O).
 
 % Processes the constraint list
-process_constraints(X, _, Y, _, _, [X < Y|_], lt) :- var(X), var(Y), !.
-process_constraints(X, _, Y, _, _, [Y < X|_], gt) :- var(X), var(Y), !.
-process_constraints(X, _, Y, _, _, [X = Y|_], eq) :- var(X), var(Y), !.
-process_constraints(X, _, Y, _, _, [Y = X|_], eq) :- var(X), var(Y), !.
 process_constraints(_, _, _, _, _, [], _) :- !.
 
-process_constraints(X, XT, Y, YT, Vars, [C|Cs], O) :-
-    writeln(C),
-    /*(C = (Lhs < Rhs)
-    ->  (Lhs = X
-        ->
-        ;
-        )
-    ;
-    (C = (Lhs = Rhs)
-    ->
-    ;
-    (C = (Lhs \= Rhs)
-    ->
-    ;
-    ))),*/
+process_constraints(X, XT, Y, YT, Vars, [Lhs = Rhs|Cs], O) :-
+    writeln(Lhs = Rhs),
+    (((Lhs = X, Rhs = Y); (Lhs = Y, Rhs = X))
+    ->  O = eq
+    ;   process_constraints(X, XT, Y, YT, Vars, Cs, O)
+    ).
+
+process_constraints(X, XT, Y, YT, Vars, [Lhs \= Rhs|Cs], O) :-
+    writeln(Lhs \= Rhs),
     process_constraints(X, XT, Y, YT, Vars, Cs, O).
+
+process_constraints(X, XT, Y, YT, Vars, [Lhs < Rhs|Cs], O) :-
+    writeln(Lhs < Rhs),
+    (Lhs = X, Rhs = Y, Lhs \== Rhs
+    ->  O = lt
+    ;   (Lhs = Y, Rhs = X, Lhs \== Rhs
+        ->  O = gt
+        ;   process_constraints(X, XT, Y, YT, Vars, Cs, O)
+        )
+    ).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Misc
