@@ -7,6 +7,7 @@ transform_file(File, OutFile) :- !,
 	seeing(OF),
 	see(File),
 	abolish_table_pred(declare/3),
+	gensym:prepare(0),
 	read_and_transform(OutFile),
 	seen,
 	see(OF).
@@ -58,18 +59,30 @@ transform((H_in :- B_in), (H_out :- B_out), File) :- !,
 transform(F_in, F_out, File) :-
     functor(F_in, F, _N),
     (F = values
-    -> set_domain(F_in, File)
+    -> set_domain_intrange(F_in, File)
     ;
     % declare(F, N, File), don't have to table facts
     true),
     transform_pred(F_in, F_out, (Arg, Arg)).
 
 % write type facts to OutFile
-set_domain(Fin, OutFile) :-
+set_domain_intrange(Fin, OutFile) :-
     Fin =.. [values | [S, V]],
+    functor(S, Switch, _),
+    write_domain_intrange(Switch, V, OutFile).
+
+:- table write_domain_intrange/3.
+write_domain_intrange(S, V, OutFile) :-
+    basics:length(V, L),
+    gensym:gennum(Min),
+    Max is Min + L - 1,
     open(OutFile, append, Handle),
     write(Handle, type(S, V)),
-    write(Handle, '.\n').
+    write(Handle, '.\n'),
+    write(Handle, intrange(S, Min, Max)),
+    write(Handle, '.\n'),
+    close(Handle),
+    gensym:prepare(Max).
 
 % Transforms a sequence of goals (G_in, Gs_in) as follows: Apply
 % transform_body/3 on the single goal G_in to produce G_out, Recurse
