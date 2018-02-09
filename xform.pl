@@ -16,6 +16,7 @@ transform_file(File, OutFile) :- !,
     read_and_transform(OutFile),
     values_list(L),  % Get the final values_list
     open(OutFile, append, Handle),
+    num_vars:numbervars(L),
     write(Handle, 'values_list('), write(Handle, L), writeln(Handle, ')'), 
     close(Handle),
     retract(values_list(_)),
@@ -37,8 +38,8 @@ read_and_transform(OutFile) :-
         )
     ).
 
-% write transformed clause (including facts) to outfile
-% basically strips off the enclosing parentheses
+% Write transformed clause (including facts) to outfile
+% (basically strips off the enclosing parentheses)
 write_clause(XClause, OutFile) :-
     open(OutFile, append, Handle),
     ((H :- B) = XClause
@@ -51,7 +52,7 @@ write_clause(XClause, OutFile) :-
 % Transformation definitions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% transform clauses and write table directives for transformed
+% Transform clauses and write table directives for transformed
 % predicates in the head
 transform((H_in :- B_in), (H_out :- B_out), File) :- !,
     functor(H_in, F, N),
@@ -59,7 +60,7 @@ transform((H_in :- B_in), (H_out :- B_out), File) :- !,
     transform_pred(H_in, H_out, ExtraArgs),
     transform_body(B_in, B_out, ExtraArgs).
 
-% transform facts except values/2 facts. For values/2 facts we define
+% Transform facts except values/2 facts. For values/2 facts we define
 % types and write them to file.
 transform(F_in, F_out, File) :-
     functor(F_in, F, _N),
@@ -179,7 +180,7 @@ find_int_mapping(V, I) :-
 % Tabling definitions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% write table declarations for predicate F/N
+% Write table declarations for predicate F/N
 :- table declare/3.
 declare(F, N, OutFile) :-
     N1 is N+1,
