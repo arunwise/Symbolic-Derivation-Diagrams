@@ -1,5 +1,7 @@
 /*
  * Usage: transform_file('input_file', 'output_file').
+ * Transforms a Probabilistic Logic Program into an OSDD processing form.
+ * It is assumed that all values/2 declarations appear before all other predicates in 'input_file'.
  */
 
 % Read program in File, transform it and write to OutFile
