@@ -4,12 +4,14 @@
  * It is assumed that all values/2 declarations appear before all other predicates in 'input_file'.
  */
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% File processing definitions
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 % Read program in File, transform it and write to OutFile
 transform_file(File, OutFile) :- !,
-    seeing(OF),
-    see(File),
+    seeing(OF), see(File),
     abolish_table_pred(declare/3),
-    %gensym:prepare(0),
     assert(values_list(_)),
     read_and_transform(OutFile),
     values_list(L),  % Get the final values_list
@@ -17,8 +19,7 @@ transform_file(File, OutFile) :- !,
     write(Handle, 'values_list('), write(Handle, L), writeln(Handle, ')'), 
     close(Handle),
     retract(values_list(_)),
-    seen,
-    see(OF).
+    seen, see(OF).
 
 % Read clauses from current inputstream and write transformed clauses
 % to OutFile
@@ -45,7 +46,11 @@ write_clause(XClause, OutFile) :-
     ;   write(Handle, XClause), write(Handle, '.\n')
     ), 
     close(Handle).
-    
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Transformation definitions
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 % transform clauses and write table directives for transformed
 % predicates in the head
 transform((H_in :- B_in), (H_out :- B_out), File) :- !,
@@ -59,15 +64,66 @@ transform((H_in :- B_in), (H_out :- B_out), File) :- !,
 transform(F_in, F_out, File) :-
     functor(F_in, F, _N),
     (F = values
-    ->  process_domain(F_in, File)
-        %, set_domain_intrange(F_in, File)
-    ;   true
-    ),
-    transform_pred(F_in, F_out, (Arg, Arg)),
-    (F = values 
-    ->  write_domain_intrange(F_out, File)
-    ;   true
+    ->  process_domain(F_in, File),
+        transform_pred(F_in, F_out, (Arg, Arg)),
+        write_domain_intrange(F_out, File)
+    ;   transform_pred(F_in, F_out, (Arg, Arg))
     ).
+
+% Transforms a sequence of goals (G_in, Gs_in) as follows: 
+%     Apply transform_body/3 on the single goal G_in to produce G_out, 
+%     Recurse on Gs_in
+transform_body((G_in, Gs_in), (G_out, Gs_out), (Arg_in, Arg_out)) :- !,
+    transform_body(G_in, G_out, (Arg_in, Arg)),
+    transform_body(Gs_in, Gs_out, (Arg, Arg_out)).
+
+% Transform a single goal
+transform_body(G_in, G_out, Args) :-
+    transform_pred(G_in, G_out, Args).
+
+% Transform predicates. The following two predicates don't get transformed
+transform_pred(true, true, (Arg, Arg)) :- !.
+transform_pred(=(_X, _Y), =(_X, _Y), (Arg, Arg)) :- !.
+
+% Transforms a values/2 declarations by mapping the domain to integers
+transform_pred(values(S, V), values(S, _V), (Arg, Arg)) :- 
+    make_numerical(S, V, _V), !.
+
+% Transforms set_sw(S, V) declarations by possibly renaming terms in S
+transform_pred(set_sw(S, V), set_sw(_S, V), (Arg, Arg)) :-
+    (S =.. [F | Vs]
+    ->  find_int_mappings(Vs, Is),
+        _S =.. [F | Is]
+    ;   S = _S
+    ), !.
+
+% Transform atomic constraints of the form {C} in constraint language
+% If C has some ground domain element we map this element to the integer domain
+transform_pred('{}'(C), constraint(_C, Arg_in, Arg_out), (Arg_in, Arg_out)) :- 
+    C =.. [F, Lhs, Rhs],
+    (nonvar(Lhs)
+    ->  find_int_mapping(Lhs, I),
+        _C =.. [F, I, Rhs]
+    ;   (nonvar(Rhs)
+        ->  find_int_mapping(Rhs, I),
+            _C =.. [F, Lhs, I]
+        ;   C = _C
+        )
+    ), !.
+
+% Transform msw/3
+transform_pred(msw(S,I,X), msw(S,I,X, Arg_in, Arg_out), (Arg_in, Arg_out)) :- !.
+
+% Any other predicate is also transformed by adding two extra
+% arguments for input OSDD and output OSDD
+transform_pred(Pred_in, Pred_out, (Arg_in, Arg_out)) :-
+    Pred_in =.. [P | Args],
+    basics:append(Args, [Arg_in, Arg_out], NewArgs),
+    Pred_out =.. [P | NewArgs], !.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Domain processing definitions
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Processes the domain of a values declaration
 % We maintain a list of (Switch, Value) pairs as values_list(List)
@@ -88,9 +144,6 @@ create_values_list(S, [V|Vs], [(S, V)|VLs]) :-
 % Writes the type/2 and intrange/3 facts to the output file
 :- table write_domain_intrange/4.
 write_domain_intrange(F_out, OutFile) :-
-    /*basics:length(V, L),
-    gensym:gennum(Min),
-    Max is Min + L - 1,*/
     F_out =.. [_, S, V],
     basics:length(V, L),
     basics:ith(1, V, Start),
@@ -99,26 +152,6 @@ write_domain_intrange(F_out, OutFile) :-
     write(Handle, type(S, V)), write(Handle, '.\n'),
     write(Handle, intrange(S, Start, End)), write(Handle, '.\n'),
     close(Handle).
-    %gensym:prepare(Max).
-
-% Transforms a sequence of goals (G_in, Gs_in) as follows: Apply
-% transform_body/3 on the single goal G_in to produce G_out, Recurse
-% on Gs_in
-transform_body((G_in, Gs_in), (G_out, Gs_out), (Arg_in, Arg_out)) :- !,
-    transform_body(G_in, G_out, (Arg_in, Arg)),
-    transform_body(Gs_in, Gs_out, (Arg, Arg_out)).
-
-% Transform a single goal
-transform_body(G_in, G_out, Args) :-
-    transform_pred(G_in, G_out, Args).
-
-% Transform predicates. The following two predicates don't get transformed
-transform_pred(true, true, (Arg, Arg)) :- !.
-transform_pred(=(_X, _Y), =(_X, _Y), (Arg, Arg)) :- !.
-
-% Transforms a values declaration by mapping the domain to integers
-transform_pred(values(S, V), values(S, _V), (Arg, Arg)) :- 
-    make_numerical(S, V, _V), !.
 
 % For each value V we find its position I in values_list
 %     then we add I to the mapped domain list
@@ -128,34 +161,21 @@ make_numerical(S, [V|Vs], [I|_Vs]) :-
     basics:ith(I, L, (S, V)),
     make_numerical(S, Vs, _Vs).
 
-% Transform atomic constraints of the form {C} in constraint language
-% If C has some ground domain element we map this element to the integer domain
-transform_pred('{}'(C), constraint(_C, Arg_in, Arg_out), (Arg_in, Arg_out)) :- 
-    C =.. [F, Lhs, Rhs],
-    (nonvar(Lhs)
-    ->  find_int_mapping(Lhs, I),
-        _C =.. [F, I, Rhs]
-    ;   (nonvar(Rhs)
-        ->  find_int_mapping(Rhs, I),
-            _C =.. [F, Lhs, I]
-        ;   C = _C
-        )
-    ), !.
+% Returns the list of int mappings Is from a list of values Vs
+find_int_mappings([], []).
+
+find_int_mappings([V|Vs], [I|Is]) :-
+    find_int_mapping(V, I),
+    find_int_mappings(Vs, Is).
 
 % Returns the integer mapping I for V in the values_list
 find_int_mapping(V, I) :-
     values_list(L),
     basics:ith(I, L, (_, V)).
 
-% Transform msw/3
-transform_pred(msw(S,I,X), msw(S,I,X, Arg_in, Arg_out), (Arg_in, Arg_out)) :- !.
-
-% Any other predicate is also transformed by adding two extra
-% arguments for input OSDD and output OSDD
-transform_pred(Pred_in, Pred_out, (Arg_in, Arg_out)) :-
-    Pred_in =.. [P | Args],
-    basics:append(Args, [Arg_in, Arg_out], NewArgs),
-    Pred_out =.. [P | NewArgs].
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Tabling definitions
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % write table declarations for predicate F/N
 :- table declare/3.
@@ -168,7 +188,6 @@ declare(F, N, OutFile) :-
     close(Handle),
     true.
 
-% Misc
 placeholders(S, 0, S).
 placeholders(IS, N, OS):-
     N > 0,

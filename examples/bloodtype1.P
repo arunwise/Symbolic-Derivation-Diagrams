@@ -1,5 +1,9 @@
 values(gene,[a,b,o]).
-values(mean, [c,d,o]).
+values(mean(X), [c,d,o]).
+set_sw(gene, [0.5, 0.25, 0.25]).
+set_sw(mean(a, o), [0.33, 0.33, 0.33]).
+set_sw(mean(a), [0.33, 0.33, 0.33]).
+set_sw(mean(b), [0.5, 0.25, 0.25]).
 
 bloodtype(P) :- genotype(X,Y), {X=Y}, {P=X}.
 bloodtype(P) :- genotype(X,Y), {X=o}, {P=Y}.
