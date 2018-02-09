@@ -66,38 +66,38 @@ transform((H_in :- B_in), (H_out :- B_out), File) :- !,
 transform(F_in, F_out, File) :-
     functor(F_in, F, _N),
     (F = values
-    ->  process_domain(F_in, File, Start, End)
+    ->  process_domain(F_in, File)
         %, set_domain_intrange(F_in, File)
     ;   true
     ),
     transform_pred(F_in, F_out, (Arg, Arg)),
     (F = values 
-    ->  write_domain_intrange(F_out, File, Start, End)
+    ->  write_domain_intrange(F_out, File)
     ;   true
     ).
 
 % Processes the domain of a values declarations
-process_domain(F_in, File, Start, End) :-
+process_domain(F_in, File) :-
     F_in =.. [_ | [Switch, Values]],
     create_values_list(Switch, Values, ValuesList),
     values_list(L),
-    basics:length(L, Len),
     basics:append(L, ValuesList, L1),
-    basics:length(L1, End),
     assert(values_list(L1)),
-    retract(values_list(L)),
-    Start is Len + 1.
+    retract(values_list(L)).
 
 create_values_list(_, [], []).
 create_values_list(S, [V|Vs], [(S, V)|VLs]) :-
     create_values_list(S, Vs, VLs).
 
 :- table write_domain_intrange/4.
-write_domain_intrange(F_out, OutFile, Start, End) :-
+write_domain_intrange(F_out, OutFile) :-
     /*basics:length(V, L),
     gensym:gennum(Min),
     Max is Min + L - 1,*/
     F_out =.. [S | V],
+    basics:length(V, L),
+    basics:ith(1, V, Start),
+    basics:ith(L, V, End),
     open(OutFile, append, Handle),
     write(Handle, type(S, V)),
     write(Handle, '.\n'),
