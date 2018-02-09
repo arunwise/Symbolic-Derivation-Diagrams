@@ -66,46 +66,45 @@ transform((H_in :- B_in), (H_out :- B_out), File) :- !,
 transform(F_in, F_out, File) :-
     functor(F_in, F, _N),
     (F = values
-    ->  process_domain(F_in) %set_domain_intrange(F_in, File)
-    ;
-    % declare(F, N, File), don't have to table facts
-    true),
-    transform_pred(F_in, F_out, (Arg, Arg)).
+    ->  process_domain(F_in, File, Start, End)
+        %, set_domain_intrange(F_in, File)
+    ;   true
+    ),
+    transform_pred(F_in, F_out, (Arg, Arg)),
+    (F = values 
+    ->  write_domain_intrange(F_out, File, Start, End)
+    ;   true
+    ).
 
 % Processes the domain of a values declarations
-process_domain(F_in) :-
+process_domain(F_in, File, Start, End) :-
     F_in =.. [_ | [Switch, Values]],
     create_values_list(Switch, Values, ValuesList),
     values_list(L),
+    basics:length(L, Len),
     basics:append(L, ValuesList, L1),
+    basics:length(L1, End),
     assert(values_list(L1)),
     retract(values_list(L)),
-    write('Values: '), writeln(L1).
+    Start is Len + 1.
 
 create_values_list(_, [], []).
 create_values_list(S, [V|Vs], [(S, V)|VLs]) :-
     create_values_list(S, Vs, VLs).
 
-% write type facts to OutFile
-/*
-set_domain_intrange(Fin, OutFile) :-
-    Fin =.. [values | [S, V]],
-    functor(S, Switch, _),
-    write_domain_intrange(Switch, V, OutFile).
-
-:- table write_domain_intrange/3.
-write_domain_intrange(S, V, OutFile) :-
-    basics:length(V, L),
+:- table write_domain_intrange/4.
+write_domain_intrange(F_out, OutFile, Start, End) :-
+    /*basics:length(V, L),
     gensym:gennum(Min),
-    Max is Min + L - 1,
+    Max is Min + L - 1,*/
+    F_out =.. [S | V],
     open(OutFile, append, Handle),
     write(Handle, type(S, V)),
     write(Handle, '.\n'),
-    write(Handle, intrange(S, Min, Max)),
+    write(Handle, intrange(S, Start, End)),
     write(Handle, '.\n'),
-    close(Handle),
-    gensym:prepare(Max).
-*/
+    close(Handle).
+    %gensym:prepare(Max).
 
 % Transforms a sequence of goals (G_in, Gs_in) as follows: Apply
 % transform_body/3 on the single goal G_in to produce G_out, Recurse
@@ -122,6 +121,7 @@ transform_body(G_in, G_out, Args) :-
 % transformed
 transform_pred(true, true, (Arg, Arg)) :- !.
 transform_pred(=(_X, _Y), =(_X, _Y), (Arg, Arg)) :- !.
+
 transform_pred(values(X, Y), values(X, _Y), (Arg, Arg)) :- 
     make_numerical(X, Y, _Y), !.
 
