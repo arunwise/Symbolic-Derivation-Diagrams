@@ -149,10 +149,8 @@ write_domain_intrange(F_out, OutFile) :-
     basics:length(V, L),
     basics:ith(1, V, Start),
     basics:ith(L, V, End),
-    num_vars:numbervars(S), 
-    num_vars:numbervars(V),
+    num_vars:numbervars(S),
     open(OutFile, append, Handle),
-    write(Handle, type(S, V)), write(Handle, '.\n'),
     write(Handle, intrange(S, Start, End)), write(Handle, '.\n'),
     close(Handle).
 

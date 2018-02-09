@@ -22,7 +22,7 @@
 %     Otherwise, construct the OSDD rooted at X.
 msw(S, I, X, C_in, C_out) :-
 %   functor(S, F, N),
-    type(S, T),
+    values(S, T),
     set_type(X, T),
     set_id(X, (S, I)),
     (contains(C_in, X)
@@ -89,7 +89,7 @@ type_handler(T, X) :-
         ;   true       % X is not attributed variable
         )
     ;   atomic(X),     % [?] Is this redundant?
-        %type(_S, T),
+        %values(_S, T),
         basics:member(X, T)
     ).
 
@@ -260,7 +260,7 @@ read_type(X, T) :-
 % NOTE: Should set T to the greatest superset.
 lookup_type(X, T) :-
     atomic(X),
-    type(_, T),
+    values(_, T),
     basics:member(X, T), !.
 
 % Reads id attribute, if it doesn't exist set it to unbound pair of variables.
