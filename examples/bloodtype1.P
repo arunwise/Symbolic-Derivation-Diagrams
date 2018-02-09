@@ -1,4 +1,5 @@
 values(gene,[a,b,o]).
+values(mean, [c,d,o]).
 
 bloodtype(P) :- genotype(X,Y), {X=Y}, {P=X}.
 bloodtype(P) :- genotype(X,Y), {X=o}, {P=Y}.

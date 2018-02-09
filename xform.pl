@@ -7,8 +7,16 @@ transform_file(File, OutFile) :- !,
 	seeing(OF),
 	see(File),
 	abolish_table_pred(declare/3),
-	gensym:prepare(0),
+	%gensym:prepare(0),
+    assert(values_list(_)),
 	read_and_transform(OutFile),
+    open(OutFile, append, Handle),
+    values_list(L),
+    write(Handle, 'values_list('),
+    write(Handle, L),
+    writeln(Handle, ')'),
+    close(Handle),
+    retract(values_list(_)),
 	seen,
 	see(OF).
 
@@ -59,13 +67,28 @@ transform((H_in :- B_in), (H_out :- B_out), File) :- !,
 transform(F_in, F_out, File) :-
     functor(F_in, F, _N),
     (F = values
-    -> set_domain_intrange(F_in, File)
+    ->  process_domain(F_in) %set_domain_intrange(F_in, File)
     ;
     % declare(F, N, File), don't have to table facts
     true),
     transform_pred(F_in, F_out, (Arg, Arg)).
 
+% Processes the domain of a values declarations
+process_domain(F_in) :-
+    F_in =.. [_ | [Switch, Values]],
+    create_values_list(Switch, Values, ValuesList),
+    values_list(L),
+    basics:append(L, ValuesList, L1),
+    assert(values_list(L1)),
+    retract(values_list(L)),
+    write('Values: '), writeln(L1).
+
+create_values_list(_, [], []).
+create_values_list(S, [V|Vs], [(S, V)|VLs]) :-
+    create_values_list(S, Vs, VLs).
+
 % write type facts to OutFile
+/*
 set_domain_intrange(Fin, OutFile) :-
     Fin =.. [values | [S, V]],
     functor(S, Switch, _),
@@ -83,6 +106,7 @@ write_domain_intrange(S, V, OutFile) :-
     write(Handle, '.\n'),
     close(Handle),
     gensym:prepare(Max).
+*/
 
 % Transforms a sequence of goals (G_in, Gs_in) as follows: Apply
 % transform_body/3 on the single goal G_in to produce G_out, Recurse
