@@ -61,8 +61,7 @@ transform((H_in :- B_in), (H_out :- B_out), File) :- !,
     transform_body(B_in, B_out, ExtraArgs).
 
 % transform facts except values/2 facts. For values/2 facts we define
-% types and write them to file. We don't write table directives for
-% transformed facts
+% types and write them to file.
 transform(F_in, F_out, File) :-
     functor(F_in, F, _N),
     (F = values
@@ -76,19 +75,23 @@ transform(F_in, F_out, File) :-
     ;   true
     ).
 
-% Processes the domain of a values declarations
+% Processes the domain of a values declaration
+% We maintain a list of (Switch, Value) pairs as values_list(List)
+% The integer mapping corresponds to the position of (Switch, Value) in List.
 process_domain(F_in, File) :-
     F_in =.. [_ | [Switch, Values]],
-    create_values_list(Switch, Values, ValuesList),
+    create_values_list(Switch, Values, CurrentValues),
     values_list(L),
-    basics:append(L, ValuesList, L1),
+    basics:append(L, CurrentValues, L1),
     assert(values_list(L1)),
     retract(values_list(L)).
 
+% Creates a list of the current Values to be appended to the global values_list(List) 
 create_values_list(_, [], []).
 create_values_list(S, [V|Vs], [(S, V)|VLs]) :-
     create_values_list(S, Vs, VLs).
 
+% Writes the type/2 and intrange/3 facts to the output file
 :- table write_domain_intrange/4.
 write_domain_intrange(F_out, OutFile) :-
     /*basics:length(V, L),
@@ -117,22 +120,40 @@ transform_body((G_in, Gs_in), (G_out, Gs_out), (Arg_in, Arg_out)) :- !,
 transform_body(G_in, G_out, Args) :-
 	transform_pred(G_in, G_out, Args).
 
-% Transform predicates. The following three predicates don't get
-% transformed
+% Transform predicates. The following two predicates don't get transformed
 transform_pred(true, true, (Arg, Arg)) :- !.
 transform_pred(=(_X, _Y), =(_X, _Y), (Arg, Arg)) :- !.
 
-transform_pred(values(X, Y), values(X, _Y), (Arg, Arg)) :- 
-    make_numerical(X, Y, _Y), !.
+% Transforms a values declaration by mapping the domain to integers
+transform_pred(values(S, V), values(S, _V), (Arg, Arg)) :- 
+    make_numerical(S, V, _V), !.
 
+% For each value V we find its position I in values_list
+%     then we add I to the mapped domain list
 make_numerical(_, [], []).
-make_numerical(X, [Y|Ys], [I|_Ys]) :-
+make_numerical(S, [V|Vs], [I|_Vs]) :-
     values_list(L),
-    basics:ith(I, L, (X, Y)),
-    make_numerical(X, Ys, _Ys).
+    basics:ith(I, L, (S, V)),
+    make_numerical(S, Vs, _Vs).
 
 % Transform atomic constraints of the form {C} in constraint language
-transform_pred('{}'(C), constraint(C, Arg_in, Arg_out), (Arg_in, Arg_out)) :- !.
+% If C has some ground domain element we map this element to the integer domain
+transform_pred('{}'(C), constraint(_C, Arg_in, Arg_out), (Arg_in, Arg_out)) :- 
+    C =.. [F, Lhs, Rhs],
+    (nonvar(Lhs)
+    ->  find_int_mapping(Lhs, I),
+        _C =.. [F, I, Rhs]
+    ;   (nonvar(Rhs)
+        ->  find_int_mapping(Rhs, I),
+            _C =.. [F, Lhs, I]
+        ;   C = _C
+        )
+    ), !.
+
+% Returns the integer mapping I for V in the values_list
+find_int_mapping(V, I) :-
+    values_list(L),
+    basics:ith(I, L, (_, V)).
 
 % Transform msw/3
 transform_pred(msw(S,I,X), msw(S,I,X, Arg_in, Arg_out), (Arg_in, Arg_out)) :- !.
