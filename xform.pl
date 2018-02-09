@@ -10,12 +10,9 @@ transform_file(File, OutFile) :- !,
     %gensym:prepare(0),
     assert(values_list(_)),
     read_and_transform(OutFile),
+    values_list(L),  % Get the final values_list
     open(OutFile, append, Handle),
-    values_list(L),
-    write(Handle, 'values_list('),
-    write(Handle, L),
-    writeln(Handle, ')'),
-    close(Handle),
+    write(Handle, 'values_list('), write(Handle, L), writeln(Handle, ')'), close(Handle),
     retract(values_list(_)),
     seen,
     see(OF).
@@ -41,14 +38,8 @@ read_and_transform(OutFile) :-
 write_clause(XClause, OutFile) :-
     open(OutFile, append, Handle),
     ((H :- B) = XClause
-    ->
-	write(Handle, H),
-	write(Handle, ' :- '),
-	write(Handle, B),
-	write(Handle, '.\n')
-    ;
-    write(Handle, XClause),
-    write(Handle, '.\n')
+    ->  write(Handle, H), write(Handle, ' :- '), write(Handle, B), write(Handle, '.\n')
+    ;   write(Handle, XClause), write(Handle, '.\n')
     ), 
     close(Handle).
     
@@ -102,10 +93,8 @@ write_domain_intrange(F_out, OutFile) :-
     basics:ith(1, V, Start),
     basics:ith(L, V, End),
     open(OutFile, append, Handle),
-    write(Handle, type(S, V)),
-    write(Handle, '.\n'),
-    write(Handle, intrange(S, Start, End)),
-    write(Handle, '.\n'),
+    write(Handle, type(S, V)), write(Handle, '.\n'),
+    write(Handle, intrange(S, Start, End)), write(Handle, '.\n'),
     close(Handle).
     %gensym:prepare(Max).
 
@@ -113,12 +102,12 @@ write_domain_intrange(F_out, OutFile) :-
 % transform_body/3 on the single goal G_in to produce G_out, Recurse
 % on Gs_in
 transform_body((G_in, Gs_in), (G_out, Gs_out), (Arg_in, Arg_out)) :- !,
-	transform_body(G_in, G_out, (Arg_in, Arg)),
-	transform_body(Gs_in, Gs_out, (Arg, Arg_out)).
+    transform_body(G_in, G_out, (Arg_in, Arg)),
+    transform_body(Gs_in, Gs_out, (Arg, Arg_out)).
 
 % Transform a single goal
 transform_body(G_in, G_out, Args) :-
-	transform_pred(G_in, G_out, Args).
+    transform_pred(G_in, G_out, Args).
 
 % Transform predicates. The following two predicates don't get transformed
 transform_pred(true, true, (Arg, Arg)) :- !.
@@ -161,9 +150,9 @@ transform_pred(msw(S,I,X), msw(S,I,X, Arg_in, Arg_out), (Arg_in, Arg_out)) :- !.
 % Any other predicate is also transformed by adding two extra
 % arguments for input OSDD and output OSDD
 transform_pred(Pred_in, Pred_out, (Arg_in, Arg_out)) :-
-	Pred_in =.. [P | Args],
-	basics:append(Args, [Arg_in, Arg_out], NewArgs),
-	Pred_out =.. [P | NewArgs].
+    Pred_in =.. [P | Args],
+    basics:append(Args, [Arg_in, Arg_out], NewArgs),
+    Pred_out =.. [P | NewArgs].
 
 % write table declarations for predicate F/N
 :- table declare/3.
