@@ -12,7 +12,8 @@ transform_file(File, OutFile) :- !,
     read_and_transform(OutFile),
     values_list(L),  % Get the final values_list
     open(OutFile, append, Handle),
-    write(Handle, 'values_list('), write(Handle, L), writeln(Handle, ')'), close(Handle),
+    write(Handle, 'values_list('), write(Handle, L), writeln(Handle, ')'), 
+    close(Handle),
     retract(values_list(_)),
     seen,
     see(OF).
@@ -88,7 +89,7 @@ write_domain_intrange(F_out, OutFile) :-
     /*basics:length(V, L),
     gensym:gennum(Min),
     Max is Min + L - 1,*/
-    F_out =.. [S | V],
+    F_out =.. [_, S, V],
     basics:length(V, L),
     basics:ith(1, V, Start),
     basics:ith(L, V, End),
