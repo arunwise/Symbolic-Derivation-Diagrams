@@ -122,7 +122,14 @@ transform_body(G_in, G_out, Args) :-
 % transformed
 transform_pred(true, true, (Arg, Arg)) :- !.
 transform_pred(=(_X, _Y), =(_X, _Y), (Arg, Arg)) :- !.
-transform_pred(values(_X, _Y), values(_X, _Y), (Arg, Arg)) :- !.
+transform_pred(values(X, Y), values(X, _Y), (Arg, Arg)) :- 
+    make_numerical(X, Y, _Y), !.
+
+make_numerical(_, [], []).
+make_numerical(X, [Y|Ys], [I|_Ys]) :-
+    values_list(L),
+    basics:ith(I, L, (X, Y)),
+    make_numerical(X, Ys, _Ys).
 
 % Transform atomic constraints of the form {C} in constraint language
 transform_pred('{}'(C), constraint(C, Arg_in, Arg_out), (Arg_in, Arg_out)) :- !.
