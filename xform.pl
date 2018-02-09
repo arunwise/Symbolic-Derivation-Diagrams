@@ -4,12 +4,12 @@
 
 % Read program in File, transform it and write to OutFile
 transform_file(File, OutFile) :- !,
-	seeing(OF),
-	see(File),
-	abolish_table_pred(declare/3),
-	%gensym:prepare(0),
+    seeing(OF),
+    see(File),
+    abolish_table_pred(declare/3),
+    %gensym:prepare(0),
     assert(values_list(_)),
-	read_and_transform(OutFile),
+    read_and_transform(OutFile),
     open(OutFile, append, Handle),
     values_list(L),
     write(Handle, 'values_list('),
@@ -17,25 +17,24 @@ transform_file(File, OutFile) :- !,
     writeln(Handle, ')'),
     close(Handle),
     retract(values_list(_)),
-	seen,
-	see(OF).
+    seen,
+    see(OF).
 
 % Read clauses from current inputstream and write transformed clauses
 % to OutFile
 read_and_transform(OutFile) :-
-	read(Clause),
-	(Clause == end_of_file
-	->	true
-	;	transform(Clause, XClause, OutFile),
-		(XClause = none
-		-> 	read_and_transform(OutFile)
-		;
-		num_vars:numbervars(XClause),
-		writeln(XClause),
-		write_clause(XClause, OutFile),
-		read_and_transform(OutFile)
-		)
-	).
+    read(Clause),
+    (Clause == end_of_file
+    ->  true
+    ;   transform(Clause, XClause, OutFile),
+        (XClause = none
+        ->  read_and_transform(OutFile)
+        ;   num_vars:numbervars(XClause),
+            writeln(XClause),
+            write_clause(XClause, OutFile),
+            read_and_transform(OutFile)
+        )
+    ).
 
 % write transformed clause (including facts) to outfile
 % basically strips off the enclosing parentheses
