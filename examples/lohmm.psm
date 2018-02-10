@@ -147,41 +147,43 @@ lohmm(Obs) :- lohmm(_, Obs).
 :- export(lohmm(States, Obs)).
 lohmm(States, Obs) :-
     set_params,                                 
-    lohmm(start, [start | States], [_ | Obs]). 
+    lohmm(start, [start | States], [_ | Obs], 1). 
 
 %%
-% [lohmm/3] lohmm(Current, States, Observations)
+% [lohmm/3] lohmm(Current, States, Observations, Itr)
 % ---
 % Current := the current ground state
 % States := a list of states traversed
 % Observations := a list of observations emitted from the LOHMM
+% Itr := the current iteration
 % ---
 % Selects trans/3 based on the current state,
-%     IDs are generated for the partially ground obs and next,
-%     using these IDs, obs and next are ground,
+%     Obs and Next are ground,
 %     loop until the current state is stop.
 %%
-lohmm(State, [State|States], [Obs|Obss]) :- 
-    trans(State, Obs, Next),
+lohmm(State, [State|States], [Obs|Obss], Itr) :-
+    writeln(Itr),
+    trans(State, Obs, Next, Itr),
     Next = stop,
     Obss = [], 
     States = [], !.
 
-lohmm(State, [State|States], [Obs|Obss]) :- 
-    trans(State, Obs, Next),
+lohmm(State, [State|States], [Obs|Obss], Itr) :- 
+    writeln(Itr),
+    trans(State, Obs, Next, Itr),
     Next \= stop,
-    generateID(Next, ID1),  
-    generateID(Obs, ID2),
-    bind(Next, ID1),
-    bind(Obs, ID2),
-    lohmm(Next, States, Obss).
+    bind(Next, ID1, Itr),
+    bind(Obs, ID2, Itr),
+    _Itr is Itr + 1,
+    lohmm(Next, States, Obss, _Itr).
 
 %%
-% [trans/3] trans(Current, Obs, Next)
+% [trans/3] trans(Current, Obs, Next, Itr)
 % ---
 % Current := the current ground state
 % Obs := the partially ground observation
 % Next := the partially ground next state
+% Itr := current iteration
 % ---
 % First selects a RuleID (to implement subsumption constraint),
 %     then uses the DELTA transitions of Rule_ID to select the next Rule,
@@ -190,31 +192,31 @@ lohmm(State, [State|States], [Obs|Obss]) :-
 % NOTE: Rule itself is also an identifier used so that all instances which may
 % unify with some msw will share the same transition probability space for learning.
 %%
-trans(State, Obs, Next) :-
+trans(State, Obs, Next, Itr) :-
     subsumption(State, RuleID), !,
-    msw(RuleID, Rule),         
+    msw(RuleID, Itr, Rule), 
     rule(Rule, State, (Obs, Next)).
 
 %%
-% [bind/2] bind(Term, ID)
+% [bind/2] bind(Term, Itr)
 % ---
 % Term := patially ground term
-% ID := ID generated for the term
+% Itr := current iteration
 % ---
 % Accesses Term arity and arguments and calls allbind/3 to ground the term.
 %%
-bind(Term, ID) :- 
+bind(Term, Itr) :- 
     functor(Term, F, N),         
     Term =.. [F|Args],             
-    allbind(F/N, 1, Args, ID). 
+    allbind(F/N, 1, Args, Itr). 
 
 %%
-% [allbind/4] allbind(Term, I, Args, ID)
+% [allbind/4] allbind(Term, I, Args, Itr)
 % ---
 % Term := term represented by <term_name>/<arity>, used to index msw
 % I := current iteration which corresponds to the current arg position
 % Args := list of arguments in term
-% ID := generated ID of term
+% Itr := current iteration
 % ---
 % Loop over Arg in Args:
 %     if Arg is not ground:
@@ -224,13 +226,13 @@ bind(Term, ID) :-
 %%
 allbind(_, _, [], _) :- !.
 
-allbind(T, I, [Arg|Args], ID) :-
+allbind(T, I, [Arg|Args], Itr) :-
     var(Arg),
-    msw(mu(T, I), Arg),
+    msw(mu(T, I), Itr, Arg),
     I1 is I + 1,
-    allbind(T, I1, Args, ID).
+    allbind(T, I1, Args, Itr).
 
-allbind(T, I, [Arg|Args], ID) :-
+allbind(T, I, [Arg|Args], Itr) :-
     nonvar(Arg),
     I1 is I + 1,
-    allbind(T, I1, Args, ID).
+    allbind(T, I1, Args, Itr).

@@ -26,6 +26,7 @@ transform_file(File, OutFile) :- !,
 % to OutFile
 read_and_transform(OutFile) :-
     read(Clause),
+    write(Clause),
     (Clause == end_of_file
     ->  true
     ;   transform(Clause, XClause, OutFile),
