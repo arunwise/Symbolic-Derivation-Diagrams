@@ -25,7 +25,10 @@ map_domain(Q, _Q) :-
 % Maps an individual argument to it's corresponding interger representation
 map_args([], [], _).
 map_args([Arg|Args], [_Arg|_Args], L) :-
-    basics:ith(_Arg, L, Arg),
+    (basics:ith(I, L, Arg)
+    ->  _Arg = I
+    ;   _Arg = Arg
+    ),
     map_args(Args, _Args, L).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
