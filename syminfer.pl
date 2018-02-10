@@ -12,6 +12,23 @@
 :- install_attribute_portray_hook(constraint, Attr, display_constr(Attr)).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Query processing definitions
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Maps the domain of an exported query to the integer representation
+map_domain(Q, _Q) :-
+    values_list(L),
+    Q =.. [F | Args],
+    map_args(Args, _Args, L),
+    _Q =.. [F | _Args].
+
+% Maps an individual argument to it's corresponding interger representation
+map_args([], [], _).
+map_args([Arg|Args], [_Arg|_Args], L) :-
+    basics:ith(_Arg, L, Arg),
+    map_args(Args, _Args, L).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Constraint processing definitions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

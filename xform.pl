@@ -17,7 +17,7 @@ transform_file(File, OutFile) :- !,
     values_list(L),  % Get the final values_list
     open(OutFile, append, Handle),
     num_vars:numbervars(L),
-    write(Handle, 'values_list('), write(Handle, L), writeln(Handle, ')'), 
+    write(Handle, 'values_list('), write(Handle, L), writeln(Handle, ').'), 
     close(Handle),
     retract(values_list(_)),
     seen, see(OF).
@@ -59,6 +59,9 @@ transform((H_in :- B_in), (H_out :- B_out), File) :- !,
     declare(F, N, File), % write table directives
     transform_pred(H_in, H_out, ExtraArgs),
     transform_body(B_in, B_out, ExtraArgs).
+
+% Defines which queries Q may be invoked with native domain constants
+transform((:- export(Q)), (Q :- map_domain(Q, _Q), _Q), File) :- !.
 
 % Transform facts except values/2 facts. For values/2 facts we define
 % types and write them to file.
@@ -139,7 +142,7 @@ process_domain(F_in, File) :-
 
 % Creates a list of the current Values to be appended to the global values_list(List) 
 create_values_list(_, [], []).
-create_values_list(S, [V|Vs], [(S, V)|VLs]) :-
+create_values_list(S, [V|Vs], [V|VLs]) :-
     create_values_list(S, Vs, VLs).
 
 % Writes the type/2 and intrange/3 facts to the output file
@@ -159,7 +162,7 @@ write_domain_intrange(F_out, OutFile) :-
 make_numerical(_, [], []).
 make_numerical(S, [V|Vs], [I|_Vs]) :-
     values_list(L),
-    basics:ith(I, L, (S, V)),
+    basics:ith(I, L, V),
     make_numerical(S, Vs, _Vs).
 
 % Returns the list of int mappings Is from a list of values Vs
@@ -172,7 +175,7 @@ find_int_mappings([V|Vs], [I|Is]) :-
 % Returns the integer mapping I for V in the values_list
 find_int_mapping(V, I) :-
     values_list(L),
-    basics:ith(I, L, (_, V)).
+    basics:ith(I, L, V).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Tabling definitions
