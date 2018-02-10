@@ -162,14 +162,12 @@ lohmm(States, Obs) :-
 %     loop until the current state is stop.
 %%
 lohmm(State, [State|States], [Obs|Obss], Itr) :-
-    writeln(Itr),
     trans(State, Obs, Next, Itr),
     Next = stop,
     Obss = [], 
     States = [], !.
 
 lohmm(State, [State|States], [Obs|Obss], Itr) :- 
-    writeln(Itr),
     trans(State, Obs, Next, Itr),
     Next \= stop,
     bind(Next, ID1, Itr),
