@@ -165,7 +165,7 @@ lohmm(State, [State|States], [Obs|Obss], Itr) :-
     trans(State, Obs, Next, Itr),
     Next = stop,
     Obss = [], 
-    States = [], !.
+    States = [].
 
 lohmm(State, [State|States], [Obs|Obss], Itr) :- 
     trans(State, Obs, Next, Itr),
@@ -222,7 +222,7 @@ bind(Term, Itr) :-
 %
 % The msw for MU is indexed via mu(<term_name>/<arity>, <arg_position>)
 %%
-allbind(_, _, [], _) :- !.
+allbind(_, _, [], _).
 
 allbind(T, I, [Arg|Args], Itr) :-
     var(Arg),
