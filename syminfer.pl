@@ -20,7 +20,8 @@ map_domain(Q, _Q) :-
     values_list(L),
     Q =.. [F | Args],
     map_args(Args, _Args, L),
-    _Q =.. [F | _Args].
+    basics:append(_Args, [leaf(1), O], OSDD_Args),
+    _Q =.. [F | OSDD_Args].
 
 % Maps an individual argument to it's corresponding interger representation
 map_args([], [], _).
