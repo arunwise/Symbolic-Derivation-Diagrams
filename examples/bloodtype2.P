@@ -1,3 +1,5 @@
+values(gene, [a, b, o]).
+
 father(adam, bob).
 mother(adam, mary).
 
@@ -17,6 +19,3 @@ bloodtype_rule(X, Y, X) :- {Y=o}.
 
 bloodtype_rule(X, Y, T) :- {X=a}, {Y=b}, T=ab.
 bloodtype_rule(X, Y, T) :- {X=b}, {Y=a}, T=ab.
-
-values(gene, [a, b, o]).
-
