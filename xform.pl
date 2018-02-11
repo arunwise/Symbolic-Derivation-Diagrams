@@ -128,7 +128,6 @@ transform_pred(set_sw(S, V), set_sw(_S, V), (Arg, Arg)) :-
 % Any other predicate is also transformed by adding two extra
 % arguments for input OSDD and output OSDD
 transform_pred(Pred_in, Pred_out, (Arg_in, Arg_out)) :-
-    write('X PRED: '), writeln(Pred_in),
     Pred_in =.. [P | Args],
     basics:append(Args, [Arg_in, Arg_out], NewArgs),
     Pred_out =.. [P | NewArgs], !.
