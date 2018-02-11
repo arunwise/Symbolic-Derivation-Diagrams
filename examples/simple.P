@@ -5,17 +5,23 @@ test1(X) :- msw(alpha, 1, X).
 
 test2(X) :- msw(alpha, 1, X), {X = a}.
 
+% should fail
 test3(X) :- msw(alpha, 1, X), {X = 1}.
 
 test4(X, Y) :- msw(alpha, 1, X), msw(alpha, 2, Y), {X=Y}.
 
 test5(X, Y) :- msw(alpha, 1, X), msw(alpha, 2, Y), {X\=Y}.
 
+% should fail
 test6(X, Y) :- msw(alpha, 1, X), msw(num, 1, Y), {X=Y}.
 
+% should fail
 test7(X, Y) :- msw(alpha, 1, X), msw(num, 1, Y), {X\=Y}.
 
 test8(X, Y) :- msw(alpha, 1, X), X=Y.
 
 test9 :- msw(alpha, 1, X).
 test9 :- msw(num, 1, X).
+
+% should fail
+test10(X, Y) :- msw(alpha, 1, X), msw(alpha, 2, Y), {X=Y}, {X\=Y}.
