@@ -371,7 +371,7 @@ update_edges([], _Y, _C, []).
 update_edges([(_E, T) | R], Y, C, [(_E, T1)| R1]) :-
     update_edges(T, Y, C, T1),
     update_edges(R, Y, C, R1).
-update_edges(leaf(_X), _Y, _C, leaf(_X)).
+update_edges(leaf(_X), Y, _C, leaf(_X)) :- var(Y).
 
 % ordering relation for switch/instance pairs
 ord((S1, I1), (S2, I2), C, O) :-
