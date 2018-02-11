@@ -1,27 +1,37 @@
 values(alpha, [a, b, c]).
 values(num, [1, 2, 3]).
 
-test1(X) :- msw(alpha, 1, X).
+:- export(test1(X)).
+test1(X) :- msw(alpha, I, X).
 
-test2(X) :- msw(alpha, 1, X), {X = a}.
-
-% should fail
-test3(X) :- msw(alpha, 1, X), {X = 1}.
-
-test4(X, Y) :- msw(alpha, 1, X), msw(alpha, 2, Y), {X=Y}.
-
-test5(X, Y) :- msw(alpha, 1, X), msw(alpha, 2, Y), {X\=Y}.
+:- export(test2(X)).
+test2(X) :- msw(alpha, I, X), {X = a}.
 
 % should fail
-test6(X, Y) :- msw(alpha, 1, X), msw(num, 1, Y), {X=Y}.
+:- export(test3(X)).
+test3(X) :- msw(alpha, I, X), {X = 1}.
+
+:- export(test4(X, Y)).
+test4(X, Y) :- msw(alpha, I, X), msw(alpha, J, Y), {X=Y}.
+
+:- export(test5(X, Y)).
+test5(X, Y) :- msw(alpha, I, X), msw(alpha, J, Y), {X\=Y}.
 
 % should fail
-test7(X, Y) :- msw(alpha, 1, X), msw(num, 1, Y), {X\=Y}.
-
-test8(X, Y) :- msw(alpha, 1, X), X=Y.
-
-test9 :- msw(alpha, 1, X).
-test9 :- msw(num, 1, X).
+:- export(test6(X, Y)).
+test6(X, Y) :- msw(alpha, I, X), msw(num, I, Y), {X=Y}.
 
 % should fail
-test10(X, Y) :- msw(alpha, 1, X), msw(alpha, 2, Y), {X=Y}, {X\=Y}.
+:- export(test7(X, Y)).
+test7(X, Y) :- msw(alpha, I, X), msw(num, I, Y), {X\=Y}.
+
+:- export(test8(X, Y)).
+test8(X, Y) :- msw(alpha, I, X), X=Y.
+
+:- export(test9).
+test9 :- msw(alpha, I, X).
+test9 :- msw(num, I, X).
+
+% should fail
+:- export(test10(X, Y)).
+test10(X, Y) :- msw(alpha, I, X), msw(alpha, J, Y), {X=Y}, {X\=Y}.

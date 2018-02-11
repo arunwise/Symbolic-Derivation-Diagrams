@@ -13,6 +13,8 @@ bloodtype(P) :- genotype(X,Y), {Y=o}, {P=X}.
 bloodtype(P) :- genotype(X,Y), {X=a}, {Y=b}, P=ab.
 bloodtype(P) :- genotype(X,Y), {X=b}, {Y=a}, P=ab.
 
+:- export(genotype(X,Y)).
 genotype(X,Y) :- msw(gene, I, X), msw(gene, J, Y).
 
-sick(mary).
+:- export(sick(X)).
+sick(X) :- msw(gene, I, X).

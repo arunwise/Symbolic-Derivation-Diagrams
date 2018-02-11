@@ -113,7 +113,6 @@ rule(delta(latex, 4), latex(F, tex), (latex(F), stop)).
 %%------------------------------------
 %% Utility section
 %%------------------------------------
-
 set_params :-
     set_sw(start_r, [0.55, 0.45]),
     set_sw(emacs_2_r, [0.2666, 0.0666, 0.5666, 0.1]),
@@ -163,6 +162,7 @@ lohmm(States, Obs) :-
 %%
 lohmm(State, [State|States], [Obs|Obss], Itr) :-
     trans(State, Obs, Next, Itr),
+    result(Next, States, Obss, Itr).
     Next = stop,
     Obss = [], 
     States = [].

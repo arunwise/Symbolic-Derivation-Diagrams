@@ -17,11 +17,13 @@
 
 % Maps the domain of an exported query to the integer representation
 map_domain(Q, _Q) :-
+    write('Q: '), writeln(Q),
     values_list(L),
     Q =.. [F | Args],
     map_args(Args, _Args, L),
     basics:append(_Args, [leaf(1), O], OSDD_Args),
-    _Q =.. [F | OSDD_Args].
+    _Q =.. [F | OSDD_Args],
+    write('_Q: '), writeln(_Q).
 
 % Maps an individual argument to it's corresponding interger representation
 map_args([], [], _).

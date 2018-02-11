@@ -19,7 +19,7 @@ transform_file(File, OutFile) :- !,
     num_vars:numbervars(L),
     write(Handle, 'values_list('), write(Handle, L), writeln(Handle, ').'), 
     close(Handle),
-    retract(values_list(_)),
+    retract(values_list(L)),
     seen, see(OF).
 
 % Read clauses from current inputstream and write transformed clauses
