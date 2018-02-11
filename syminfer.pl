@@ -57,7 +57,11 @@ msw(S, I, X, C_in, C_out) :- !,
         and(C_in, Osdd, C_out)
     ).
 
-% Definition of atomic constraint processing.
+% Definition of atomic constraint processing for equality constraints.
+% First check if at least one of the arguments of the constraint is a variable
+% Then get the types of both arguments
+% Update the constraint lists of any variable arguments
+% Finally update the edges for Lhs and Rhs.
 constraint(Lhs=Rhs, C_in, C_out) :-
     (var(Lhs); var(Rhs)),  % at most one of Lhs and Rhs can be a ground term
     (var(Lhs) 
@@ -77,12 +81,11 @@ constraint(Lhs=Rhs, C_in, C_out) :-
     ->  set_constraint(Rhs, [Lhs=Rhs])
     ;   true
     ),
-    write('C_in: '), writeln(C_in),
     update_edges(C_in, Lhs, Lhs=Rhs, C_tmp), !,
-    write('C_tmp: '), writeln(C_tmp),
-    update_edges(C_tmp, Rhs, Lhs=Rhs, C_out), !,
-    write('C_out: '), writeln(C_out).
+    update_edges(C_tmp, Rhs, Lhs=Rhs, C_out), !.
 
+% Definition of atomic constraint processing for inequality constraints.
+% Same logic as in equality constraints.
 constraint(Lhs\=Rhs, C_in, C_out) :-
     (var(Lhs); var(Rhs)),  % at most one of Lhs and Rhs can be a ground term
     (var(Lhs) 
@@ -102,8 +105,8 @@ constraint(Lhs\=Rhs, C_in, C_out) :-
     ->  set_constraint(Rhs, [Lhs\=Rhs])
     ;   true
     ),
-    update_edges(C_in, Lhs, Lhs\=Rhs, C_tmp),
-    update_edges(C_tmp, Rhs, Lhs\=Rhs, C_out).
+    update_edges(C_in, Lhs, Lhs\=Rhs, C_tmp), !,
+    update_edges(C_tmp, Rhs, Lhs\=Rhs, C_out), !.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Attribute processing definitions
