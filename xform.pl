@@ -90,18 +90,6 @@ transform_body(G_in, G_out, Args) :-
 transform_pred(true, true, (Arg, Arg)) :- !.
 transform_pred(=(_X, _Y), =(_X, _Y), (Arg, Arg)) :- !.
 
-% Transforms a values/2 declarations by mapping the domain to integers
-transform_pred(values(S, V), values(S, _V), (Arg, Arg)) :- 
-    make_numerical(S, V, _V), !.
-
-% Transforms set_sw(S, V) declarations by possibly renaming terms in S
-transform_pred(set_sw(S, V), set_sw(_S, V), (Arg, Arg)) :-
-    (S =.. [F | Vs]
-    ->  find_int_mappings(Vs, Is),
-        _S =.. [F | Is]
-    ;   S = _S
-    ), !.
-
 % Transform atomic constraints of the form {C} in constraint language
 % If C has some ground domain element we map this element to the integer domain
 transform_pred('{}'(C), constraint(_C, Arg_in, Arg_out), (Arg_in, Arg_out)) :- 
@@ -122,9 +110,27 @@ transform_pred(msw(S,I,X), msw(S,I,X, Arg_in, Arg_out), (Arg_in, Arg_out)) :- !.
 % Transform cut
 transform_pred(!, !, _) :- !.
 
+% Transform lists
+transform_pred(.(X, Y), [X | Y], _) :- !.
+
+% Transform If-Then-Else
+
+% Transforms a values/2 declarations by mapping the domain to integers
+transform_pred(values(S, V), values(S, _V), (Arg, Arg)) :- 
+    make_numerical(S, V, _V), !.
+
+% Transforms set_sw(S, V) declarations by possibly renaming terms in S
+transform_pred(set_sw(S, V), set_sw(_S, V), (Arg, Arg)) :-
+    (S =.. [F | Vs]
+    ->  find_int_mappings(Vs, Is),
+        _S =.. [F | Is]
+    ;   S = _S
+    ), !.
+
 % Any other predicate is also transformed by adding two extra
 % arguments for input OSDD and output OSDD
 transform_pred(Pred_in, Pred_out, (Arg_in, Arg_out)) :-
+    write('X PRED: '), writeln(Pred_in),
     Pred_in =.. [P | Args],
     basics:append(Args, [Arg_in, Arg_out], NewArgs),
     Pred_out =.. [P | NewArgs], !.
