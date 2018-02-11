@@ -26,7 +26,6 @@ transform_file(File, OutFile) :- !,
 % to OutFile
 read_and_transform(OutFile) :-
     read(Clause),
-    write(Clause),
     (Clause == end_of_file
     ->  true
     ;   transform(Clause, XClause, OutFile),
@@ -63,6 +62,7 @@ transform((H_in :- B_in), (H_out :- B_out), File) :- !,
 
 % Defines which queries Q may be invoked with native domain constants
 transform((:- export(Q)), (Q :- map_domain(Q, _Q), _Q), File) :- !.
+
 
 % Transform facts except values/2 facts. For values/2 facts we define
 % types and write them to file.
@@ -118,6 +118,9 @@ transform_pred('{}'(C), constraint(_C, Arg_in, Arg_out), (Arg_in, Arg_out)) :-
 
 % Transform msw/3
 transform_pred(msw(S,I,X), msw(S,I,X, Arg_in, Arg_out), (Arg_in, Arg_out)) :- !.
+
+% Transform cut
+transform_pred(!, !, _) :- !.
 
 % Any other predicate is also transformed by adding two extra
 % arguments for input OSDD and output OSDD
