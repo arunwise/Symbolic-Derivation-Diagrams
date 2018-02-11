@@ -96,7 +96,8 @@ constraint(Lhs\=Rhs, C_in, C_out) :-
     ),
     (var(Rhs) 
     ->  set_constraint(Rhs, [Lhs\=Rhs])
-    ;   true),
+    ;   true
+    ),
     update_edges(C_in, Lhs, Lhs\=Rhs, C_tmp),
     update_edges(C_tmp, Rhs, Lhs\=Rhs, C_out).
 
@@ -131,7 +132,8 @@ id_handler(I, X) :- true.
 %        set_constraint(X, [X \= b, a = X]), set_constraint(Y, [Y \= e, Y=Z]), set_type(Y, [c, e, a]), X=Y.  [yes]
 %        set_constraint(X, [X \= b, a \= X]), set_constraint(Y, [Y \= e, Y \= c]), set_type(Y, [c, e, a]), X=Y.  [no]
 %        set_constraint(X, [X \= b, a = X, X \= Y]), set_constraint(Y, [Y \= e, Y=Z]), set_type(Y, [c, e, a]), X=Y.  [no]
-constraint_handler(C, X) :-
+%        set_constraint(X, [X = Y, X\=Y]), set_constraint(Y, [X = Y, X\=Y]), set_type(X, [c, e, a]), set_type(Y, [c, e, a]), X=Y.  [no]
+constraint_handler(C, X) :- !,
     writeln('START constraint_handler'), write(C),
     (var(X), get_attr(X, constraint, CX)
     ->  listutil:merge(C, CX, _C), 
@@ -154,7 +156,7 @@ satisfiable(_, [], T, T) :- T \= [].
 % Else,
 %     fail.
 satisfiable(X, [Lhs = Rhs|Cs], T_in, T_out) :- 
-    writeln('START satisfiable'), write('LHS: '), writeln(Lhs), write('RHS: '), writeln(Rhs), write('Domain: '), writeln(T_in),
+    writeln('START EQ satisfiable'), write('LHS: '), writeln(Lhs), write('RHS: '), writeln(Rhs), write('Domain: '), writeln(T_in),
     (X = Lhs
     ->  (var(Rhs)
         ->  T = T_in
@@ -179,7 +181,7 @@ satisfiable(X, [Lhs = Rhs|Cs], T_in, T_out) :-
 % Else,
 %     fail.
 satisfiable(X, [Lhs \= Rhs|Cs], T_in, T_out) :- 
-    writeln('START satisfiable'), write('LHS: '), writeln(Lhs), write('RHS: '), writeln(Rhs), write('Domain: '), writeln(T_in),
+    writeln('START NEQ satisfiable'), write('LHS: '), writeln(Lhs), write('RHS: '), writeln(Rhs), write('Domain: '), writeln(T_in),
     (X = Lhs
     ->  (var(Rhs)
         ->  (Rhs = Lhs
