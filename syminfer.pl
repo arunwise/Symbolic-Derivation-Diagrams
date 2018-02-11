@@ -41,10 +41,11 @@ map_args([Arg|Args], [_Arg|_Args], L) :-
 % Definition of msw constraint processing.
 %     First set the type of X to be the domain of S,
 %     Then set the ID of X to be the pair (S, I),
-%     If X is in C_in ...?
-%     Otherwise, construct the OSDD rooted at X.
-msw(S, I, X, C_in, C_out) :-
-%   functor(S, F, N),
+%     If X is in C_in 
+%         set C_in = C_out
+%     Otherwise 
+%         construct the OSDD rooted at X with a single edge labeled with constraints C and a leaf node 1.
+msw(S, I, X, C_in, C_out) :- !,
     values(S, T),
     set_type(X, T),
     set_id(X, (S, I)),
@@ -76,8 +77,11 @@ constraint(Lhs=Rhs, C_in, C_out) :-
     ->  set_constraint(Rhs, [Lhs=Rhs])
     ;   true
     ),
-    update_edges(C_in, Lhs, Lhs=Rhs, C_tmp),
-    update_edges(C_tmp, Rhs, Lhs=Rhs, C_out).
+    write('C_in: '), writeln(C_in),
+    update_edges(C_in, Lhs, Lhs=Rhs, C_tmp), !,
+    write('C_tmp: '), writeln(C_tmp),
+    update_edges(C_tmp, Rhs, Lhs=Rhs, C_out), !,
+    write('C_out: '), writeln(C_out).
 
 constraint(Lhs\=Rhs, C_in, C_out) :-
     (var(Lhs); var(Rhs)),  % at most one of Lhs and Rhs can be a ground term
@@ -317,8 +321,8 @@ or(leaf(1), _T, leaf(1)) :- !.
 or(_T, leaf(1), leaf(1)) :- !.
 or(leaf(0), _T, _T) :- !.
 or(_T, leaf(0), _T) :- !.
-and(_T1, _T2, and(_T1, _T2)).
-or(_T1, _T2, or(_T1, _T2)).
+and(_T1, _T2, and(_T1, _T2)) :- !.
+or(_T1, _T2, or(_T1, _T2)) :- !.
 
 % Check if OSDD contains a variable X
 contains(tree(Y, _), X) :- X==Y, !.
@@ -328,7 +332,8 @@ contains(tree(Y, L), X) :-
 contains([(_C,T)|R], X) :-
     (contains(T, X) 
     -> true
-    ;  contains(R, X)).
+    ;  contains(R, X)
+    ).
 contains(and(T1, _T2), X) :-
     contains(T1, X), !.
 contains(and(_T1, T2), X) :-
@@ -401,50 +406,6 @@ ord([A1 | A1Rest], [A2 | A2Rest], C, O) :-
     % check whether constraint formula (which ?) entails A1 < A2 or A1
     % > A2 or there is no ordering
     true.
-
-% Computes the ordering relation O between X and Y given constraints C
-% O can take the following values {lt, gt, eq, nc} where:
-%     lt <=> X < Y
-%     gt <=> X > Y
-%     eq <=> X == Y
-%     nc <=> an order can not be determined
-% ---
-% TESTS: set_type(X, [a, b, c]), set_type(Y, [a, b, c]), ord_constrvars(X, Y, [c < X, Y < b], O).  [nc]
-%        set_type(X, [a, b, c]), set_type(Y, [a, b, c]), ord_constrvars(X, Y, [X = a, X < Y, c = Y], O).  [lt]
-%        set_type(X, [a, b, c]), set_type(Y, [a, b, c]), ord_constrvars(X, Y, [Y < Z, Y < X, X = a], O).  [gt]
-%        set_type(X, [a, b, c]), set_type(Y, [a, b, c]), ord_constrvars(X, Y, [X = Y, b = Y], O).  [eq]
-ord_constrvars(X, Y, C, O) :- 
-    write('X: '), writeln(X),
-    write('Y: '), writeln(Y),
-    write('C: '), writeln(C),
-    write('O: '), writeln(O),
-    read_type(X, TX),
-    read_type(Y, TY),
-    process_constraints(X, TX, Y, TY, [], C, O).
-
-% Processes the constraint list
-process_constraints(_, _, _, _, _, [], _) :- !.
-
-process_constraints(X, XT, Y, YT, Vars, [Lhs = Rhs|Cs], O) :-
-    writeln(Lhs = Rhs),
-    (((Lhs = X, Rhs = Y); (Lhs = Y, Rhs = X))
-    ->  O = eq
-    ;   process_constraints(X, XT, Y, YT, Vars, Cs, O)
-    ).
-
-process_constraints(X, XT, Y, YT, Vars, [Lhs \= Rhs|Cs], O) :-
-    writeln(Lhs \= Rhs),
-    process_constraints(X, XT, Y, YT, Vars, Cs, O).
-
-process_constraints(X, XT, Y, YT, Vars, [Lhs < Rhs|Cs], O) :-
-    writeln(Lhs < Rhs),
-    (Lhs = X, Rhs = Y, Lhs \== Rhs
-    ->  O = lt
-    ;   (Lhs = Y, Rhs = X, Lhs \== Rhs
-        ->  O = gt
-        ;   process_constraints(X, XT, Y, YT, Vars, Cs, O)
-        )
-    ).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Misc
