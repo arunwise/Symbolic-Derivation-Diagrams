@@ -162,15 +162,14 @@ lohmm(States, Obs) :-
 %%
 lohmm(State, [State|States], [Obs|Obss], Itr) :-
     trans(State, Obs, Next, Itr),
-    Next = stop,
-    Obss = [], 
-    States = [].
+    result(Next, States, [Obs|Obss], Itr).
 
-lohmm(State, [State|States], [Obs|Obss], Itr) :- 
-    trans(State, Obs, Next, Itr),
+% Helper predicate (cleans up logic for lohmm/3)
+result(stop, [], [_|[]], _).
+result(Next, States, [Obs|Obss], Itr) :-
     Next \= stop,
-    bind(Next, ID1, Itr),
-    bind(Obs, ID2, Itr),
+    bind(Next, Itr),
+    bind(Obs, Itr),
     _Itr is Itr + 1,
     lohmm(Next, States, Obss, _Itr).
 

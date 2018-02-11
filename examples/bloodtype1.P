@@ -18,8 +18,3 @@ genotype(X,Y) :- msw(gene, I, X), msw(gene, J, Y).
 
 :- export(sick(X)).
 sick(X) :- bloodtype(Y), msw(gene, I, X), !, [X, Y, Z].
-
-( foo(X)
--> bar(Y)
-; true
-).

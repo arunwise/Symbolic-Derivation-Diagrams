@@ -113,8 +113,6 @@ transform_pred(!, !, _) :- !.
 % Transform lists
 transform_pred(.(X, Y), [X | Y], _) :- !.
 
-% Transform If-Then-Else
-
 % Transforms a values/2 declarations by mapping the domain to integers
 transform_pred(values(S, V), values(S, _V), (Arg, Arg)) :- 
     make_numerical(S, V, _V), !.
