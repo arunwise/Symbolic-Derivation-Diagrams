@@ -162,7 +162,6 @@ lohmm(States, Obs) :-
 %%
 lohmm(State, [State|States], [Obs|Obss], Itr) :-
     trans(State, Obs, Next, Itr),
-    result(Next, States, Obss, Itr).
     Next = stop,
     Obss = [], 
     States = [].
