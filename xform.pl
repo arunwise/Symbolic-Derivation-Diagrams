@@ -85,9 +85,13 @@ transform_body((G_in, Gs_in), (G_out, Gs_out), (Arg_in, Arg_out)) :- !,
 transform_body(G_in, G_out, Args) :-
     transform_pred(G_in, G_out, Args).
 
-% Transform predicates. The following two predicates don't get transformed
+% Transform predicates. The following predicates don't get transformed
 transform_pred(true, true, (Arg, Arg)) :- !.
 transform_pred(=(_X, _Y), =(_X, _Y), (Arg, Arg)) :- !.
+transform_pred(\=(_X, _Y), \=(_X, _Y), (Arg, Arg)) :- !.
+transform_pred(!, !, (Arg, Arg)) :- !.
+transform_pred(.(X, Y), [X | Y], (Arg, Arg)) :- !.
+transform_pred(=..(X, Y), =..(X, Y), (Arg, Arg)) :- !.
 
 % Transform atomic constraints of the form {C} in constraint language
 % If C has some ground domain element we map this element to the integer domain
@@ -104,16 +108,12 @@ transform_pred('{}'(C), constraint(_C, Arg_in, Arg_out), (Arg_in, Arg_out)) :-
     ), !.
 
 % Transform msw/3 by possibly renaming type elements to integer domains
+transform_pred(msw(S,I,X), msw(S,I,X, Arg_in, Arg_out), (Arg_in, Arg_out)) :- var(S), !.
+
 transform_pred(msw(S,I,X), msw(_S,I,X, Arg_in, Arg_out), (Arg_in, Arg_out)) :- 
     S =.. [F | Vs],
-    find_int_mappings(Vs, Is), 
+    find_int_mappings(Vs, Is),
     _S =.. [F | Is], !.
-
-% Transform cut
-transform_pred(!, !, _) :- !.
-
-% Transform lists
-transform_pred(.(X, Y), [X | Y], _) :- !.
 
 % Transforms a values/2 declarations by mapping the domain to integers
 transform_pred(values(S, V), values(S, _V), (Arg, Arg)) :- 

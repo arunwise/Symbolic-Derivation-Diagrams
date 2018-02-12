@@ -204,7 +204,7 @@ trans(State, Obs, Next, Itr) :-
 bind(Term, Itr) :- 
     functor(Term, F, N),         
     Term =.. [F|Args],             
-    allbind(F/N, 1, Args, Itr). 
+    allbind(F/N, 1, Args, Itr).
 
 %%
 % [allbind/4] allbind(Term, I, Args, Itr)
