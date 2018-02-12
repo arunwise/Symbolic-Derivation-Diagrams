@@ -131,44 +131,8 @@ type_handler(T, X) :-
 id_handler(I, X) :- true.
 
 % Constraint attribute handler.
-% If X is a variable which has a constraint list CX,
-%     merge C and CX and see if the new list is satisfiable w.r.t. the domain of X,
-%     apply the new constraints and restricted domain as attributes of X.
-% Else X is a constant,
-%     and X unifies when X is a member of C.
-/*constraint_handler(C, X) :- !,
-    writeln('START constraint_handler'), write(C),
-    (var(X), get_attr(X, constraint, CX)
-    ->  listutil:merge(C, CX, _C), 
-        write('Merged constraints: '), writeln(_C), writeln('END constraint_handler\n'),
-        read_type(X, T),
-        satisfiable(X, _C, T, T_restricted),
-        put_attr(X, type, T_restricted),
-        put_attr(X, constraint, _C)
-    ;   basics:member(X, C)
-    ).*/
-
+% TODO...
 constraint_handler(_, _).
-
-% Display handlers
-% Assert display_attributes(on) to display the value of the attribute
-display_type(A) :-
-    (display_attributes(on) 
-    ->  write(A)
-    ;   true
-    ).
-
-display_id(A) :-
-    (display_attributes(on) 
-    ->  write(A)
-    ;   true
-    ).
-
-display_constr(A) :-
-    (display_attributes(on)
-    ->  write(A)
-    ;   true
-    ).
 
 % Sets type attribute of a variable to the domain to the variable.
 set_type(X, T) :-
@@ -204,24 +168,6 @@ set_constraint(X, C) :-
         set_bounds(X, C)
     ).
 
-set_bounds(X, [X=Y]) :-
-    X #= Y.
-
-set_bounds(X, [Y=X]) :-
-    Y #= X.
-
-set_bounds(X, [X\=Y]) :-
-    X #\= Y.
-
-set_bounds(X, [Y\=X]) :-
-    Y #\= X.
-
-set_bounds(X, [X<Y]) :-
-    X #< Y.
-
-set_bounds(X, [Y<X]) :-
-    Y #< X.
-
 % Reads constraint attribute, if it doesn't exist set to empty constraint.
 read_constraint(X, C) :-
     var(X),
@@ -255,8 +201,22 @@ read_id(X, (S, I)) :-
     ->  true
     ;   var(S), var(I),  % [?] Is this needed?
         put_attr(X, id, (S, I))
-        %S1=S, I1=I % [?] Are fresh variables needed?
     ).
+
+% Display handlers
+% Assert display_attributes(on) to display the value of the attribute
+display_type(A) :- (display_attributes(on) -> write(A); true).
+display_id(A) :- (display_attributes(on) -> write(A); true).
+display_constr(A) :- (display_attributes(on) -> write(A); true).
+
+% Uses constraint C to set corresponding bounds constraint
+% Handles =, \=, < constraints
+set_bounds(X, [X=Y]) :- X #= Y.
+set_bounds(X, [Y=X]) :- Y #= X.
+set_bounds(X, [X\=Y]) :- X #\= Y.
+set_bounds(X, [Y\=X]) :- Y #\= X.
+set_bounds(X, [X<Y]) :- X #< Y.
+set_bounds(X, [Y<X]) :- Y #< X.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Tree Structure
