@@ -1,6 +1,6 @@
 /*
  *  Code for symbolic inference using OSDDs.
- */ 
+ */
 :- import get_attr/3, put_attr/3, install_verify_attribute_handler/4, install_attribute_portray_hook/3 from machine.
 
 :- install_verify_attribute_handler(type, AttrValue, Target, type_handler(AttrValue, Target)).
@@ -48,6 +48,8 @@ map_args([Arg|Args], [_Arg|_Args], L) :-
 msw(S, I, X, C_in, C_out) :- !,
     values(S, T),
     set_type(X, T),
+    intrange(S, Low, High),
+    X in Low..High,
     set_id(X, (S, I)),
     (contains(C_in, X)
     ->  C_out = C_in
@@ -134,13 +136,7 @@ id_handler(I, X) :- true.
 %     apply the new constraints and restricted domain as attributes of X.
 % Else X is a constant,
 %     and X unifies when X is a member of C.
-% ---
-% TESTS: set_constraint(X, [a = X, X \= b]), set_constraint(Y, [Y = d]), set_type(Y, [c, e, a]), X=Y.  [no]
-%        set_constraint(X, [X \= b, a = X]), set_constraint(Y, [Y \= e, Y=Z]), set_type(Y, [c, e, a]), X=Y.  [yes]
-%        set_constraint(X, [X \= b, a \= X]), set_constraint(Y, [Y \= e, Y \= c]), set_type(Y, [c, e, a]), X=Y.  [no]
-%        set_constraint(X, [X \= b, a = X, X \= Y]), set_constraint(Y, [Y \= e, Y=Z]), set_type(Y, [c, e, a]), X=Y.  [no]
-%        set_constraint(X, [X = Y, X\=Y]), set_constraint(Y, [X = Y, X\=Y]), set_type(X, [c, e, a]), set_type(Y, [c, e, a]), X=Y.  [no]
-constraint_handler(C, X) :- !,
+/*constraint_handler(C, X) :- !,
     writeln('START constraint_handler'), write(C),
     (var(X), get_attr(X, constraint, CX)
     ->  listutil:merge(C, CX, _C), 
@@ -150,72 +146,9 @@ constraint_handler(C, X) :- !,
         put_attr(X, type, T_restricted),
         put_attr(X, constraint, _C)
     ;   basics:member(X, C)
-    ).
+    ).*/
 
-% An empty list of constraints is satisfiable given that the domain is not empty.
-satisfiable(_, [], T, T) :- T \= [].
-
-% Handles equality constraints.
-% If the constraint is of the form X = a (or a = X) and a is in the domain of X,
-%     restrict the domain of X to be a
-% Else if the constraint is of the form X = Y (or Y = X),
-%     continue without modifying the domain of X
-% Else,
-%     fail.
-satisfiable(X, [Lhs = Rhs|Cs], T_in, T_out) :- 
-    writeln('START EQ satisfiable'), write('LHS: '), writeln(Lhs), write('RHS: '), writeln(Rhs), write('Domain: '), writeln(T_in),
-    (X = Lhs
-    ->  (var(Rhs)
-        ->  T = T_in
-        ;   basics:member(Rhs, T_in), T = Rhs  % If Rhs is not a variable, check if it is in the domain of T, if so restrict T to Rhs
-        )
-    ;   (X = Rhs
-        ->  (var(Lhs)
-            ->  T = T_in
-            ;   basics:member(Lhs, T_in), T = Lhs
-            )
-        ;   false
-        )
-    ),
-    write('Domain Out: '), writeln(T), writeln('END satisfiable\n'),
-    satisfiable(X, Cs, T, T_out).
-
-% Handles inequality constraints.
-% If the constraint is of the form X \= a (or a \= X) and a is in the domain of X,
-%     remove a from the domain of X
-% Else if the constraint is of the form X \= Y (or Y \= X), 
-%     continue without modifying the domain of X
-% Else,
-%     fail.
-satisfiable(X, [Lhs \= Rhs|Cs], T_in, T_out) :- 
-    writeln('START NEQ satisfiable'), write('LHS: '), writeln(Lhs), write('RHS: '), writeln(Rhs), write('Domain: '), writeln(T_in),
-    (X = Lhs
-    ->  (var(Rhs)
-        ->  (Rhs = Lhs
-            ->  false
-            ;   T = T_in
-            )
-        ;   (basics:member(Rhs, T_in)
-            ->  basics:select(Rhs, T_in, T)
-            ;   T = T_in
-            )
-        )
-    ;   (X = Rhs
-        ->  (var(Lhs)
-            ->  (Lhs = Rhs
-                ->  false
-                ;   T = T_in
-                )
-            ;   (basics:member(Lhs, T_in)
-                ->  basics:select(Lhs, T_in, T)
-                ;   T = T_in
-                )
-            )
-        ;   false
-        )
-    ),
-    write('Domain Out: '), writeln(T), writeln('END satisfiable\n'),
-    satisfiable(X, Cs, T, T_out).
+constraint_handler(_, _).
 
 % Display handlers
 % Assert display_attributes(on) to display the value of the attribute
@@ -264,10 +197,30 @@ set_constraint(X, C) :-
     ->  (basics:member(C, C1)
         ->  true
         ;   basics:append(C1, C, C2),
-            put_attr(X, constraint, C2)
+            put_attr(X, constraint, C2),
+            set_bounds(X, C)
         )
-    ;   put_attr(X, constraint, C)
+    ;   put_attr(X, constraint, C),
+        set_bounds(X, C)
     ).
+
+set_bounds(X, [X=Y]) :-
+    X #= Y.
+
+set_bounds(X, [Y=X]) :-
+    Y #= X.
+
+set_bounds(X, [X\=Y]) :-
+    X #\= Y.
+
+set_bounds(X, [Y\=X]) :-
+    Y #\= X.
+
+set_bounds(X, [X<Y]) :-
+    X #< Y.
+
+set_bounds(X, [Y<X]) :-
+    Y #< X.
 
 % Reads constraint attribute, if it doesn't exist set to empty constraint.
 read_constraint(X, C) :-
