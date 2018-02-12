@@ -108,12 +108,13 @@ transform_pred('{}'(C), constraint(_C, Arg_in, Arg_out), (Arg_in, Arg_out)) :-
     ), !.
 
 % Transform msw/3 by possibly renaming type elements to integer domains
-transform_pred(msw(S,I,X), msw(S,I,X, Arg_in, Arg_out), (Arg_in, Arg_out)) :- var(S), !.
-
 transform_pred(msw(S,I,X), msw(_S,I,X, Arg_in, Arg_out), (Arg_in, Arg_out)) :- 
-    S =.. [F | Vs],
-    find_int_mappings(Vs, Is),
-    _S =.. [F | Is], !.
+    (var(S)
+    ->  _S = S
+    ;   S =.. [F | Vs],
+        find_int_mappings(Vs, Is),
+        _S =.. [F | Is]
+    ), !.
 
 % Transforms a values/2 declarations by mapping the domain to integers
 transform_pred(values(S, V), values(S, _V), (Arg, Arg)) :- 
