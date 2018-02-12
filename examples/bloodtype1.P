@@ -7,7 +7,7 @@ set_sw(mean(b), [0.5, 0.25, 0.25]).
 
 :- export(bloodtype(P)).
 
-bloodtype(P) :- genotype(X,Y), {X=Y}, {P=X}.
+bloodtype(P) :- genotype(X,Y), sick(mary), {X=Y}, {P=X}.
 bloodtype(P) :- genotype(X,Y), {X=o}, {P=Y}.
 bloodtype(P) :- genotype(X,Y), {Y=o}, {P=X}.
 bloodtype(P) :- genotype(X,Y), {X=a}, {Y=b}, P=ab.

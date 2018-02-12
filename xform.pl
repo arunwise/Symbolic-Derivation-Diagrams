@@ -12,7 +12,7 @@
 transform_file(File, OutFile) :- !,
     seeing(OF), see(File),
     abolish_table_pred(declare/3),
-    assert(values_list(_)),
+    assert(values_list([])),
     read_and_transform(OutFile),
     values_list(L),  % Get the final values_list
     open(OutFile, append, Handle),
@@ -141,20 +141,16 @@ transform_pred(Pred_in, Pred_out, (Arg_in, Arg_out)) :-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Processes the domain of a values declaration
-% We maintain a list of (Switch, Value) pairs as values_list(List)
-% The integer mapping corresponds to the position of (Switch, Value) in List.
+% The integer mapping corresponds to the position of Value in List.
 process_domain(F_in, File) :-
-    F_in =.. [_ | [Switch, Values]],
-    create_values_list(Switch, Values, CurrentValues),
+    F_in =.. [_ | [_, Values]],
     values_list(L),
-    basics:append(L, CurrentValues, L1),
-    assert(values_list(L1)),
-    retract(values_list(L)).
-
-% Creates a list of the current Values to be appended to the global values_list(List) 
-create_values_list(_, [], []).
-create_values_list(S, [V|Vs], [V|VLs]) :-
-    create_values_list(S, Vs, VLs).
+    (basics:member(V, Values), basics:member(V, L) % Values is already in L
+    ->  true
+    ;   basics:append(L, Values, L1),
+        assert(values_list(L1)),
+        retract(values_list(L))
+    ).
 
 % Writes the type/2 and intrange/3 facts to the output file
 :- table write_domain_intrange/4.
@@ -186,8 +182,15 @@ find_int_mappings([V|Vs], [I|Is]) :-
 % Returns the integer mapping I for V in the values_list
 find_int_mapping(V, I) :-
     nonvar(V),
-    values_list(L),
-    basics:ith(I, L, V), !.
+    %write('V: '), writeln(V),
+    (V =.. [F|Args]
+    ->  %writeln('...recursing...'), 
+        find_int_mappings(Args, Is),
+        I =.. [F|Is]
+    ;   values_list(L),
+        basics:ith(I, L, V)
+    ), %write('I: '), writeln(I), 
+    !.
 
  % If V is not in the values_list, do not change V
 find_int_mapping(V, V) :- !.
