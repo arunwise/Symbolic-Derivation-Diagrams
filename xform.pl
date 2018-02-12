@@ -141,7 +141,8 @@ transform_pred(Pred_in, Pred_out, (Arg_in, Arg_out)) :-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Processes the domain of a values declaration
-% The integer mapping corresponds to the position of Value in List.
+% The integer mapping corresponds to the position of Value in L.
+% If some V in Values is already in L, the type is already mapped
 process_domain(F_in, File) :-
     F_in =.. [_ | [_, Values]],
     values_list(L),
@@ -152,7 +153,7 @@ process_domain(F_in, File) :-
         retract(values_list(L))
     ).
 
-% Writes the type/2 and intrange/3 facts to the output file
+% Writes intrange/3 facts to the output file
 :- table write_domain_intrange/4.
 write_domain_intrange(F_out, OutFile) :-
     F_out =.. [_, S, V],
@@ -182,15 +183,12 @@ find_int_mappings([V|Vs], [I|Is]) :-
 % Returns the integer mapping I for V in the values_list
 find_int_mapping(V, I) :-
     nonvar(V),
-    %write('V: '), writeln(V),
-    (V =.. [F|Args]
-    ->  %writeln('...recursing...'), 
-        find_int_mappings(Args, Is),
+    (V =.. [F|Args], Args \= []
+    ->  find_int_mappings(Args, Is),
         I =.. [F|Is]
     ;   values_list(L),
         basics:ith(I, L, V)
-    ), %write('I: '), writeln(I), 
-    !.
+    ), !.
 
  % If V is not in the values_list, do not change V
 find_int_mapping(V, V) :- !.
