@@ -52,6 +52,9 @@ write_clause(XClause, OutFile) :-
 % Transformation definitions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+% Defines which queries Q may be invoked with native domain constants
+transform((:- export(Q)), (Q :- map_domain(Q, _Q), _Q), File) :- !.
+
 % Transform clauses and write table directives for transformed
 % predicates in the head
 transform((H_in :- B_in), (H_out :- B_out), File) :- !,
@@ -59,10 +62,6 @@ transform((H_in :- B_in), (H_out :- B_out), File) :- !,
     declare(F, N, File), % write table directives
     transform_pred(H_in, H_out, ExtraArgs),
     transform_body(B_in, B_out, ExtraArgs).
-
-% Defines which queries Q may be invoked with native domain constants
-transform((:- export(Q)), (Q :- map_domain(Q, _Q), _Q), File) :- !.
-
 
 % Transform facts except values/2 facts. For values/2 facts we define
 % types and write them to file.
@@ -104,8 +103,11 @@ transform_pred('{}'(C), constraint(_C, Arg_in, Arg_out), (Arg_in, Arg_out)) :-
         )
     ), !.
 
-% Transform msw/3
-transform_pred(msw(S,I,X), msw(S,I,X, Arg_in, Arg_out), (Arg_in, Arg_out)) :- !.
+% Transform msw/3 by possibly renaming type elements to integer domains
+transform_pred(msw(S,I,X), msw(_S,I,X, Arg_in, Arg_out), (Arg_in, Arg_out)) :- 
+    S =.. [F | Vs],
+    find_int_mappings(Vs, Is), 
+    _S =.. [F | Is], !.
 
 % Transform cut
 transform_pred(!, !, _) :- !.
@@ -129,7 +131,8 @@ transform_pred(set_sw(S, V), set_sw(_S, V), (Arg, Arg)) :-
 % arguments for input OSDD and output OSDD
 transform_pred(Pred_in, Pred_out, (Arg_in, Arg_out)) :-
     Pred_in =.. [P | Args],
-    basics:append(Args, [Arg_in, Arg_out], NewArgs),
+    find_int_mappings(Args, IntArgs),
+    basics:append(IntArgs, [Arg_in, Arg_out], NewArgs),
     Pred_out =.. [P | NewArgs], !.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -181,8 +184,12 @@ find_int_mappings([V|Vs], [I|Is]) :-
 
 % Returns the integer mapping I for V in the values_list
 find_int_mapping(V, I) :-
+    nonvar(V),
     values_list(L),
-    basics:ith(I, L, V).
+    basics:ith(I, L, V), !.
+
+ % If V is not in the values_list, do not change V
+find_int_mapping(V, V) :- !.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Tabling definitions
