@@ -1,5 +1,7 @@
 /*
- *  Code for symbolic inference using OSDDs.
+ * Code for symbolic inference using OSDDs.
+ * Usage: ?- [bounds, syminfer, 'path/to/transformed_file'] % Load files and libraries
+ * To construct an OSDD for ground query q(v1,...,vn) use ?- q(v1,....,vn,leaf(1),O).
  */
 :- import get_attr/3, put_attr/3, install_verify_attribute_handler/4, install_attribute_portray_hook/3 from machine.
 
