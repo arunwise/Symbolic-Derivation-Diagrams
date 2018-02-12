@@ -72,7 +72,7 @@ transform(F_in, F_out, File) :-
         transform_pred(F_in, F_out, (Arg, Arg)),
         write_domain_intrange(F_out, File)
     ;   transform_pred(F_in, F_out, (Arg, Arg))
-    ).
+    ), !.
 
 % Transforms a sequence of goals (G_in, Gs_in) as follows: 
 %     Apply transform_body/3 on the single goal G_in to produce G_out, 
