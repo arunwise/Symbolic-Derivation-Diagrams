@@ -16,7 +16,4 @@ bloodtype(P) :- genotype(X,Y), {X=b}, {Y=a}, P=ab.
 :- export(genotype(X,Y)).
 genotype(_X,_Y) :- {X=_X}, {Y=_Y}, msw(gene, 1, X), msw(gene, 2, Y).
 
-:- export(sick(X)).
-sick(_X) :- {_X=X}, bloodtype(a), bloodtype(ab), bloodtype(dog), msw(gene(a), 1, X).
-
-term(T, F, Args) :- T =.. [F|Args].
+sick(mary).
