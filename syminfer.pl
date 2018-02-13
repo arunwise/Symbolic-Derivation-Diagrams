@@ -265,9 +265,11 @@ contains(or(T1, _T2), X) :-
 contains(or(_T1, T2), X) :-
     contains(T2, X), !.
 
-update_edges(C_in, X, _C, C_out) :-
-    atomic(X),
-    C_in = C_out.
+% If X is a constant, leave T_in unchanged
+update_edges(T_in, X, _C, T_in) :- atomic(X).
+
+% If the input tree is connected with an and/or node
+%     recurse on the left and right Subtrees
 update_edges(and(T1,T2), X, C, and(T1out,T2out)) :-
     var(X),
     update_edges(T1, X, C, T1out),
@@ -276,19 +278,29 @@ update_edges(or(T1,T2), X, C, or(T1out,T2out)) :-
     var(X),
     update_edges(T1, X, C, T1out),
     update_edges(T2, X, C, T2out).
+
+% If X is the root of the tree, append C to X's constraint list
 update_edges(tree(X, [(C1,S)]), Y, C, tree(X, [(C2, S)])) :-
     X==Y,
     basics:append(C1, [C], C2), !.
+
+% If X is not the root, recurse on the edges of the tree
 update_edges(tree(X, S1), Y, C, tree(X, S2)) :-
     X \== Y,
     update_edges(S1, Y, C, S2).
+
+% Base case for edge recursion
 update_edges([], _Y, _C, []).
-update_edges([(_E, T) | R], Y, C, [(_E, T1)| R1]) :-
-    update_edges(T, Y, C, T1),
-    update_edges(R, Y, C, R1).
+
+% Updates the subtrees in the edge list one at a time
+update_edges([(_E, T) | R], X, C, [(_E, T1)| R1]) :-
+    update_edges(T, X, C, T1),
+    update_edges(R, X, C, R1).
+
+% Leaf nodes are left unchanged
 update_edges(leaf(_X), Y, _C, leaf(_X)) :- var(Y).
 
-% ordering relation for switch/instance pairs
+% Ordering relation for switch/instance pairs
 ord((S1, I1), (S2, I2), C, O) :-
     atomic(I1), atomic(I2),
     (I1 @< I2
