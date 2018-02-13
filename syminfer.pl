@@ -156,7 +156,7 @@ id_handler(I, X) :- true.
 %        set_constraint(X, [X \= b, a = X]), set_constraint(Y, [Y \= e, Y=Z]), set_type(Y, [c, e, a]), X=Y.  [yes]
 %        set_constraint(X, [X \= b, a \= X]), set_constraint(Y, [Y \= e, Y \= c]), set_type(Y, [c, e, a]), X=Y.  [no]
 %        set_constraint(X, [X \= b, a = X, X \= Y]), set_constraint(Y, [Y \= e, Y=Z]), set_type(Y, [c, e, a]), X=Y.  [no]
-constraint_handler(C, X) :-
+/*constraint_handler(C, X) :-
     writeln('START constraint_handler'), write(C),
     (var(X), get_attr(X, constraint, CX)
     ->  listutil:merge(C, CX, _C), 
@@ -166,7 +166,8 @@ constraint_handler(C, X) :-
         put_attr(X, type, T_restricted),
         put_attr(X, constraint, _C)
     ;   basics:member(X, C)
-    ).
+    ).*/
+constraint_handler(_,_).
 
 % An empty list of constraints is satisfiable given that the domain is not empty.
 satisfiable(_, [], T, T) :- T \= [].
