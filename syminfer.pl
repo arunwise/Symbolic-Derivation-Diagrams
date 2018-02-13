@@ -133,7 +133,6 @@ type_handler(T, X) :-
 id_handler(I, X) :- true.
 
 % Constraint attribute handler.
-% TODO...
 constraint_handler(_, _).
 
 % Sets type attribute of a variable to the domain to the variable.
@@ -212,13 +211,11 @@ display_id(A) :- (display_attributes(on) -> write(A); true).
 display_constr(A) :- (display_attributes(on) -> write(A); true).
 
 % Uses constraint C to set corresponding bounds constraint
-% Handles =, \=, < constraints
+% Handles =, \= constraints
 set_bounds(X, [X=Y]) :- X #= Y.
 set_bounds(X, [Y=X]) :- Y #= X.
 set_bounds(X, [X\=Y]) :- X #\= Y.
 set_bounds(X, [Y\=X]) :- Y #\= X.
-set_bounds(X, [X<Y]) :- X #< Y.
-set_bounds(X, [Y<X]) :- Y #< X.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Tree Structure
@@ -226,11 +223,11 @@ set_bounds(X, [Y<X]) :- Y #< X.
 one(leaf(1)).
 zero(leaf(0)).
 
-% represent trees as tree(Root,[(Edge1, Subtree1), (Edge2, Subtree2), ...])
+% Represent trees as tree(Root,[(Edge1, Subtree1), (Edge2, Subtree2), ...])
 make_tree(Root, Edges, Subtrees, tree(Root, L)) :-
     myzip(Edges, Subtrees, L).
 
-% for now we have dummy predicates for and/or
+% Fummy predicates for and/or
 and(leaf(1), _T, _T) :- !.
 and(_T, leaf(1), _T) :- !.
 and(leaf(0), _T, leaf(0)) :- !.
@@ -242,16 +239,23 @@ or(_T, leaf(0), _T) :- !.
 and(_T1, _T2, and(_T1, _T2)) :- !.
 or(_T1, _T2, or(_T1, _T2)) :- !.
 
-% Check if OSDD contains a variable X
+% OSSD contains X if X is the root
 contains(tree(Y, _), X) :- X==Y, !.
+
+% OSDD contains X if X is in the children lists
 contains(tree(Y, L), X) :-
     X \== Y,
     contains(L, X).
+
+% OSDD constaints X if X is in the current sub-OSDD
+% or if X is in a later sub-OSDD
 contains([(_C,T)|R], X) :-
     (contains(T, X) 
     -> true
     ;  contains(R, X)
     ).
+
+% For and/or OSDD pairs, X is in the left or right OSDD
 contains(and(T1, _T2), X) :-
     contains(T1, X), !.
 contains(and(_T1, T2), X) :-
@@ -260,10 +264,6 @@ contains(or(T1, _T2), X) :-
     contains(T1, X), !.
 contains(or(_T1, T2), X) :-
     contains(T2, X), !.
-
-myzip([], [], []).
-myzip([A|AR], [B|BR], [(A,B)|R]) :-
-    myzip(AR, BR, R).
 
 update_edges(C_in, X, _C, C_out) :-
     atomic(X),
@@ -324,11 +324,6 @@ ord([A1 | A1Rest], [A2 | A2Rest], C, O) :-
     % check whether constraint formula (which ?) entails A1 < A2 or A1
     % > A2 or there is no ordering
     true.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Misc
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-display_attributes(on).  % control display of attributes
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Visualization using DOT
@@ -414,3 +409,12 @@ addprefix(_L, [], []).
 addprefix(L, [P|R], [P1|RR]) :-
     basics:append(L, P, P1),
     addprefix(L, R, RR).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Misc
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+display_attributes(on).  % control display of attributes
+
+myzip([], [], []).
+myzip([A|AR], [B|BR], [(A,B)|R]) :-
+    myzip(AR, BR, R).
