@@ -41,24 +41,27 @@ map_args([Arg|Args], [_Arg|_Args], L) :-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Definition of msw constraint processing.
-%     First set the type of X to be the domain of S,
-%     Then set the ID of X to be the pair (S, I),
 %     If X is in C_in 
 %         set C_in = C_out
 %     Otherwise 
+%         First set the type of X to be the domain of S,
+%         Set bounds range of X,
+%         Then set the ID of X to be the pair (S, I),
 %         construct the OSDD rooted at X with a single edge labeled with constraints C and a leaf node 1.
 msw(S, I, X, C_in, C_out) :- !,
-    values(S, T),
-    set_type(X, T),
-    intrange(S, Low, High),
-    X in Low..High,
-    set_id(X, (S, I)),
+    writeln('\nIN MSW...'),
     (contains(C_in, X)
     ->  C_out = C_in
-    ;   read_constraint(X, C),
+    ;   values(S, T),
+        set_type(X, T),
+        intrange(S, Low, High),
+        X in Low..High,
+        set_id(X, (S, I)),
+        read_constraint(X, C),
         one(One),
         make_tree(X, [C], [One], Osdd),   % osdd: X -- C --> 1
-        and(C_in, Osdd, C_out)
+        and(C_in, Osdd, C_out),
+        write('C_in: '), writeln(C_in), write('C_out: '), writeln(C_out)
     ).
 
 % Definition of atomic constraint processing for equality constraints.
@@ -67,6 +70,7 @@ msw(S, I, X, C_in, C_out) :- !,
 % Update the constraint lists of any variable arguments
 % Finally update the edges for Lhs and Rhs.
 constraint(Lhs=Rhs, C_in, C_out) :-
+    write('\n'),writeln(Lhs=Rhs),
     (var(Lhs); var(Rhs)),  % at most one of Lhs and Rhs can be a ground term
     (var(Lhs) 
     ->  read_type(Lhs, T1)
@@ -79,18 +83,17 @@ constraint(Lhs=Rhs, C_in, C_out) :-
     T1 = T2,
     (var(Lhs) 
     ->  set_constraint(Lhs, [Lhs=Rhs])
-    ;   true
-    ),
-    (var(Rhs) 
-    ->  set_constraint(Rhs, [Lhs=Rhs])
-    ;   true
+    ;   (var(Rhs) 
+        ->  set_constraint(Rhs, [Lhs=Rhs])
+        )
     ),
     update_edges(C_in, Lhs, Lhs=Rhs, C_tmp), !,
-    update_edges(C_tmp, Rhs, Lhs=Rhs, C_out), !.
+    update_edges(C_tmp, Rhs, Lhs=Rhs, C_out), !, write('C_in: '), writeln(C_in), write('C_out: '), writeln(C_out).
 
 % Definition of atomic constraint processing for inequality constraints.
 % Same logic as in equality constraints.
 constraint(Lhs\=Rhs, C_in, C_out) :-
+    write('\n'),writeln(Lhs\=Rhs),
     (var(Lhs); var(Rhs)),  % at most one of Lhs and Rhs can be a ground term
     (var(Lhs) 
     ->  read_type(Lhs, T1)
@@ -103,14 +106,12 @@ constraint(Lhs\=Rhs, C_in, C_out) :-
     T1 = T2,
     (var(Lhs) 
     ->  set_constraint(Lhs, [Lhs\=Rhs])
-    ;   true
-    ),
-    (var(Rhs) 
-    ->  set_constraint(Rhs, [Lhs\=Rhs])
-    ;   true
+    ;   (var(Rhs) 
+        ->  set_constraint(Rhs, [Lhs\=Rhs])
+        )
     ),
     update_edges(C_in, Lhs, Lhs\=Rhs, C_tmp), !,
-    update_edges(C_tmp, Rhs, Lhs\=Rhs, C_out), !.
+    update_edges(C_tmp, Rhs, Lhs\=Rhs, C_out), !, write('C_in: '), writeln(C_in), write('C_out: '), writeln(C_out).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Attribute processing definitions
@@ -176,7 +177,8 @@ read_constraint(X, C) :-
     ->  true
     ;   C=[],
         put_attr(X, constraint, C)
-    ).
+    ),
+    write('Reading constraint... '), writeln(C).
 
 % Reads type attribute.
 % If X is a variable and its type is not set, we set it to an unbound value.
@@ -269,7 +271,7 @@ contains(or(_T1, T2), X) :-
 update_edges(T_in, X, _C, T_in) :- atomic(X).
 
 % If the input tree is connected with an and/or node
-%     recurse on the left and right Subtrees
+%     recurse on the left and right subtrees
 update_edges(and(T1,T2), X, C, and(T1out,T2out)) :-
     var(X),
     update_edges(T1, X, C, T1out),
@@ -280,6 +282,7 @@ update_edges(or(T1,T2), X, C, or(T1out,T2out)) :-
     update_edges(T2, X, C, T2out).
 
 % If X is the root of the tree, append C to X's constraint list
+%     then add a 0 leaf with the complement of C as the edge
 update_edges(tree(X, [(C1,S)]), Y, C, tree(X, [(C2, S)])) :-
     X==Y,
     basics:append(C1, [C], C2), !.
@@ -387,7 +390,7 @@ write1(Handle, X\=Y) :-
 write1(Handle, X<Y) :-
     write(Handle, X<Y).
 
-%% collect paths in an OSDD
+% collect paths in an OSDD
 % paths are simply sequences (lists) of node,edge,node... values nodes
 % are represented by pairs (VarName, Label). This is needed because,
 % otherwise leaves "and", "or" nodes will get combined.
