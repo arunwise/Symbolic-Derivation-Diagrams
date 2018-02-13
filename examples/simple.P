@@ -25,3 +25,8 @@ test9 :- msw(num, 1, X).
 
 % should fail
 test10 :- msw(alpha, 1, X), msw(alpha, 2, Y), {X=Y}, {X\=Y}.
+
+test11 :- msw(alpha, 1, X), msw(alpha, 2, Y), {X=a}, {b\=Y}, {X=Y}.
+
+% should fail
+test12 :- msw(alpha, 1, X), msw(alpha, 2, Y), {X=a}, {a\=Y}, {X=Y}.

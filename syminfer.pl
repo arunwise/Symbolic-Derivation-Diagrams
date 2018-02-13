@@ -8,10 +8,12 @@
 :- install_verify_attribute_handler(type, AttrValue, Target, type_handler(AttrValue, Target)).
 :- install_verify_attribute_handler(id, AttrValue, Target, id_handler(AttrValue, Target)).
 :- install_verify_attribute_handler(constraint, AttrValue, Target, constraint_handler(AttrValue, Target)).
+:- install_verify_attribute_handler(bounds_var, AttrValue, Target, bounds_var_handler(AttrValue, Target)).
 
 :- install_attribute_portray_hook(type, Attr, display_type(Attr)).
 :- install_attribute_portray_hook(id, Attr, display_id(Attr)).
 :- install_attribute_portray_hook(constraint, Attr, display_constr(Attr)).
+:- install_attribute_portray_hook(bounds_var, Attr, display_bounds_var(Attr)).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Query processing definitions
@@ -54,13 +56,13 @@ msw(S, I, X, C_in, C_out) :- !,
     ->  C_out = C_in
     ;   values(S, T),
         set_type(X, T),
+        read_bounds_var(X, B),
         intrange(S, Low, High),
-        X in Low..High,
+        B in Low..High,
         set_id(X, (S, I)),
         read_constraint(X, C),
-        one(One),
         complement(C, (C_comp, Zeros)),
-        make_tree(X, [C|C_comp], [One|Zeros], Osdd),   % osdd: X -- C --> 1
+        make_tree(X, [C|C_comp], [leaf(1)|Zeros], Osdd),   % osdd: X -- C --> 1
         and(C_in, Osdd, C_out),
         write('C_in: '), writeln(C_in), write('C_out: '), writeln(C_out)
     ).
@@ -82,9 +84,13 @@ constraint(Lhs=Rhs, C_in, C_out) :-
     ;   lookup_type(Rhs, T2)
     ),
     T1 = T2,
-    (var(Lhs) 
+    (var(Lhs)
     ->  set_constraint(Lhs, [Lhs=Rhs])
-    ;   set_constraint(Rhs, [Lhs=Rhs])
+    ;   true
+    ),
+    (var(Rhs) 
+    ->  set_constraint(Rhs, [Lhs=Rhs])
+    ;   true
     ),
     update_edges(C_in, Lhs, Lhs=Rhs, C_tmp), !,
     update_edges(C_tmp, Rhs, Lhs=Rhs, C_out), !, write('C_in: '), writeln(C_in), write('C_out: '), writeln(C_out).
@@ -129,12 +135,10 @@ type_handler(T, X) :-
         basics:member(X, T)
     ).
 
-% ID attribute handler
-% Nothing needs to be done in id attribute handler
-id_handler(I, X) :- true.
-
-% Constraint attribute handler.
+% Attribute handlers
+id_handler(_,_).
 constraint_handler(_,_).
+bounds_var_handler(_,_).
 
 % Sets type attribute of a variable to the domain to the variable.
 set_type(X, T) :-
@@ -158,16 +162,28 @@ set_id(X, (S, I)) :-
 %     append C to the constraint list.
 % Otherwise initialize the constraint list of X to C.
 set_constraint(X, C) :-
-    var(X),
-    (get_attr(X, constraint, C1)
-    ->  (basics:member(C, C1)
+    var(X), read_bounds_var(X, B),
+    (get_attr(X, constraint, CX)
+    ->  (basics:member(C, CX)
         ->  true
-        ;   basics:append(C1, C, C2),
-            put_attr(X, constraint, C2),
-            set_bounds(X, C)
+        ;   basics:append(CX, C, _C),
+            put_attr(X, constraint, _C),
+            rewrite_constraint(B, X, C, CB),
+            apply_bounds(B, CB)
         )
     ;   put_attr(X, constraint, C),
-        set_bounds(X, C)
+        rewrite_constraint(B, X, C, CB),
+        apply_bounds(B, CB)
+    ).
+
+% Reads bounds_var attribute, if it doesn't exist set to an unbound variable
+read_bounds_var(X, B) :-
+    writeln('reading boundsvar...'),
+    var(X),
+    X \== B,
+    (get_attr(X, bounds_var, B)
+    ->  true
+    ;   put_attr(X, bounds_var, B)
     ).
 
 % Reads constraint attribute, if it doesn't exist set to empty constraint.
@@ -210,6 +226,7 @@ read_id(X, (S, I)) :-
 display_type(A) :- (display_attributes(on) -> write(A); true).
 display_id(A) :- (display_attributes(on) -> write(A); true).
 display_constr(A) :- (display_attributes(on) -> write(A); true).
+display_bounds_var(A) :- (display_attributes(on) -> write(A); true).
 
 % Complements a constraint list
 complement([], ([], [])).
@@ -222,12 +239,22 @@ complement([C|Cs], ([C_comp|C_comps],[Zero|Zeros])) :-
 complement_atom(X=Y, X\=Y).
 complement_atom(X\=Y, X=Y).
 
+% Rewrites constraints from X to X:bounds_var
+rewrite_constraint(B, X, [X=Y], [B=C]) :- X\==B, var(Y), read_bounds_var(Y, C).
+rewrite_constraint(B, X, [Y=X], [C=B]) :- X\==B, var(Y), read_bounds_var(Y, C).
+rewrite_constraint(B, X, [X\=Y], [B\=C]) :- X\==B, var(Y), read_bounds_var(Y, C).
+rewrite_constraint(B, X, [Y\=X], [C\=B]) :- X\==B, var(Y), read_bounds_var(Y, C).
+rewrite_constraint(B, X, [X=Const], [B=Const]) :- X\==B, atomic(Const).
+rewrite_constraint(B, X, [Const=X], [Const=B]) :- X\==B, atomic(Const).
+rewrite_constraint(B, X, [X\=Const], [B\=Const]) :- X\==B, atomic(Const).
+rewrite_constraint(B, X, [Const\=X], [Const\=B]) :- X\==B, atomic(Const).
+
 % Uses constraint C to set corresponding bounds constraint
 % Handles =, \= constraints
-set_bounds(X, [X=Y]) :- X #= Y.
-set_bounds(X, [Y=X]) :- Y #= X.
-set_bounds(X, [X\=Y]) :- X #\= Y.
-set_bounds(X, [Y\=X]) :- Y #\= X.
+apply_bounds(X, [X=Y]) :- X #= Y.
+apply_bounds(X, [Y=X]) :- Y #= X.
+apply_bounds(X, [X\=Y]) :- X #\= Y.
+apply_bounds(X, [Y\=X]) :- Y #\= X.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Tree Structure
