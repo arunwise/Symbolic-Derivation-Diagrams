@@ -54,8 +54,8 @@ msw(S, I, X, C_in, C_out) :- !,
     ->  C_out = C_in
     ;   values(S, T),
         set_type(X, T),
-        /*intrange(S, Low, High),
-        X in Low..High,*/
+        intrange(S, Low, High),
+        X in Low..High,
         set_id(X, (S, I)),
         read_constraint(X, C),
         one(One),
@@ -84,15 +84,7 @@ constraint(Lhs=Rhs, C_in, C_out) :-
     T1 = T2,
     (var(Lhs) 
     ->  set_constraint(Lhs, [Lhs=Rhs])
-    ;   true
-    ),
-    (var(Rhs) 
-    ->  set_constraint(Rhs, [Lhs=Rhs])
-    ;   true
-    ),
-    (var(Lhs)
-    ->  read_constraint(Lhs, C), satisfiable(Lhs, C, T1, _)
-    ;   read_constraint(Rhs, C), satisfiable(Rhs, C, T2, _)
+    ;   set_constraint(Rhs, [Lhs=Rhs])
     ),
     update_edges(C_in, Lhs, Lhs=Rhs, C_tmp), !,
     update_edges(C_tmp, Rhs, Lhs=Rhs, C_out), !, write('C_in: '), writeln(C_in), write('C_out: '), writeln(C_out).
@@ -119,10 +111,6 @@ constraint(Lhs\=Rhs, C_in, C_out) :-
     ->  set_constraint(Rhs, [Lhs\=Rhs])
     ;   true
     ),
-    (var(Lhs)
-    ->  read_constraint(Lhs, C), satisfiable(Lhs, C, T1, _)
-    ;   read_constraint(Rhs, C), satisfiable(Rhs, C, T2, _)
-    ),
     update_edges(C_in, Lhs, Lhs\=Rhs, C_tmp), !,
     update_edges(C_tmp, Rhs, Lhs\=Rhs, C_out), !, write('C_in: '), writeln(C_in), write('C_out: '), writeln(C_out).
 
@@ -146,105 +134,7 @@ type_handler(T, X) :-
 id_handler(I, X) :- true.
 
 % Constraint attribute handler.
-% If X is a variable which has a constraint list CX,
-%     merge C and CX and see if the new list is satisfiable w.r.t. the domain of X,
-%     apply the new constraints and restricted domain as attributes of X.
-% Else X is a constant,
-%     and X unifies when X is a member of C.
-% ---
-% TESTS: set_constraint(X, [a = X, X \= b]), set_constraint(Y, [Y = d]), set_type(Y, [c, e, a]), X=Y.  [no]
-%        set_constraint(X, [X \= b, a = X]), set_constraint(Y, [Y \= e, Y=Z]), set_type(Y, [c, e, a]), X=Y.  [yes]
-%        set_constraint(X, [X \= b, a \= X]), set_constraint(Y, [Y \= e, Y \= c]), set_type(Y, [c, e, a]), X=Y.  [no]
-%        set_constraint(X, [X \= b, a = X, X \= Y]), set_constraint(Y, [Y \= e, Y=Z]), set_type(Y, [c, e, a]), X=Y.  [no]
-/*constraint_handler(C, X) :-
-    writeln('START constraint_handler'), write(C),
-    (var(X), get_attr(X, constraint, CX)
-    ->  listutil:merge(C, CX, _C), 
-        write('Merged constraints: '), writeln(_C), writeln('END constraint_handler\n'),
-        read_type(X, T),
-        satisfiable(X, _C, T, T_restricted),
-        put_attr(X, type, T_restricted),
-        put_attr(X, constraint, _C)
-    ;   basics:member(X, C)
-    ).*/
 constraint_handler(_,_).
-
-% An empty list of constraints is satisfiable given that the domain is not empty.
-satisfiable(_, [], T, T) :- T \= [].
-
-% Handles equality constraints.
-% If the constraint is of the form X = a (or a = X) and a is in the domain of X,
-%     restrict the domain of X to be a
-% Else if the constraint is of the form X = Y (or Y = X),
-%     continue without modifying the domain of X
-% Else,
-%     fail.
-satisfiable(X, [Lhs = Rhs|Cs], T_in, T_out) :- 
-    writeln('START satisfiable'), write('LHS: '), writeln(Lhs), write('RHS: '), writeln(Rhs), write('Domain: '), writeln(T_in),
-    (X = Lhs
-    ->  (var(Rhs)
-        ->  (read_type(Rhs, T), ground(T)
-            ->  true
-            ;   T = T_in
-            )
-        ;   basics:member(Rhs, T_in), T = Rhs  % If Rhs is not a variable, check if it is in the domain of T, if so restrict T to Rhs
-        )
-    ;   (X = Rhs
-        ->  (var(Lhs)
-            ->  (read_type(Lhs, T), ground(T)
-                ->  true
-                ;   T = T_in
-                )
-            ;   basics:member(Lhs, T_in), T = Lhs
-            )
-        ;   false
-        )
-    ),
-    write('Domain Out: '), writeln(T), writeln('END satisfiable\n'),
-    satisfiable(X, Cs, T, T_out).
-
-% Handles inequality constraints.
-% If the constraint is of the form X \= a (or a \= X) and a is in the domain of X,
-%     remove a from the domain of X
-% Else if the constraint is of the form X \= Y (or Y \= X), 
-%     continue without modifying the domain of X
-% Else,
-%     fail.
-satisfiable(X, [Lhs \= Rhs|Cs], T_in, T_out) :- 
-    writeln('START satisfiable'), write('LHS: '), writeln(Lhs), write('RHS: '), writeln(Rhs), write('Domain: '), writeln(T_in),
-    (X = Lhs
-    ->  (var(Rhs)
-        ->  (Rhs = Lhs
-            ->  false
-            ;   (read_type(Rhs, _T), ground(_T)
-                ->  listutil:merge(T, _T, T_in)  % T is T_in \ _T (set difference)
-                ;   T = T_in  % Rhs is a "free variable" in the OSDD
-                )
-            )
-        ;   (basics:member(Rhs, T_in)
-            ->  basics:select(Rhs, T_in, T)
-            ;   T = T_in
-            )
-        )
-    ;   (X = Rhs
-        ->  (var(Lhs)
-            ->  (Lhs = Rhs
-                ->  false
-                ;   (read_type(Rhs, _T), ground(_T)
-                    ->  listutil:merge(T, _T, T_in)  % T is T_in \ _T (set difference)
-                    ;   T = T_in  % Rhs is a "free variable" in the OSDD
-                    )
-                )
-            ;   (basics:member(Lhs, T_in)
-                ->  basics:select(Lhs, T_in, T)
-                ;   T = T_in
-                )
-            )
-        ;   false
-        )
-    ),
-    write('Domain Out: '), writeln(T), writeln('END satisfiable\n'),
-    satisfiable(X, Cs, T, T_out).
 
 % Sets type attribute of a variable to the domain to the variable.
 set_type(X, T) :-
@@ -273,11 +163,11 @@ set_constraint(X, C) :-
     ->  (basics:member(C, C1)
         ->  true
         ;   basics:append(C1, C, C2),
-            put_attr(X, constraint, C2)/*,
-            set_bounds(X, C)*/
+            put_attr(X, constraint, C2),
+            set_bounds(X, C)
         )
-    ;   put_attr(X, constraint, C)/*,
-        set_bounds(X, C)*/
+    ;   put_attr(X, constraint, C),
+        set_bounds(X, C)
     ).
 
 % Reads constraint attribute, if it doesn't exist set to empty constraint.
@@ -285,7 +175,7 @@ read_constraint(X, C) :-
     var(X),
     (get_attr(X, constraint, C)
     ->  true
-    ;   C=[],
+    ;   C = [],
         put_attr(X, constraint, C)
     ).
 
@@ -334,10 +224,10 @@ complement_atom(X\=Y, X=Y).
 
 % Uses constraint C to set corresponding bounds constraint
 % Handles =, \= constraints
-/*set_bounds(X, [X=Y]) :- X #= Y.
+set_bounds(X, [X=Y]) :- X #= Y.
 set_bounds(X, [Y=X]) :- Y #= X.
 set_bounds(X, [X\=Y]) :- X #\= Y.
-set_bounds(X, [Y\=X]) :- Y #\= X.*/
+set_bounds(X, [Y\=X]) :- Y #\= X.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Tree Structure
