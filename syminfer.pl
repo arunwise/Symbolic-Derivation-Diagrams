@@ -59,7 +59,9 @@ msw(S, I, X, C_in, C_out) :- !,
         set_id(X, (S, I)),
         read_constraint(X, C),
         one(One),
-        make_tree(X, [C], [One], Osdd),   % osdd: X -- C --> 1
+        complement(C, (C_comp, Zeros)),
+        write('    Complement: '), writeln((C_comp, Zeros)),
+        make_tree(X, [C|C_comp], [One|Zeros], Osdd),   % osdd: X -- C --> 1
         and(C_in, Osdd, C_out),
         write('C_in: '), writeln(C_in), write('C_out: '), writeln(C_out)
     ).
@@ -83,9 +85,11 @@ constraint(Lhs=Rhs, C_in, C_out) :-
     T1 = T2,
     (var(Lhs) 
     ->  set_constraint(Lhs, [Lhs=Rhs])
-    ;   (var(Rhs) 
-        ->  set_constraint(Rhs, [Lhs=Rhs])
-        )
+    ;   true
+    ),
+    (var(Rhs) 
+    ->  set_constraint(Rhs, [Lhs=Rhs])
+    ;   true
     ),
     update_edges(C_in, Lhs, Lhs=Rhs, C_tmp), !,
     update_edges(C_tmp, Rhs, Lhs=Rhs, C_out), !, write('C_in: '), writeln(C_in), write('C_out: '), writeln(C_out).
@@ -106,9 +110,11 @@ constraint(Lhs\=Rhs, C_in, C_out) :-
     T1 = T2,
     (var(Lhs) 
     ->  set_constraint(Lhs, [Lhs\=Rhs])
-    ;   (var(Rhs) 
-        ->  set_constraint(Rhs, [Lhs\=Rhs])
-        )
+    ;   true
+    ),
+    (var(Rhs) 
+    ->  set_constraint(Rhs, [Lhs\=Rhs])
+    ;   true
     ),
     update_edges(C_in, Lhs, Lhs\=Rhs, C_tmp), !,
     update_edges(C_tmp, Rhs, Lhs\=Rhs, C_out), !, write('C_in: '), writeln(C_in), write('C_out: '), writeln(C_out).
@@ -124,8 +130,7 @@ type_handler(T, X) :-
         ->  T = _T     % X is also attributed variable
         ;   true       % X is not attributed variable
         )
-    ;   atomic(X),     % [?] Is this redundant?
-        %values(_S, T),
+    ;   atomic(X),
         basics:member(X, T)
     ).
 
@@ -134,7 +139,15 @@ type_handler(T, X) :-
 id_handler(I, X) :- true.
 
 % Constraint attribute handler.
-constraint_handler(_, _).
+constraint_handler(_,_).
+/*constraint_handler(C, X) :-
+    (var(X)
+    ->  read_constraint(X, CX),
+        listutil:merge(C, CX, C_new),
+        put_attr(X, constraint, C_new)
+    ;   true
+    ).
+*/
 
 % Sets type attribute of a variable to the domain to the variable.
 set_type(X, T) :-
@@ -177,8 +190,7 @@ read_constraint(X, C) :-
     ->  true
     ;   C=[],
         put_attr(X, constraint, C)
-    ),
-    write('Reading constraint... '), writeln(C).
+    ).
 
 % Reads type attribute.
 % If X is a variable and its type is not set, we set it to an unbound value.
@@ -211,6 +223,19 @@ read_id(X, (S, I)) :-
 display_type(A) :- (display_attributes(on) -> write(A); true).
 display_id(A) :- (display_attributes(on) -> write(A); true).
 display_constr(A) :- (display_attributes(on) -> write(A); true).
+
+% Complements a constraint list
+complement([], ([], [])).
+complement([C|Cs], ([C_comp|C_comps],[Zero|Zeros])) :-
+    write('\nComplementing... C: '), writeln(C), write('Cs:'), writeln(Cs),
+    zero(Zero),
+    complement_atom(C, C_comp),
+    write('C_comp: '), writeln(C_comp),
+    complement(Cs, (C_comps, Zeros)).
+
+% Complements a atomic constraint
+complement_atom(X=Y, X\=Y).
+complement_atom(X\=Y, X=Y).
 
 % Uses constraint C to set corresponding bounds constraint
 % Handles =, \= constraints
@@ -428,7 +453,7 @@ addprefix(L, [P|R], [P1|RR]) :-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Misc
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-display_attributes(on).  % control display of attributes
+display_attributes(off).  % control display of attributes
 
 myzip([], [], []).
 myzip([A|AR], [B|BR], [(A,B)|R]) :-
