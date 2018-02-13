@@ -90,8 +90,10 @@ constraint(Lhs=Rhs, C_in, C_out) :-
     ->  set_constraint(Rhs, [Lhs=Rhs])
     ;   true
     ),
-    read_type(X, T),
-    satisfiable(X, C, T, _),
+    (var(Lhs)
+    ->  read_constraint(Lhs, C), satisfiable(Lhs, C, T1, _)
+    ;   read_constraint(Rhs, C), satisfiable(Rhs, C, T2, _)
+    ),
     update_edges(C_in, Lhs, Lhs=Rhs, C_tmp), !,
     update_edges(C_tmp, Rhs, Lhs=Rhs, C_out), !, write('C_in: '), writeln(C_in), write('C_out: '), writeln(C_out).
 
