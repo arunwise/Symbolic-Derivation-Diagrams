@@ -73,14 +73,16 @@ msw(S, I, X, C_in, C_out) :- !,
 % Update the constraint lists of any variable arguments
 % Finally update the edges for Lhs and Rhs.
 constraint(Lhs=Rhs, C_in, C_out) :-
-    write('\n\n'),writeln(Lhs=Rhs),
+    write('\n= CONSTRAINT: '),writeln(Lhs=Rhs),
     (var(Lhs); var(Rhs)),  % at most one of Lhs and Rhs can be a ground term
     (var(Lhs) 
-    ->  read_type(Lhs, T1)
+    ->  read_type(Lhs, T1),
+        nonvar(T1)
     ;   lookup_type(Lhs, T1)
     ),
     (var(Rhs) 
-    ->  read_type(Rhs, T2)
+    ->  read_type(Rhs, T2),
+        nonvar(T2)
     ;   lookup_type(Rhs, T2)
     ),
     T1 = T2,
@@ -98,15 +100,17 @@ constraint(Lhs=Rhs, C_in, C_out) :-
 % Definition of atomic constraint processing for inequality constraints.
 % Same logic as in equality constraints.
 constraint(Lhs\=Rhs, C_in, C_out) :-
-    write('\n'),writeln(Lhs\=Rhs),
+    write('\n\= CONSTRAINT: '),writeln(Lhs\=Rhs),
     (var(Lhs); var(Rhs)),  % at most one of Lhs and Rhs can be a ground term
     (var(Lhs) 
     ->  read_type(Lhs, T1)
-    ;   lookup_type(Lhs, T1)
+    ;   lookup_type(Lhs, T1),
+        nonvar(T1)
     ),
     (var(Rhs) 
     ->  read_type(Rhs, T2)
-    ;   lookup_type(Rhs, T2)
+    ;   lookup_type(Rhs, T2),
+        nonvar(T2)
     ),
     T1 = T2,
     (var(Lhs) 
@@ -162,8 +166,9 @@ set_id(X, (S, I)) :-
 %     append C to the constraint list.
 % Otherwise initialize the constraint list of X to C.
 set_constraint(X, C) :-
-    writeln('IN SET_CONSTRAINT'),
-    var(X), read_bounds_var(X, B),
+    writeln('\n    IN SET_CONSTRAINT'),
+    var(X),
+    read_bounds_var(X, B),
     write('    C: '), writeln(C),
     (get_attr(X, constraint, CX)
     ->  (listutil:absmember(C, CX)
@@ -171,23 +176,20 @@ set_constraint(X, C) :-
         ;   basics:append(CX, C, _C),
             put_attr(X, constraint, _C),
             rewrite_constraint(B, X, C, CB),
-            write('    NEW CONSTRAINT: '), writeln(CB),
             apply_bounds(B, CB)
         )
     ;   put_attr(X, constraint, C),
         rewrite_constraint(B, X, C, CB),
-        write('    NEW CONSTRAINT: '), writeln(CB),
         apply_bounds(B, CB)
     ), 
-    writeln('EXIT SET_CONSTRAINT').
+    writeln('    EXIT SET_CONSTRAINT\n').
 
 % Reads bounds_var attribute, if it doesn't exist set to an unbound variable
 read_bounds_var(X, B) :-
-    write('READING boundsvar... '), writeln(X), 
     var(X),
     (get_attr(X, bounds_var, B)
-    ->  true, write('   boundsvar is '), writeln(B)
-    ;   put_attr(X, bounds_var, B), write('   Set boundsvar to '), writeln(B)
+    ->  true
+    ;   put_attr(X, bounds_var, B)
     ), 
     X \== B, !.
 
@@ -245,21 +247,21 @@ complement_atom(X=Y, X\=Y).
 complement_atom(X\=Y, X=Y).
 
 % Rewrites constraints from X to X:bounds_var
-rewrite_constraint(B, X, [X=Const], [B=Const]) :- X\==B, var(X), atomic(Const), !.
-rewrite_constraint(B, X, [Const=X], [Const=B]) :- X\==B, var(X), atomic(Const), !.
-rewrite_constraint(B, X, [X\=Const], [B\=Const]) :- X\==B, var(X), atomic(Const), !.
-rewrite_constraint(B, X, [Const\=X], [Const\=B]) :- X\==B, var(X), atomic(Const), !.
-rewrite_constraint(B, X, [X=Y], [B=C]) :- X\==B, X\==Y, var(Y), read_bounds_var(Y, C), !.
-rewrite_constraint(B, X, [Y=X], [C=B]) :- X\==B, X\==Y, var(Y), read_bounds_var(Y, C), !.
-rewrite_constraint(B, X, [X\=Y], [B\=C]) :- X\==B, X\==Y, var(Y), read_bounds_var(Y, C), !.
-rewrite_constraint(B, X, [Y\=X], [C\=B]) :- X\==B, X\==Y, var(Y), read_bounds_var(Y, C), !.
+rewrite_constraint(B, X, [X=Const], [B=Const]) :- X\==B, var(X), atomic(Const).
+rewrite_constraint(B, X, [Const=X], [Const=B]) :- X\==B, var(X), atomic(Const).
+rewrite_constraint(B, X, [X\=Const], [B\=Const]) :- X\==B, var(X), atomic(Const).
+rewrite_constraint(B, X, [Const\=X], [Const\=B]) :- X\==B, var(X), atomic(Const).
+rewrite_constraint(B, X, [X=Y], [B=C]) :- X\==B, X\==Y, var(Y), read_bounds_var(Y, C).
+rewrite_constraint(B, X, [Y=X], [C=B]) :- X\==B, X\==Y, var(Y), read_bounds_var(Y, C).
+rewrite_constraint(B, X, [X\=Y], [B\=C]) :- X\==B, X\==Y, var(Y), read_bounds_var(Y, C).
+rewrite_constraint(B, X, [Y\=X], [C\=B]) :- X\==B, X\==Y, var(Y), read_bounds_var(Y, C).
 
 % Uses constraint C to set corresponding bounds constraint
 % Handles =, \= constraints
-apply_bounds(X, [X=Y]) :- writeln('.........APPLY X #= Y'), X #= Y.
-apply_bounds(X, [Y=X]) :- writeln('.........APPLY Y #= X'), Y #= X.
-apply_bounds(X, [X\=Y]) :- writeln('.........APPLY X #\= Y'), X #\= Y.
-apply_bounds(X, [Y\=X]) :- writeln('.........APPLY Y #\= X'), Y #\= X.
+apply_bounds(X, [X=Y]) :- writeln('           APPLY X #= Y'), X #= Y.
+apply_bounds(X, [Y=X]) :- writeln('           APPLY Y #= X'), Y #= X.
+apply_bounds(X, [X\=Y]) :- writeln('          APPLY X #\= Y'), X #\= Y.
+apply_bounds(X, [Y\=X]) :- writeln('          APPLY Y #\= X'), Y #\= X.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Tree Structure
