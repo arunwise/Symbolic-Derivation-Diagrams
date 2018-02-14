@@ -179,7 +179,7 @@ update_edges(tree(X, [edge_subtree(C1, S)]), Y, C, T_out) :-
     complement(C2, (Complements, Zeros)),
     write('COMPLEMENTS: '), writeln(Complements), 
     write('ZEROS: '), writeln(Zeros),
-    basics:append([C], Complements, Constraints),
+    basics:append([C2], Complements, Constraints),
     basics:append([S], Zeros, Subtrees),
     write('CONSTRAINTS: '), writeln(Constraints),
     write('SUBTREES: '), writeln(Subtrees),
@@ -348,7 +348,7 @@ display_bounds_var(A) :- (display_attributes(on) -> write(A); true).
 
 % Complements a constraint list
 complement([], ([], [])).
-complement([C|Cs], ([C_comp|C_comps],[leaf(0)|Zeros])) :-
+complement([C|Cs], ([[C_comp]|C_comps],[leaf(0)|Zeros])) :-
     complement_atom(C, C_comp),
     complement(Cs, (C_comps, Zeros)).
 
