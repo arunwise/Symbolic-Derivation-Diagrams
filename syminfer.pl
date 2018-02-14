@@ -16,30 +16,7 @@
 :- install_attribute_portray_hook(bounds_var, Attr, display_bounds_var(Attr)).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Query processing definitions
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% Maps the domain of an exported query to the integer representation
-map_domain(Q, _Q) :-
-    write('Q: '), writeln(Q),
-    values_list(L),
-    Q =.. [F | Args],
-    map_args(Args, _Args, L),
-    basics:append(_Args, [leaf(1), O], OSDD_Args),
-    _Q =.. [F | OSDD_Args],
-    write('_Q: '), writeln(_Q).
-
-% Maps an individual argument to it's corresponding interger representation
-map_args([], [], _).
-map_args([Arg|Args], [_Arg|_Args], L) :-
-    (basics:ith(I, L, Arg)
-    ->  _Arg = I
-    ;   _Arg = Arg
-    ),
-    map_args(Args, _Args, L).
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Constraint processing definitions
+% OSDD construction definitions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Definition of msw constraint processing.
@@ -96,7 +73,9 @@ constraint(Lhs=Rhs, C_in, C_out) :-
     ->  set_constraint(Rhs, [Lhs=Rhs])
     ;   true
     ),
+    write('UPDATING EDGES...'), writeln(Lhs),
     update_edges(C_in, Lhs, Lhs=Rhs, C_tmp), !,
+    write('UPDATING EDGES...'), writeln(Rhs),
     update_edges(C_tmp, Rhs, Lhs=Rhs, C_out), !, 
     write('C_in: '), writeln(C_in), write('C_out: '), writeln(C_out).
 
@@ -123,9 +102,134 @@ constraint(Lhs\=Rhs, C_in, C_out) :-
     ->  set_constraint(Rhs, [Lhs\=Rhs])
     ;   true
     ),
+    write('UPDATING EDGES...'), writeln(Lhs),
     update_edges(C_in, Lhs, Lhs\=Rhs, C_tmp), !,
+    write('UPDATING EDGES...'), writeln(Rhs),
     update_edges(C_tmp, Rhs, Lhs\=Rhs, C_out), !, 
     write('C_in: '), writeln(C_in), write('C_out: '), writeln(C_out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Tree Structure
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+one(leaf(1)).
+zero(leaf(0)).
+
+% Represent trees as tree(Root,[(Edge1, Subtree1), (Edge2, Subtree2), ...])
+make_tree(Root, Edges, Subtrees, tree(Root, L)) :-
+    myzip(Edges, Subtrees, L).
+
+% Fummy predicates for and/or
+and(leaf(1), _T, _T) :- !.
+and(_T, leaf(1), _T) :- !.
+and(leaf(0), _T, leaf(0)) :- !.
+and(_T, leaf(0), leaf(0)) :- !.
+or(leaf(1), _T, leaf(1)) :- !.
+or(_T, leaf(1), leaf(1)) :- !.
+or(leaf(0), _T, _T) :- !.
+or(_T, leaf(0), _T) :- !.
+and(_T1, _T2, and(_T1, _T2)) :- !.
+or(_T1, _T2, or(_T1, _T2)) :- !.
+
+% OSSD contains X if X is the root
+contains(tree(Y, _), X) :- X==Y, !.
+
+% OSDD contains X if X is in the children lists
+contains(tree(Y, L), X) :-
+    X \== Y,
+    contains(L, X).
+
+% OSDD constaints X if X is in the current sub-OSDD
+% or if X is in a later sub-OSDD
+contains([(_C,T)|R], X) :-
+    (contains(T, X) 
+    -> true
+    ;  contains(R, X)
+    ).
+
+% For and/or OSDD pairs, X is in the left or right OSDD
+contains(and(T1, _T2), X) :-
+    contains(T1, X), !.
+contains(and(_T1, T2), X) :-
+    contains(T2, X), !.
+contains(or(T1, _T2), X) :-
+    contains(T1, X), !.
+contains(or(_T1, T2), X) :-
+    contains(T2, X), !.
+
+% If X is a constant, leave T_in unchanged
+update_edges(T_in, X, _C, T_in) :- atomic(X).
+
+% If the input tree is connected with an and/or node
+%     recurse on the left and right subtrees
+update_edges(and(T1,T2), X, C, and(T1out,T2out)) :-
+    var(X),
+    update_edges(T1, X, C, T1out),
+    update_edges(T2, X, C, T2out).
+update_edges(or(T1,T2), X, C, or(T1out,T2out)) :-
+    var(X),
+    update_edges(T1, X, C, T1out),
+    update_edges(T2, X, C, T2out).
+
+% If X is the root of the tree, append C to X's constraint list
+%     then add a 0 leaf with the complement of C as the edge
+update_edges(tree(X, [(C1, S)]), Y, C, T_out) :-
+    X==Y,
+    basics:append(C1, [C], C2),
+    write('NEW CONSTRAINTS: '), writeln(C2),
+    complement(C2, (Complements, Zeros)),
+    write('COMPLEMENTS: '), writeln(Complements), 
+    write('ZEROS: '), writeln(Zeros),
+    basics:append([C], Complements, Constraints),
+    basics:append([S], Zeros, Subtrees),
+    write('CONSTRAINTS: '), writeln(Constraints),
+    write('SUBTREES: '), writeln(Subtrees),
+    make_tree(X, Constraints, Subtrees, T_out),
+    write('T-OUT: '), writeln(T_out), !.
+
+% If X is not the root, recurse on the edges of the tree
+update_edges(tree(X, S1), Y, C, tree(X, S2)) :-
+    X \== Y,
+    update_edges(S1, Y, C, S2).
+
+% Base case for edge recursion
+update_edges([], _Y, _C, []).
+
+% Updates the subtrees in the edge list one at a time
+update_edges([(_E, T) | R], X, C, [(_E, T1)| R1]) :-
+    update_edges(T, X, C, T1),
+    update_edges(R, X, C, R1).
+
+% Leaf nodes are left unchanged
+update_edges(leaf(_X), Y, _C, leaf(_X)) :- var(Y).
+
+% Ordering relation for switch/instance pairs
+ord((S1, I1), (S2, I2), C, O) :-
+    atomic(I1), atomic(I2),
+    (I1 @< I2
+    ->  O = lt
+    ;   (I1 @= I2
+	    ->  ord(S1, S2, C, O)
+	    ;   O = gt
+	    )
+    ).
+
+ord(S1, S2, C, O) :-
+    functor(S1, F1, _),
+    functor(S2, F2, _),
+    (F1 @< F2
+    ->  O = lt
+    ;   (F1 @= F2
+	    ->  S1 =.. [F1| Args1],
+	        S2 =.. [F1| Args2],
+	        ord(Args1, Args2, C, O)
+	    ;   O = gt
+	    )
+    ).
+
+ord([A1 | A1Rest], [A2 | A2Rest], C, O) :-
+    % check whether constraint formula (which ?) entails A1 < A2 or A1
+    % > A2 or there is no ordering
+    true.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Attribute processing definitions
@@ -238,10 +342,13 @@ display_id(A) :- (display_attributes(on) -> write(A); true).
 display_constr(A) :- (display_attributes(on) -> write(A); true).
 display_bounds_var(A) :- (display_attributes(on) -> write(A); true).
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Constraint processing definitions
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 % Complements a constraint list
 complement([], ([], [])).
-complement([C|Cs], ([C_comp|C_comps],[Zero|Zeros])) :-
-    zero(Zero),
+complement([C|Cs], ([C_comp|C_comps],[leaf(0)|Zeros])) :-
     complement_atom(C, C_comp),
     complement(Cs, (C_comps, Zeros)).
 
@@ -267,125 +374,27 @@ apply_bounds(X, [X\=Y]) :- X #\= Y.
 apply_bounds(X, [Y\=X]) :- Y #\= X.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Tree Structure
+% Query processing definitions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-one(leaf(1)).
-zero(leaf(0)).
 
-% Represent trees as tree(Root,[(Edge1, Subtree1), (Edge2, Subtree2), ...])
-make_tree(Root, Edges, Subtrees, tree(Root, L)) :-
-    myzip(Edges, Subtrees, L).
+% Maps the domain of an exported query to the integer representation
+map_domain(Q, _Q) :-
+    write('Q: '), writeln(Q),
+    values_list(L),
+    Q =.. [F | Args],
+    map_args(Args, _Args, L),
+    basics:append(_Args, [leaf(1), O], OSDD_Args),
+    _Q =.. [F | OSDD_Args],
+    write('_Q: '), writeln(_Q).
 
-% Fummy predicates for and/or
-and(leaf(1), _T, _T) :- !.
-and(_T, leaf(1), _T) :- !.
-and(leaf(0), _T, leaf(0)) :- !.
-and(_T, leaf(0), leaf(0)) :- !.
-or(leaf(1), _T, leaf(1)) :- !.
-or(_T, leaf(1), leaf(1)) :- !.
-or(leaf(0), _T, _T) :- !.
-or(_T, leaf(0), _T) :- !.
-and(_T1, _T2, and(_T1, _T2)) :- !.
-or(_T1, _T2, or(_T1, _T2)) :- !.
-
-% OSSD contains X if X is the root
-contains(tree(Y, _), X) :- X==Y, !.
-
-% OSDD contains X if X is in the children lists
-contains(tree(Y, L), X) :-
-    X \== Y,
-    contains(L, X).
-
-% OSDD constaints X if X is in the current sub-OSDD
-% or if X is in a later sub-OSDD
-contains([(_C,T)|R], X) :-
-    (contains(T, X) 
-    -> true
-    ;  contains(R, X)
-    ).
-
-% For and/or OSDD pairs, X is in the left or right OSDD
-contains(and(T1, _T2), X) :-
-    contains(T1, X), !.
-contains(and(_T1, T2), X) :-
-    contains(T2, X), !.
-contains(or(T1, _T2), X) :-
-    contains(T1, X), !.
-contains(or(_T1, T2), X) :-
-    contains(T2, X), !.
-
-% If X is a constant, leave T_in unchanged
-update_edges(T_in, X, _C, T_in) :- atomic(X).
-
-% If the input tree is connected with an and/or node
-%     recurse on the left and right subtrees
-update_edges(and(T1,T2), X, C, and(T1out,T2out)) :-
-    var(X),
-    update_edges(T1, X, C, T1out),
-    update_edges(T2, X, C, T2out).
-update_edges(or(T1,T2), X, C, or(T1out,T2out)) :-
-    var(X),
-    update_edges(T1, X, C, T1out),
-    update_edges(T2, X, C, T2out).
-
-% If X is the root of the tree, append C to X's constraint list
-%     then add a 0 leaf with the complement of C as the edge
-update_edges(tree(X, [(C1,S)]), Y, C, tree(X, [(C2, S)])) :-
-    X==Y,
-    basics:append(C1, [C], C2), !.
-
-% If X is not the root, recurse on the edges of the tree
-update_edges(tree(X, S1), Y, C, tree(X, S2)) :-
-    X \== Y,
-    update_edges(S1, Y, C, S2).
-
-% Base case for edge recursion
-update_edges([], _Y, _C, []).
-
-% Updates the subtrees in the edge list one at a time
-update_edges([(_E, T) | R], X, C, [(_E, T1)| R1]) :-
-    update_edges(T, X, C, T1),
-    update_edges(R, X, C, R1).
-
-% Leaf nodes are left unchanged
-update_edges(leaf(_X), Y, _C, leaf(_X)) :- var(Y).
-
-% Ordering relation for switch/instance pairs
-ord((S1, I1), (S2, I2), C, O) :-
-    atomic(I1), atomic(I2),
-    (I1 @< I2
-    ->
-	O = lt
-    ;
-        (I1 @= I2
-	->
-	    ord(S1, S2, C, O)
-	;
-	    O = gt
-	)
-    ).
-
-ord(S1, S2, C, O) :-
-    functor(S1, F1, _),
-    functor(S2, F2, _),
-    (F1 @< F2
-    ->
-	O = lt
-    ;
-        (F1 @= F2
-	->
-	    S1 =.. [F1| Args1],
-	    S2 =.. [F1| Args2],
-	    ord(Args1, Args2, C, O)
-	;
-	    O = gt
-	)
-    ).
-
-ord([A1 | A1Rest], [A2 | A2Rest], C, O) :-
-    % check whether constraint formula (which ?) entails A1 < A2 or A1
-    % > A2 or there is no ordering
-    true.
+% Maps an individual argument to it's corresponding interger representation
+map_args([], [], _).
+map_args([Arg|Args], [_Arg|_Args], L) :-
+    (basics:ith(I, L, Arg)
+    ->  _Arg = I
+    ;   _Arg = Arg
+    ),
+    map_args(Args, _Args, L).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Visualization using DOT
