@@ -63,7 +63,7 @@ msw(S, I, X, C_in, C_out) :- !,
         B in Low..High,
         set_id(X, (S, I)),
         read_constraint(X, C),
-        make_tree(X, [C|C_comp], [leaf(1)|Zeros], Osdd),   % osdd: X -- C --> 1
+        make_tree(X, [C], [leaf(1)], Osdd),   % osdd: X -- C --> 1
         and(C_in, Osdd, C_out),
         write('C_in: '), writeln(C_in), write('C_out: '), writeln(C_out)
     ).
@@ -79,15 +79,14 @@ constraint(Lhs=Rhs, C_in, C_out) :-
     write('\n= CONSTRAINT: '),writeln(Lhs=Rhs),
     (var(Lhs); var(Rhs)),  % at most one of Lhs and Rhs can be a ground term
     (var(Lhs) 
-    ->  read_type(Lhs, T1),
-        nonvar(T1)
+    ->  read_type(Lhs, T1)
     ;   lookup_type(Lhs, T1)
     ),
     (var(Rhs) 
-    ->  read_type(Rhs, T2),
-        nonvar(T2)
+    ->  read_type(Rhs, T2)
     ;   lookup_type(Rhs, T2)
     ),
+    nonvar(T1), nonvar(T2),
     T1 = T2,
     (var(Lhs)
     ->  set_constraint(Lhs, [Lhs=Rhs])
@@ -108,14 +107,13 @@ constraint(Lhs\=Rhs, C_in, C_out) :-
     (var(Lhs); var(Rhs)),  % at most one of Lhs and Rhs can be a ground term
     (var(Lhs) 
     ->  read_type(Lhs, T1)
-    ;   lookup_type(Lhs, T1),
-        nonvar(T1)
+    ;   lookup_type(Lhs, T1)
     ),
     (var(Rhs) 
     ->  read_type(Rhs, T2)
-    ;   lookup_type(Rhs, T2),
-        nonvar(T2)
+    ;   lookup_type(Rhs, T2)
     ),
+    nonvar(T1), nonvar(T2),
     T1 = T2,
     (var(Lhs) 
     ->  set_constraint(Lhs, [Lhs\=Rhs])
@@ -252,14 +250,14 @@ complement_atom(X=Y, X\=Y).
 complement_atom(X\=Y, X=Y).
 
 % Rewrites constraints from X to X:bounds_var
-rewrite_constraint(B, X, [X=Const], [B=Const]) :- X\==B, var(X), atomic(Const).
-rewrite_constraint(B, X, [Const=X], [Const=B]) :- X\==B, var(X), atomic(Const).
-rewrite_constraint(B, X, [X\=Const], [B\=Const]) :- X\==B, var(X), atomic(Const).
-rewrite_constraint(B, X, [Const\=X], [Const\=B]) :- X\==B, var(X), atomic(Const).
-rewrite_constraint(B, X, [X=Y], [B=C]) :- X\==B, X\==Y, var(Y), read_bounds_var(Y, C).
-rewrite_constraint(B, X, [Y=X], [C=B]) :- X\==B, X\==Y, var(Y), read_bounds_var(Y, C).
-rewrite_constraint(B, X, [X\=Y], [B\=C]) :- X\==B, X\==Y, var(Y), read_bounds_var(Y, C).
-rewrite_constraint(B, X, [Y\=X], [C\=B]) :- X\==B, X\==Y, var(Y), read_bounds_var(Y, C).
+rewrite_constraint(B, X, [X=Const], [B=Const]) :- X\==B, var(X), atomic(Const), !.
+rewrite_constraint(B, X, [Const=X], [Const=B]) :- X\==B, var(X), atomic(Const), !.
+rewrite_constraint(B, X, [X\=Const], [B\=Const]) :- X\==B, var(X), atomic(Const), !.
+rewrite_constraint(B, X, [Const\=X], [Const\=B]) :- X\==B, var(X), atomic(Const), !.
+rewrite_constraint(B, X, [X=Y], [B=C]) :- X\==B, X\==Y, var(Y), read_bounds_var(Y, C), !.
+rewrite_constraint(B, X, [Y=X], [C=B]) :- X\==B, X\==Y, var(Y), read_bounds_var(Y, C), !.
+rewrite_constraint(B, X, [X\=Y], [B\=C]) :- X\==B, X\==Y, var(Y), read_bounds_var(Y, C), !.
+rewrite_constraint(B, X, [Y\=X], [C\=B]) :- X\==B, X\==Y, var(Y), read_bounds_var(Y, C), !.
 
 % Uses constraint C to set corresponding bounds constraint
 % Handles =, \= constraints
