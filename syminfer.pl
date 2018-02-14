@@ -140,7 +140,7 @@ contains(tree(Y, L), X) :-
 
 % OSDD constaints X if X is in the current sub-OSDD
 % or if X is in a later sub-OSDD
-contains([(_C,T)|R], X) :-
+contains([edge_subtree(_C,T)|R], X) :-
     (contains(T, X) 
     -> true
     ;  contains(R, X)
@@ -172,7 +172,7 @@ update_edges(or(T1,T2), X, C, or(T1out,T2out)) :-
 
 % If X is the root of the tree, append C to X's constraint list
 %     then add a 0 leaf with the complement of C as the edge
-update_edges(tree(X, [(C1, S)]), Y, C, T_out) :-
+update_edges(tree(X, [edge_subtree(C1, S)]), Y, C, T_out) :-
     X==Y,
     basics:append(C1, [C], C2),
     write('NEW CONSTRAINTS: '), writeln(C2),
@@ -195,7 +195,7 @@ update_edges(tree(X, S1), Y, C, tree(X, S2)) :-
 update_edges([], _Y, _C, []).
 
 % Updates the subtrees in the edge list one at a time
-update_edges([(_E, T) | R], X, C, [(_E, T1)| R1]) :-
+update_edges([edge_subtree(_E, T) | R], X, C, [edge_subtree(_E, T1)| R1]) :-
     update_edges(T, X, C, T1),
     update_edges(R, X, C, R1).
 
@@ -415,15 +415,15 @@ writeDotPaths([P|R], Handle) :-
     writeDotPath(P, Handle),
     writeDotPaths(R, Handle).
 
-writeDotPath([(Var,Label)], Handle) :-
+writeDotPath([node(Var,Label)], Handle) :-
     (Label=0;Label=1),
     write(Handle, Var),
     write(Handle, ' [label='),
     write(Handle, Label),
     write(Handle, '];\n').
 
-writeDotPath([(V1,L1), E| R], Handle) :-
-    R = [(V2,_L2)|_],
+writeDotPath([node(V1,L1), E| R], Handle) :-
+    R = [node(V2,_L2)|_],
     write(Handle, V1), write(Handle, ' [label='), write(Handle, L1), write(Handle, '];\n'),
     write(Handle, V1), write(Handle, ' -> '), write(Handle, V2), write(Handle, ' [label='), write(Handle, '"'),writeDotConstraint(Handle, E), write(Handle, '"'), write(Handle, '];\n'),
     writeDotPath(R, Handle).
@@ -450,29 +450,29 @@ write1(Handle, X<Y) :-
 % paths are simply sequences (lists) of node,edge,node... values nodes
 % are represented by pairs (VarName, Label). This is needed because,
 % otherwise leaves "and", "or" nodes will get combined.
-paths(leaf(X), [[(_Y,X)]]). % fresh variable Y helps distinguish from other nodes with same value of X
+paths(leaf(X), [[node(_Y,X)]]). % fresh variable Y helps distinguish from other nodes with same value of X
 
 paths(and(T1, T2), P) :-
     paths(T1, P1),
-    addprefix([(Y,and),null], P1, P1A),
+    addprefix([node(Y,and),null], P1, P1A),
     paths(T2, P2),
-    addprefix([(Y,and),null], P2, P2A),
+    addprefix([node(Y,and),null], P2, P2A),
     basics:append(P1A, P2A, P).
 
 paths(or(T1, T2), P) :-
     paths(T1, P1),
-    addprefix([(Y,or),null], P1, P1A),
+    addprefix([node(Y,or),null], P1, P1A),
     paths(T2, P2),
-    addprefix([(Y,or),null], P2, P2A),
+    addprefix([node(Y,or),null], P2, P2A),
     basics:append(P1A, P2A, P).
 
 paths(tree(Root, Subtrees), P) :-
     paths1(Root, Subtrees, [], P).
 
 paths1(_Root, [], _P, _P).
-paths1(Root, [(E,T)|R], Pin, Pout) :-
+paths1(Root, [edge_subtree(E,T)|R], Pin, Pout) :-
     paths(T, P1),
-    addprefix([(Root,Root),E], P1, P2),
+    addprefix([node(Root,Root),E], P1, P2),
     basics:append(Pin, P2, P3),
     paths1(Root, R, P3, Pout).
 
@@ -487,5 +487,5 @@ addprefix(L, [P|R], [P1|RR]) :-
 display_attributes(on).  % control display of attributes
 
 myzip([], [], []).
-myzip([A|AR], [B|BR], [(A,B)|R]) :-
-    myzip(AR, BR, R).
+myzip([E|ER], [T|TR], [edge_subtree(E,T)|R]) :-
+    myzip(ER, TR, R).
