@@ -43,13 +43,15 @@ map_args([Arg|Args], [_Arg|_Args], L) :-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Definition of msw constraint processing.
-%     If X is in C_in 
-%         set C_in = C_out
-%     Otherwise 
-%         First set the type of X to be the domain of S,
-%         Set bounds range of X,
-%         Then set the ID of X to be the pair (S, I),
-%         construct the OSDD rooted at X with a single edge labeled with constraints C and a leaf node 1.
+% If X is in C_in 
+%     set C_in = C_out
+% Otherwise 
+%     First set the type of X to be the domain of S,
+%     Set bounds_var of X which will have the bounds constraints applied to
+%         set the range of X:bounds_var to be the range of the domain of S,
+%     Then set the ID of X to be the pair (S, I),
+%     Construct the OSDD rooted at X with a single edge labeled with constraints C and a leaf node 1,
+%     AND this OSDD rooted at X with C_in to compute C_out
 msw(S, I, X, C_in, C_out) :- !,
     writeln('\nIN MSW...'),
     (contains(C_in, X)
@@ -61,7 +63,6 @@ msw(S, I, X, C_in, C_out) :- !,
         B in Low..High,
         set_id(X, (S, I)),
         read_constraint(X, C),
-        complement(C, (C_comp, Zeros)),
         make_tree(X, [C|C_comp], [leaf(1)|Zeros], Osdd),   % osdd: X -- C --> 1
         and(C_in, Osdd, C_out),
         write('C_in: '), writeln(C_in), write('C_out: '), writeln(C_out)
@@ -70,6 +71,8 @@ msw(S, I, X, C_in, C_out) :- !,
 % Definition of atomic constraint processing for equality constraints.
 % First check if at least one of the arguments of the constraint is a variable
 % Then get the types of both arguments
+%     If Lhs or Rhs has empty type and is a variable, fail
+%     (ie. constraints on X must occur after msw(S, I, X))
 % Update the constraint lists of any variable arguments
 % Finally update the edges for Lhs and Rhs.
 constraint(Lhs=Rhs, C_in, C_out) :-
@@ -95,7 +98,8 @@ constraint(Lhs=Rhs, C_in, C_out) :-
     ;   true
     ),
     update_edges(C_in, Lhs, Lhs=Rhs, C_tmp), !,
-    update_edges(C_tmp, Rhs, Lhs=Rhs, C_out), !, write('C_in: '), writeln(C_in), write('C_out: '), writeln(C_out).
+    update_edges(C_tmp, Rhs, Lhs=Rhs, C_out), !, 
+    write('C_in: '), writeln(C_in), write('C_out: '), writeln(C_out).
 
 % Definition of atomic constraint processing for inequality constraints.
 % Same logic as in equality constraints.
@@ -122,7 +126,8 @@ constraint(Lhs\=Rhs, C_in, C_out) :-
     ;   true
     ),
     update_edges(C_in, Lhs, Lhs\=Rhs, C_tmp), !,
-    update_edges(C_tmp, Rhs, Lhs\=Rhs, C_out), !, write('C_in: '), writeln(C_in), write('C_out: '), writeln(C_out).
+    update_edges(C_tmp, Rhs, Lhs\=Rhs, C_out), !, 
+    write('C_in: '), writeln(C_in), write('C_out: '), writeln(C_out).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Attribute processing definitions
@@ -185,6 +190,7 @@ set_constraint(X, C) :-
     writeln('    EXIT SET_CONSTRAINT\n').
 
 % Reads bounds_var attribute, if it doesn't exist set to an unbound variable
+% ensuring that X and B are not the same variable.
 read_bounds_var(X, B) :-
     var(X),
     (get_attr(X, bounds_var, B)
@@ -213,7 +219,6 @@ read_type(X, T) :-
     ).
 
 % Lookup type of a constant by searching for a type T which X is an element of.
-% NOTE: Should set T to the greatest superset.
 lookup_type(X, T) :-
     atomic(X),
     values(_, T),
@@ -258,10 +263,10 @@ rewrite_constraint(B, X, [Y\=X], [C\=B]) :- X\==B, X\==Y, var(Y), read_bounds_va
 
 % Uses constraint C to set corresponding bounds constraint
 % Handles =, \= constraints
-apply_bounds(X, [X=Y]) :- writeln('           APPLY X #= Y'), X #= Y.
-apply_bounds(X, [Y=X]) :- writeln('           APPLY Y #= X'), Y #= X.
-apply_bounds(X, [X\=Y]) :- writeln('          APPLY X #\= Y'), X #\= Y.
-apply_bounds(X, [Y\=X]) :- writeln('          APPLY Y #\= X'), Y #\= X.
+apply_bounds(X, [X=Y]) :- X #= Y.
+apply_bounds(X, [Y=X]) :- Y #= X.
+apply_bounds(X, [X\=Y]) :- X #\= Y.
+apply_bounds(X, [Y\=X]) :- Y #\= X.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Tree Structure
