@@ -55,6 +55,7 @@ msw(S, I, X, C_in, C_out) :- !,
 constraint(Lhs=Rhs, C_in, C_out) :-
     write('\n= CONSTRAINT: '),writeln(Lhs=Rhs),
     (var(Lhs); var(Rhs)),  % at most one of Lhs and Rhs can be a ground term
+    % Get the types
     (var(Lhs) 
     ->  read_type(Lhs, T1)
     ;   lookup_type(Lhs, T1)
@@ -63,8 +64,9 @@ constraint(Lhs=Rhs, C_in, C_out) :-
     ->  read_type(Rhs, T2)
     ;   lookup_type(Rhs, T2)
     ),
-    nonvar(T1), nonvar(T2),
-    T1 = T2,
+    nonvar(T1), nonvar(T2),  % Ensure that constraint occurs after the msw/3 is called
+    T1 = T2,  % Type check
+    % Set the constraints
     (var(Lhs)
     ->  set_constraint(Lhs, [Lhs=Rhs])
     ;   true
@@ -73,17 +75,27 @@ constraint(Lhs=Rhs, C_in, C_out) :-
     ->  set_constraint(Rhs, [Lhs=Rhs])
     ;   true
     ),
-    write('UPDATING EDGES...'), writeln(Lhs),
-    update_edges(C_in, Lhs, Lhs=Rhs, C_tmp), !,
-    write('UPDATING EDGES...'), writeln(Rhs),
-    update_edges(C_tmp, Rhs, Lhs=Rhs, C_out), !, 
-    write('C_in: '), writeln(C_in), write('C_out: '), writeln(C_out).
+    % Update the edges
+    (var(Lhs), var(Rhs), compare_roots(Lhs, Rhs, C)
+    ->  (C > 0  /* Rhs is smaller */
+        -> update_edges(C_in, Lhs, Lhs=Rhs, C_out)
+        ;   (C < 0 /* Lhs is smaller */
+            ->  update_edges(C_in, Rhs, Lhs=Rhs, C_out)
+            ;   update_edges(C_in, Rhs, Lhs=Rhs, C_out) /* Lhs=Rhs */ 
+            )
+        )
+    ;   (var(Lhs)
+        ->  update_edges(C_in, Lhs, Lhs=Rhs, C_out)
+        ;   update_edges(C_in, Rhs, Lhs=Rhs, C_out)  /* One of Lhs and Rhs is a variable */
+        )
+    ), !.
 
 % Definition of atomic constraint processing for inequality constraints.
 % Same logic as in equality constraints.
 constraint(Lhs\=Rhs, C_in, C_out) :-
     write('\n\= CONSTRAINT: '),writeln(Lhs\=Rhs),
     (var(Lhs); var(Rhs)),  % at most one of Lhs and Rhs can be a ground term
+    % Get the types
     (var(Lhs) 
     ->  read_type(Lhs, T1)
     ;   lookup_type(Lhs, T1)
@@ -92,8 +104,9 @@ constraint(Lhs\=Rhs, C_in, C_out) :-
     ->  read_type(Rhs, T2)
     ;   lookup_type(Rhs, T2)
     ),
-    nonvar(T1), nonvar(T2),
-    T1 = T2,
+    nonvar(T1), nonvar(T2),  % Ensure that constraint occurs after the msw/3 is called
+    T1 = T2,  % Type check
+    % Set the constraints
     (var(Lhs) 
     ->  set_constraint(Lhs, [Lhs\=Rhs])
     ;   true
@@ -102,11 +115,20 @@ constraint(Lhs\=Rhs, C_in, C_out) :-
     ->  set_constraint(Rhs, [Lhs\=Rhs])
     ;   true
     ),
-    write('UPDATING EDGES...'), writeln(Lhs),
-    update_edges(C_in, Lhs, Lhs\=Rhs, C_tmp), !,
-    write('UPDATING EDGES...'), writeln(Rhs),
-    update_edges(C_tmp, Rhs, Lhs\=Rhs, C_out), !, 
-    write('C_in: '), writeln(C_in), write('C_out: '), writeln(C_out).
+    % Update the edges
+    (var(Lhs), var(Rhs), compare_roots(Lhs, Rhs, C)
+    ->  (C > 0  /* Rhs is smaller */
+        -> update_edges(C_in, Lhs, Lhs\=Rhs, C_out)
+        ;   (C < 0 /* Lhs is smaller */
+            ->  update_edges(C_in, Rhs, Lhs\=Rhs, C_out)
+            ;   update_edges(C_in, Rhs, Lhs\=Rhs, C_out) /* Lhs=Rhs */ 
+            )
+        )
+    ;   (var(Lhs)
+        ->  update_edges(C_in, Lhs, Lhs\=Rhs, C_out)
+        ;   update_edges(C_in, Rhs, Lhs\=Rhs, C_out)  /* One of Lhs and Rhs is a variable */
+        )
+    ), !.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Tree Structure
