@@ -170,43 +170,24 @@ update_edges(or(T1,T2), X, C, or(T1out,T2out)) :-
     update_edges(T1, X, C, T1out),
     update_edges(T2, X, C, T2out).
 
+% Handles logic for when X is the root of the tree
 update_edges(tree(X, Edges), Y, C, tree(X, UpdatedEdges)) :-
     X == Y,
-    writeln('EHERERERE'),
     update_subtrees(Edges, C, [], UpdatedEdges).
 
-% Implements completeness
+% Implements completeness by adding the complement of C to the previous constraints
 update_subtrees([], C, Prev, [edge_subtree(Complement, leaf(0))]) :-
-    write('here2'),
     complement_atom(C, _C),
     basics:append(Prev, [_C], Complement).
 
 % Add C to the constraint list on an edge which does not have 0 child
 update_subtrees([edge_subtree(C1, T)|Edges], C, Prev, [edge_subtree(C2, T)| UpdatedEdges]) :-
-    write('here1'),
     (T \== leaf(0)
     ->  basics:append(C1, [C], C2),
-        basics:append(Prev, [C1], Next),
-        write('PREV: '), writeln(Prev), write('NEXT: '), writeln(Next)
-    ;   Next = Prev
+        basics:append(Prev, C1, Next)
+    ;   Next = Prev, C2 = C1
     ),
     update_subtrees(Edges, C, Next, UpdatedEdges).
-
-% If X is the root of the tree, append C to X's constraint list
-%     then add a 0 leaf with the complement of C as the edge
-/*update_edges(tree(X, [edge_subtree(C1, S)]), Y, C, T_out) :-
-    X==Y,
-    basics:append(C1, [C], C2),
-    write('NEW CONSTRAINTS: '), writeln(C2),
-    complement(C2, (Complements, Zeros)),
-    write('COMPLEMENTS: '), writeln(Complements), 
-    write('ZEROS: '), writeln(Zeros),
-    basics:append([C2], Complements, Constraints),
-    basics:append([S], Zeros, Subtrees),
-    write('CONSTRAINTS: '), writeln(Constraints),
-    write('SUBTREES: '), writeln(Subtrees),
-    make_tree(X, Constraints, Subtrees, T_out),
-    write('T-OUT: '), writeln(T_out), !.*/
 
 % If X is not the root, recurse on the edges of the tree
 update_edges(tree(X, S1), Y, C, tree(X, S2)) :-
