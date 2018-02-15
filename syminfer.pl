@@ -35,12 +35,11 @@ msw(S, I, X, C_in, C_out) :- !,
     ->  C_out = C_in
     ;   values(S, T),
         set_type(X, T),
-        read_bounds_var(X, B),
-        intrange(S, Low, High),
-        B in Low..High,
+        %read_bounds_var(X, B),
+        %intrange(S, Low, High),
+        %B in Low..High,
         set_id(X, (S, I)),
-        read_constraint(X, C),
-        make_tree(X, [C], [leaf(1)], Osdd),   % osdd: X -- C --> 1
+        make_tree(X, [[]], [leaf(1)], Osdd),   % osdd: X -- C --> 1
         and(C_in, Osdd, C_out),
         write('C_in: '), writeln(C_in), write('C_out: '), writeln(C_out)
     ).
@@ -67,16 +66,16 @@ constraint(Lhs=Rhs, C_in, C_out) :-
     nonvar(T1), nonvar(T2),  % Ensure that constraint occurs after the msw/3 is called
     T1 = T2,  % Type check
     % Set the constraints
-    (var(Lhs)
+    /*(var(Lhs)
     ->  set_constraint(Lhs, [Lhs=Rhs])
     ;   true
     ),
     (var(Rhs) 
     ->  set_constraint(Rhs, [Lhs=Rhs])
     ;   true
-    ),
+    ),*/
     % Update the edges
-    (var(Lhs), var(Rhs), compare_roots(Lhs, Rhs, C)
+    (var(Lhs), var(Rhs), compare_roots(Lhs, Rhs, C)  /* If both are vars then we need to order them */
     ->  (C > 0  /* Rhs is smaller */
         -> update_edges(C_in, Lhs, Lhs=Rhs, C_out)
         ;   (C < 0 /* Lhs is smaller */
@@ -107,16 +106,16 @@ constraint(Lhs\=Rhs, C_in, C_out) :-
     nonvar(T1), nonvar(T2),  % Ensure that constraint occurs after the msw/3 is called
     T1 = T2,  % Type check
     % Set the constraints
-    (var(Lhs) 
+    /*(var(Lhs) 
     ->  set_constraint(Lhs, [Lhs\=Rhs])
     ;   true
     ),
     (var(Rhs) 
     ->  set_constraint(Rhs, [Lhs\=Rhs])
     ;   true
-    ),
+    ),*/
     % Update the edges
-    (var(Lhs), var(Rhs), compare_roots(Lhs, Rhs, C)
+    (var(Lhs), var(Rhs), compare_roots(Lhs, Rhs, C)  /* If both are vars then we need to order them */
     ->  (C > 0  /* Rhs is smaller */
         -> update_edges(C_in, Lhs, Lhs\=Rhs, C_out)
         ;   (C < 0 /* Lhs is smaller */
@@ -131,7 +130,7 @@ constraint(Lhs\=Rhs, C_in, C_out) :-
     ), !.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Tree Structure
+% Tree structure definitions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 one(leaf(1)).
 zero(leaf(0)).
@@ -139,6 +138,10 @@ zero(leaf(0)).
 % Represent trees as tree(Root,[(Edge1, Subtree1), (Edge2, Subtree2), ...])
 make_tree(Root, Edges, Subtrees, tree(Root, L)) :-
     myzip(Edges, Subtrees, L).
+
+myzip([], [], []).
+myzip([E|ER], [T|TR], [edge_subtree(E,T)|R]) :-
+    myzip(ER, TR, R).
 
 % and_osdd(+OSDD_handle1, +OSDD_handle2, -OSDD_handle):
 and(Oh1, Oh2, Oh) :-
@@ -156,13 +159,22 @@ bin_op(Op, Oh1, leaf(0), Oh) :- !, bin_op0(Op, Oh1, Oh).
 
 bin_op(Op, tree(R1, E1s), tree(R2, E2s), Oh) :-
     compare_roots(R1, R2, C),
+    write(Op), writeln(C), writeln(E1s), writeln(tree(R2, E2s)),
     (C < 0  /* R1 is smaller */
-    -> apply_binop(Op, E1s, tree(R2, E2s), Es), make_osdd(R1, Es, Oh)
+    ->  (Op == or, listutil:member(edge_subtree(_, leaf(0)), E1s)
+        ->  apply_binop(Op, E1s, tree(R2, E2s), Es), make_osdd(R1, Es, Oh)
+        ;   listutil:merge(E1s, [edge_subtree(_, leaf(0))], E1s_0),
+            apply_binop(Op, E1s_0, tree(R2, E2s), Es), make_osdd(R1, Es, Oh)
+        )
     ;   (C > 0 /* R2 is smaller */
-        ->  apply_binop(Op, E2s, tree(R1, E1s), Es), make_osdd(R2, Es, Oh)
+        ->  (Op == or, listutil:member(edge_subtree(_, leaf(0)), E2s) 
+            ->  apply_binop(Op, E2s, tree(R1, E1s), Es), make_osdd(R2, Es, Oh)
+            ;   listutil:merge(E2s, [edge_subtree(_, leaf(0))], E2s_0),
+                apply_binop(Op, E2s_0, tree(R1, E1s), Es), make_osdd(R2, Es, Oh)
+            )
         ;   apply_all_binop(Op, E1s, E2s, Es), make_osdd(R1, Es, Oh) /* R1=R2 */ 
         )
-    ).
+    ), writeln(Oh).
 
 bin_op1(and, Oh, Oh).
 bin_op1(or, _, leaf(1)).
@@ -173,7 +185,9 @@ bin_op0(and, _, leaf(0)).
 :- index apply_binop/4-2.
 apply_binop(_Op, [], _Oh2, []).
 apply_binop(Op, [edge_subtree(C,Oh1)|E1s], Oh2, [edge_subtree(C,Oh)|Es]) :-
+    write(Oh1), write(Op), writeln(Oh2),
     bin_op(Op, Oh1, Oh2, Oh),
+    write('is...'), writeln(Oh),
     apply_binop(Op, E1s, Oh2, Es).
 
 /* Do binop, pairwise, for all trees in the two lists (arg 2, and arg 3) */
@@ -201,14 +215,10 @@ make_osdd(R, Eis, Oh) :- Oh = tree(R, Eis).
         Oh = tree(R, Eos)
     ).*/
 
-/**
-  * prune_inconsistent_edges(E1s, E2s):  E2s contains only those edges from E1s whose constraints are satisfiable
-**/
+% prune_inconsistent_edges(E1s, E2s):  E2s contains only those edges from E1s whose constraints are satisfiable
 prune_inconsistent_edges(X, X).
 
-/**
-  * order_edges(E1s, E2s): E2s contains all edges in E1s, but ordered in a canonical way
-**/
+% order_edges(E1s, E2s): E2s contains all edges in E1s, but ordered in a canonical way
 order_edges(X, X).
 
 % OSSD contains X if X is the root
@@ -565,7 +575,3 @@ addprefix(L, [P|R], [P1|RR]) :-
 % Misc
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 display_attributes(on).  % control display of attributes
-
-myzip([], [], []).
-myzip([E|ER], [T|TR], [edge_subtree(E,T)|R]) :-
-    myzip(ER, TR, R).
