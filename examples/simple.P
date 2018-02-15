@@ -33,3 +33,6 @@ test12 :- msw(alpha, 1, X), msw(alpha, 2, Y), {X=a}, {a\=Y}, {X=Y}.
 
 % should fail
 test13 :- {X=a}, msw(alpha, 1, X).
+
+test14 :- msw(alpha, 1, X), {X=a}.
+test14 :- msw(alpha, 1, X), {X=b}.

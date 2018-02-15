@@ -165,7 +165,7 @@ bin_op(Op, tree(R1, E1s), tree(R2, E2s), Oh) :-
         ->  try_to_add_zero_branch(E1s, _E1s), _E2s = E2s
         ;   (C > 0
             ->  try_to_add_zero_branch(E2s, _E2s), _E1s = E1s
-            ;   try_to_add_zero_branch(E1s, _E1s), _E2s = _E1s
+            ;   try_to_add_zero_branch(E1s, _E1s), try_to_add_zero_branch(E2s, _E2s)
             )
         )
     ;   _E1s = E1s, _E2s = E2s
@@ -202,9 +202,12 @@ apply_all_binop(Op, E1s, [edge_subtree(C2,Oh2)|E2s], Eis, Eos) :-
 
 apply_1_binop(Op, [], _C2, _Oh2, Es, Es).
 apply_1_binop(Op, [edge_subtree(C1,Oh1)|E1s], C2, Oh2, Eis, Eos) :-
+    write('\nC2 is: '), writeln(C2),
+    write('Edge is: '), writeln(edge_subtree(C1,Oh1)),
     bin_op(Op, Oh1, Oh2, Oh),
     conjunction(C1, C2, C),
-    Eos = [edge_subtree(C, Oh)|Ets],
+    write('Conjunction is: '), writeln(C),
+    Ets = [edge_subtree(C, Oh)|Eis],
     apply_1_binop(Op, E1s, C2, Oh2, Ets, Eos).  
 
 make_osdd(R, Eis, Oh) :- Oh = tree(R, Eis).
@@ -223,7 +226,7 @@ order_edges(X, X).
 
 % Add a zero branch for or operation if there are none present
 try_to_add_zero_branch(Es_in, Es_out) :-
-    (listutil:absmember(edge_subtree(_, leaf(0)), Es_in)
+    (basics:member(edge_subtree(_, leaf(0)), Es_in)
     ->  Es_out = Es_in
     ;   basics:append(Es_in, [edge_subtree([], leaf(0))], Es_out)
     ).
