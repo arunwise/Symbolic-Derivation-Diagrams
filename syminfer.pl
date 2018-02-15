@@ -135,9 +135,9 @@ bin_op(Op, Oh1, leaf(0), Oh) :- !, bin_op0(Op, Oh1, Oh).
 bin_op(Op, tree(R1, E1s), tree(R2, E2s), Oh) :-
     compare_roots(R1, R2, C),
     (C < 0  /* R1 is smaller */
-    -> apply_binop(Op, E1s, R2, Es), make_osdd(R1, Es, Oh)
+    -> apply_binop(Op, E1s, tree(R2, E2s), Es), make_osdd(R1, Es, Oh)
     ;   (C > 0 /* R2 is smaller */
-        ->  apply_binop(Op, E2s, R1, Es), make_osdd(R2, Es, Oh)
+        ->  apply_binop(Op, E2s, tree(R1, E1s), Es), make_osdd(R2, Es, Oh)
         ;   apply_all_binop(Op, E1s, E2s, Es), make_osdd(R1, Es, Oh) /* R1=R2 */ 
         )
     ).
@@ -171,13 +171,13 @@ apply_1_binop(Op, [edge_subtree(C1,Oh1)|E1s], C2, Oh2, Eis, Eos) :-
     Eos = [edge_subtree(C, Oh)|Ets],
     apply_1_binop(Op, E1s, C2, Oh2, Ets, Eos).  
 
-make_osdd(R, Eis, Oh) :-
-    prune_inconsistent_edges(Eis, Eps),
+make_osdd(R, Eis, Oh) :- Oh = tree(R, Eis).
+    /*prune_inconsistent_edges(Eis, Eps),
     (Eps = []
     ->  Oh = leaf(0)
     ;   order_edges(Eps, Eos),
         Oh = tree(R, Eos)
-    ).
+    ).*/
 
 /**
   * prune_inconsistent_edges(E1s, E2s):  E2s contains only those edges from E1s whose constraints are satisfiable

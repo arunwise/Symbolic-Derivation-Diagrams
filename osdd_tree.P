@@ -3,14 +3,14 @@
   * and_osdd(+OSDD_handle1, +OSDD_handle2, -OSDD_handle):
 **/
 
-and_osdd(Oh1, Oh2, Oh) :-
+and(Oh1, Oh2, Oh) :-
 	bin_op(and, Oh1, Oh2, Oh).
 
 /**
   * or_osdd(+OSDD_handle1, +OSDD_handle2, -OSDD_handle):
 **/
 
-or_osdd(Oh1, Oh2, Oh) :-
+or(Oh1, Oh2, Oh) :-
 	bin_op(or, Oh1, Oh2, Oh).
 
 /**
