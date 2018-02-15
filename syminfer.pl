@@ -118,17 +118,76 @@ zero(leaf(0)).
 make_tree(Root, Edges, Subtrees, tree(Root, L)) :-
     myzip(Edges, Subtrees, L).
 
-% Fummy predicates for and/or
-and(leaf(1), _T, _T) :- !.
-and(_T, leaf(1), _T) :- !.
-and(leaf(0), _T, leaf(0)) :- !.
-and(_T, leaf(0), leaf(0)) :- !.
-or(leaf(1), _T, leaf(1)) :- !.
-or(_T, leaf(1), leaf(1)) :- !.
-or(leaf(0), _T, _T) :- !.
-or(_T, leaf(0), _T) :- !.
-and(_T1, _T2, and(_T1, _T2)) :- !.
-or(_T1, _T2, or(_T1, _T2)) :- !.
+% and_osdd(+OSDD_handle1, +OSDD_handle2, -OSDD_handle):
+and(Oh1, Oh2, Oh) :-
+    bin_op(and, Oh1, Oh2, Oh).
+
+% or_osdd(+OSDD_handle1, +OSDD_handle2, -OSDD_handle):
+or(Oh1, Oh2, Oh) :-
+    bin_op(or, Oh1, Oh2, Oh).
+
+% bin_op(+Operation, +OSDD1, +OSDD2, -OSDD_Out):
+bin_op(Op, leaf(1), Oh2, Oh) :- !, bin_op1(Op, Oh2, Oh).
+bin_op(Op, leaf(0), Oh2, Oh) :- !, bin_op0(Op, Oh2, Oh).
+bin_op(Op, Oh1, leaf(1), Oh) :- !, bin_op1(Op, Oh1, Oh).
+bin_op(Op, Oh1, leaf(0), Oh) :- !, bin_op0(Op, Oh1, Oh).
+
+bin_op(Op, tree(R1, E1s), tree(R2, E2s), Oh) :-
+    compare_roots(R1, R2, C),
+    (C < 0  /* R1 is smaller */
+    -> apply_binop(Op, E1s, R2, Es), make_osdd(R1, Es, Oh)
+    ;   (C > 0 /* R2 is smaller */
+        ->  apply_binop(Op, E2s, R1, Es), make_osdd(R2, Es, Oh)
+        ;   apply_all_binop(Op, E1s, E2s, Es), make_osdd(R1, Es, Oh) /* R1=R2 */ 
+        )
+    ).
+
+bin_op1(and, Oh, Oh).
+bin_op1(or, _, leaf(1)).
+bin_op0(or, Oh, Oh).
+bin_op0(and, _, leaf(0)).
+
+/* Do binop with all trees in list (arg 2) and the other given tree (arg 3) */
+:- index apply_binop/4-2.
+apply_binop(_Op, [], _Oh2, []).
+apply_binop(Op, [edge_subtree(C,Oh1)|E1s], Oh2, [edge_subtree(C,Oh)|Es]) :-
+    bin_op(Op, Oh1, Oh2, Oh),
+    apply_binop(Op, E1s, Oh2, Es).
+
+/* Do binop, pairwise, for all trees in the two lists (arg 2, and arg 3) */
+apply_all_binop(Op, E1s, E2s, Es) :- apply_all_binop(Op, E1s, E2s, [], Es).
+
+:- index apply_all_binop/5-3.
+apply_all_binop(_Op, _E1s, [], Es, Es).
+
+apply_all_binop(Op, E1s, [edge_subtree(C2,Oh2)|E2s], Eis, Eos) :-
+    apply_1_binop(Op, E1s, C2, Oh2, Eis, Ets),
+    apply_all_binop(Op, E1s, E2s, Ets, Eos).
+
+apply_1_binop(Op, [], _C2, _Oh2, Es, Es).
+apply_1_binop(Op, [edge_subtree(C1,Oh1)|E1s], C2, Oh2, Eis, Eos) :-
+    bin_op(Op, Oh1, Oh2, Oh),
+    conjunction(C1, C2, C),
+    Eos = [edge_subtree(C, Oh)|Ets],
+    apply_1_binop(Op, E1s, C2, Oh2, Ets, Eos).  
+
+make_osdd(R, Eis, Oh) :-
+    prune_inconsistent_edges(Eis, Eps),
+    (Eps = []
+    ->  Oh = leaf(0)
+    ;   order_edges(Eps, Eos),
+        Oh = tree(R, Eos)
+    ).
+
+/**
+  * prune_inconsistent_edges(E1s, E2s):  E2s contains only those edges from E1s whose constraints are satisfiable
+**/
+prune_inconsistent_edges(X, X).
+
+/**
+  * order_edges(E1s, E2s): E2s contains all edges in E1s, but ordered in a canonical way
+**/
+order_edges(X, X).
 
 % OSSD contains X if X is the root
 contains(tree(Y, _), X) :- X==Y, !.
@@ -205,34 +264,32 @@ update_edges([edge_subtree(_E, T) | R], X, C, [edge_subtree(_E, T1)| R1]) :-
 % Leaf nodes are left unchanged
 update_edges(leaf(_X), Y, _C, leaf(_X)) :- var(Y).
 
-% Ordering relation for switch/instance pairs
-ord((S1, I1), (S2, I2), C, O) :-
-    atomic(I1), atomic(I2),
+% Compares two root nodes based on switch/instance ID
+compare_roots(R1, R2, 0) :-
+    read_id(R1, (S, I)),
+    read_id(R2, (S, I)).
+
+compare_roots(R1, R2, -1) :-
+    read_id(R1, (S1, I1)),
+    read_id(R2, (S2, I2)),
     (I1 @< I2
-    ->  O = lt
-    ;   (I1 @= I2
-	    ->  ord(S1, S2, C, O)
-	    ;   O = gt
-	    )
+    ->  true
+    ;   (S1 @< S2
+        ->  true
+        ;   false
+        )
     ).
 
-ord(S1, S2, C, O) :-
-    functor(S1, F1, _),
-    functor(S2, F2, _),
-    (F1 @< F2
-    ->  O = lt
-    ;   (F1 @= F2
-	    ->  S1 =.. [F1| Args1],
-	        S2 =.. [F1| Args2],
-	        ord(Args1, Args2, C, O)
-	    ;   O = gt
-	    )
+compare_roots(R1, R2, 1) :-
+    read_id(R1, (S1, I1)),
+    read_id(R2, (S2, I2)),
+    (I1 @> I2
+    ->  true
+    ;   (S1 @> S2
+        ->  true
+        ;   false
+        )
     ).
-
-ord([A1 | A1Rest], [A2 | A2Rest], C, O) :-
-    % check whether constraint formula (which ?) entails A1 < A2 or A1
-    % > A2 or there is no ordering
-    true.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Attribute processing definitions
@@ -349,11 +406,9 @@ display_bounds_var(A) :- (display_attributes(on) -> write(A); true).
 % Constraint processing definitions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% Complements a constraint list
-complement([], ([], [])).
-complement([C|Cs], ([[C_comp]|C_comps],[leaf(0)|Zeros])) :-
-    complement_atom(C, C_comp),
-    complement(Cs, (C_comps, Zeros)).
+% Combines two constraint lists by conjunction
+conjunction(C1, C2, C) :-
+    listutil:merge(C1, C2, C).
 
 % Complements a atomic constraint
 complement_atom(X=Y, X\=Y).
