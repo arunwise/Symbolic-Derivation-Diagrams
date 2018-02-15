@@ -149,6 +149,7 @@ and(Oh1, Oh2, Oh) :-
 
 % or_osdd(+OSDD_handle1, +OSDD_handle2, -OSDD_handle):
 or(Oh1, Oh2, Oh) :-
+    writeln(Oh1), writeln('      OR'), writeln(Oh2),
     bin_op(or, Oh1, Oh2, Oh).
 
 % bin_op(+Operation, +OSDD1, +OSDD2, -OSDD_Out):
@@ -159,22 +160,17 @@ bin_op(Op, Oh1, leaf(0), Oh) :- !, bin_op0(Op, Oh1, Oh).
 
 bin_op(Op, tree(R1, E1s), tree(R2, E2s), Oh) :-
     compare_roots(R1, R2, C),
-    write(Op), writeln(C), writeln(E1s), writeln(tree(R2, E2s)),
+    (Op == or
+    ->  try_to_add_zero_branch(E1s, _E1s), try_to_add_zero_branch(E2s, _E2s)
+    ;   _E1s = E1s, _E2s = E2s
+    ),
     (C < 0  /* R1 is smaller */
-    ->  (Op == or, listutil:member(edge_subtree(_, leaf(0)), E1s)
-        ->  apply_binop(Op, E1s, tree(R2, E2s), Es), make_osdd(R1, Es, Oh)
-        ;   listutil:merge(E1s, [edge_subtree(_, leaf(0))], E1s_0),
-            apply_binop(Op, E1s_0, tree(R2, E2s), Es), make_osdd(R1, Es, Oh)
-        )
+    ->  apply_binop(Op, _E1s, tree(R2, _E2s), Es), make_osdd(R1, Es, Oh)
     ;   (C > 0 /* R2 is smaller */
-        ->  (Op == or, listutil:member(edge_subtree(_, leaf(0)), E2s) 
-            ->  apply_binop(Op, E2s, tree(R1, E1s), Es), make_osdd(R2, Es, Oh)
-            ;   listutil:merge(E2s, [edge_subtree(_, leaf(0))], E2s_0),
-                apply_binop(Op, E2s_0, tree(R1, E1s), Es), make_osdd(R2, Es, Oh)
-            )
-        ;   apply_all_binop(Op, E1s, E2s, Es), make_osdd(R1, Es, Oh) /* R1=R2 */ 
+        ->  apply_binop(Op, _E2s, tree(R1, _E1s), Es), make_osdd(R2, Es, Oh)
+        ;   apply_all_binop(Op, _E1s, _E2s, Es), make_osdd(R1, Es, Oh) /* R1=R2 */ 
         )
-    ), writeln(Oh).
+    ).
 
 bin_op1(and, Oh, Oh).
 bin_op1(or, _, leaf(1)).
@@ -185,9 +181,7 @@ bin_op0(and, _, leaf(0)).
 :- index apply_binop/4-2.
 apply_binop(_Op, [], _Oh2, []).
 apply_binop(Op, [edge_subtree(C,Oh1)|E1s], Oh2, [edge_subtree(C,Oh)|Es]) :-
-    write(Oh1), write(Op), writeln(Oh2),
     bin_op(Op, Oh1, Oh2, Oh),
-    write('is...'), writeln(Oh),
     apply_binop(Op, E1s, Oh2, Es).
 
 /* Do binop, pairwise, for all trees in the two lists (arg 2, and arg 3) */
@@ -221,6 +215,13 @@ prune_inconsistent_edges(X, X).
 % order_edges(E1s, E2s): E2s contains all edges in E1s, but ordered in a canonical way
 order_edges(X, X).
 
+% Add a zero branch for or operation if there are none present
+try_to_add_zero_branch(Es_in, Es_out) :-
+    (listutil:absmember(edge_subtree(_, leaf(0)), Es_in)
+    ->  Es_out = Es_in
+    ;   basics:append(Es_in, [edge_subtree([], leaf(0))], Es_out)
+    ).
+    
 % OSSD contains X if X is the root
 contains(tree(Y, _), X) :- X==Y, !.
 
