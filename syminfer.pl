@@ -10,12 +10,10 @@
 
 :- install_verify_attribute_handler(type, AttrValue, Target, type_handler(AttrValue, Target)).
 :- install_verify_attribute_handler(id, AttrValue, Target, id_handler(AttrValue, Target)).
-:- install_verify_attribute_handler(constraint, AttrValue, Target, constraint_handler(AttrValue, Target)).
 :- install_verify_attribute_handler(bounds_var, AttrValue, Target, bounds_var_handler(AttrValue, Target)).
 
 :- install_attribute_portray_hook(type, Attr, display_type(Attr)).
 :- install_attribute_portray_hook(id, Attr, display_id(Attr)).
-:- install_attribute_portray_hook(constraint, Attr, display_constr(Attr)).
 :- install_attribute_portray_hook(bounds_var, Attr, display_bounds_var(Attr)).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -38,9 +36,6 @@ msw(S, I, X, C_in, C_out) :- !,
     ->  C_out = C_in
     ;   values(S, T),
         set_type(X, T),
-        %read_bounds_var(X, B),
-        %intrange(S, Low, High),
-        %B in Low..High,
         set_id(X, (S, I)),
         make_tree(X, [[]], [leaf(1)], Osdd),   % osdd: X -- C --> 1
         and(C_in, Osdd, C_out),
@@ -68,15 +63,6 @@ constraint(Lhs=Rhs, C_in, C_out) :-
     ),
     nonvar(T1), nonvar(T2),  % Ensure that constraint occurs after the msw/3 is called
     T1 = T2,  % Type check
-    % Set the constraints
-    /*(var(Lhs)
-    ->  set_constraint(Lhs, [Lhs=Rhs])
-    ;   true
-    ),
-    (var(Rhs) 
-    ->  set_constraint(Rhs, [Lhs=Rhs])
-    ;   true
-    ),*/
     % Update the edges
     (var(Lhs), var(Rhs), compare_roots(Lhs, Rhs, C)  /* If both are vars then we need to order them */
     ->  (C > 0  /* Rhs is smaller */
@@ -108,15 +94,6 @@ constraint(Lhs\=Rhs, C_in, C_out) :-
     ),
     nonvar(T1), nonvar(T2),  % Ensure that constraint occurs after the msw/3 is called
     T1 = T2,  % Type check
-    % Set the constraints
-    /*(var(Lhs) 
-    ->  set_constraint(Lhs, [Lhs\=Rhs])
-    ;   true
-    ),
-    (var(Rhs) 
-    ->  set_constraint(Rhs, [Lhs\=Rhs])
-    ;   true
-    ),*/
     % Update the edges
     (var(Lhs), var(Rhs), compare_roots(Lhs, Rhs, C)  /* If both are vars then we need to order them */
     ->  (C > 0  /* Rhs is smaller */
@@ -222,13 +199,83 @@ apply_1_binop(Op, [edge_subtree(C1,Oh1)|E1s], C2, Oh2, Ctxt, Eis, Eos) :-
     ),
     apply_1_binop(Op, E1s, C2, Oh2, Ctxt, Eis, Ets).
 
-make_osdd(R, Eis, Oh) :- Oh = tree(R, Eis).
-    /*prune_inconsistent_edges(Eis, Eps),
+make_osdd(R, Eis, Oh) :-
+    prune_inconsistent_edges(Eis, Eps),
     (Eis = []
     ->  Oh = leaf(0)
     ;   order_edges(Eis, Eos),
         Oh = tree(R, Eos)
-    ).*/
+    ).
+
+apply_constraint(Oh1, C, Oh2) :- apply_constraint(Oh1, C, C, Oh2).
+apply_constraint(leaf(X), _, _, leaf(X)).
+apply_constraint(tree(R, E1s), Cons, Ctxt, Oh2) :-
+    apply_constraint_edges(E1s, Cons, Ctxt, E2s),
+    (E2s = []
+    ->  Oh2 = leaf(0)
+    ;   Oh2 = tree(R, E2s)
+    ).
+apply_constraint_edges([], _Cons, _Ctxt, []).
+apply_constraint_edges([edge_subtree(C,T)|E1s], Cons, Ctxt, E2s) :-
+    (conjunction(C, Ctxt, Ctxt1)
+    ->  conjunction(C, Cons, C1),
+        apply_constraint(T, Ctxt1, T1),
+        E2s = [edge_subtree(C1,T1)|Eos]
+    ;   E2s = Eos
+    ),
+    apply_constraint_edges(E1s, Cons, Ctxt, Eos).
+
+
+split_if_needed(Oh1, Oh2) :-
+    (identify_late_constraint(Oh1, C)
+    ->  split(Oh1, C, Oh3),
+        split_if_needed(Oh3, Oh2)
+    ;   Oh2 = Oh1
+    ).
+
+identify_late_constraint(Oh, C) :- identify_late_constraint(Oh, [], C).
+identify_late_constraint(tree(R, Es), Ctxt, C) :-
+    identify_late_constraint(Es, R, Ctxt, C).
+identify_late_constraint([edge_subtree(C1,_T1)|_Es], R, Ctxt, C) :-
+    basics:member(C, C1),  % iterate through all constraints in C1
+    not listutil:absmember(C, Ctxt),
+    not_at(R, C),   !.
+identify_late_constraint([edge_subtree(C1,T1)|_Es], _R, Ctxt, C) :-
+    conjunction(C1, Ctxt, Ctxt1),
+    identify_late_constraint(T1, Ctxt1, C), !.
+identify_late_constraint([_|Es], R, Ctxt, C) :-
+    identify_late_constraint(Es, R, Ctxt, C).
+
+not_at(R, C) :- not testable_at(R, C).
+
+split(Oh1, C, Oh2) :-
+    split(Oh1, C, [], Oh2).
+
+split(leaf(X), _C, _Ctxt, leaf(X)).
+split(tree(R, E1s), C, Ctxt, tree(R, E2s)) :- 
+    (testable_at(R, C)
+    ->   negate(C, NC),
+        (conjunction([C], Ctxt, Ctxt1)
+        ->  apply_constraint_edges(E1s, [C], Ctxt1, E11s)
+        ;   E11s = []
+        ),
+        (conjunction([NC], Ctxt, Ctxt2)
+        ->  apply_constraint_edges(E1s, [NC], Ctxt2, E12s)
+        ;   E12s = []
+        ),
+        basics:append(E11s, E12s, E2m),
+        order_edges(E2m, E2s)
+    ;  split_all(E1s, C, Ctxt, E2s)
+    ).
+
+split_all([], _, _, []).
+split_all([edge_subtree(C1,T1)|Es], C, Ctxt, E2s) :-
+    (conjunction(C1, Ctxt, Ctxt1)
+    ->  split(T1, C, Ctxt1, T2),
+        E2s = [edge_subtree(C1, T2)|Eos]
+    ;   E2s = Eos
+    ),
+    split_all(Es, C, Ctxt, Eos).
 
 %---------------- NEEDS DONE -----------------
 % prune_inconsistent_edges(E1s, E2s):  E2s contains only those edges from E1s whose constraints are satisfiable
@@ -387,48 +434,6 @@ set_id(X, (S, I)) :-
     ;   put_attr(X, id, (S, I))
     ).
 
-% Sets constraint attribute of a variable.
-% If X already has a constraint list and C is not already in the list, 
-%     append C to the constraint list.
-% Otherwise initialize the constraint list of X to C.
-set_constraint(X, C) :-
-    writeln('\n    IN SET_CONSTRAINT'),
-    var(X),
-    read_bounds_var(X, B),
-    write('    C: '), writeln(C),
-    (get_attr(X, constraint, CX)
-    ->  (listutil:absmember(C, CX)
-        ->  true
-        ;   basics:append(CX, C, _C),
-            put_attr(X, constraint, _C),
-            rewrite_constraint(B, X, C, CB),
-            apply_bounds(B, CB)
-        )
-    ;   put_attr(X, constraint, C),
-        rewrite_constraint(B, X, C, CB),
-        apply_bounds(B, CB)
-    ), 
-    writeln('    EXIT SET_CONSTRAINT\n').
-
-% Reads bounds_var attribute, if it doesn't exist set to an unbound variable
-% ensuring that X and B are not the same variable.
-read_bounds_var(X, B) :-
-    var(X),
-    (get_attr(X, bounds_var, B)
-    ->  true
-    ;   put_attr(X, bounds_var, B)
-    ), 
-    X \== B, !.
-
-% Reads constraint attribute, if it doesn't exist set to empty constraint.
-read_constraint(X, C) :-
-    var(X),
-    (get_attr(X, constraint, C)
-    ->  true
-    ;   C = [],
-        put_attr(X, constraint, C)
-    ).
-
 % Reads type attribute.
 % If X is a variable and its type is not set, we set it to an unbound value.
 read_type(X, T) :-
@@ -458,8 +463,6 @@ read_id(X, (S, I)) :-
 % Assert display_attributes(on) to display the value of the attribute
 display_type(A) :- (display_attributes(on) -> write(A); true).
 display_id(A) :- (display_attributes(on) -> write(A); true).
-display_constr(A) :- (display_attributes(on) -> write(A); true).
-display_bounds_var(A) :- (display_attributes(on) -> write(A); true).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Constraint processing definitions
@@ -594,22 +597,22 @@ complete_disequality_1([], _, _, L, L).
 complete_disequality_1([V|R], G1, G2, ICin, ICout) :-
     (neighbors(V, G1, N1)
     ->
-	true
+	    true
     ;
-    N1 = []
+        N1 = []
     ),
     (neighbors(V, G2, N2)
     ->
-	true
+	    true
     ;
-    N2 = []
+        N2 = []
     ),
     pairwise_edges(N1, N2, N),
     basics:append(ICin, N, ICtmp),
     complete_disequality_1(R, G1, G2, ICtmp, ICout).
 
 pairwise_edges(L1, L2, L) :-
-    findall(X-Y, (basics:member(X, L1),basics:member(Y,L2)), L).
+    findall(X-Y, (basics:member(X, L1), basics:member(Y,L2)), L).
 
 discard_spurious_edges([], []).
 discard_spurious_edges([X-Y|R], L) :-
@@ -619,11 +622,11 @@ discard_spurious_edges([X-Y|R], L) :-
     X \== Y,
     ((functor(X, id, 2); functor(Y, id, 2))
     ->
-	L = [X-Y|L1],
-	discard_spurious_edges(R, L1)
-     ;
-     discard_spurious_edges(R, L)
-     ).
+	    L = [X-Y|L1],
+	    discard_spurious_edges(R, L1)
+    ;
+        discard_spurious_edges(R, L)
+    ).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Query processing definitions
