@@ -4,6 +4,9 @@
  * To construct an OSDD for ground query q(v1,...,vn) use ?- q(v1,....,vn,leaf(1),O).
  */
 :- import get_attr/3, put_attr/3, install_verify_attribute_handler/4, install_attribute_portray_hook/3 from machine.
+:- import vertices_edges_to_ugraph/3, transitive_closure/2, edges/2,
+   neighbors/3, vertices/2 from ugraphs.
+:- import list_to_ord_set/2 from ordsets.
 
 :- install_verify_attribute_handler(type, AttrValue, Target, type_handler(AttrValue, Target)).
 :- install_verify_attribute_handler(id, AttrValue, Target, id_handler(AttrValue, Target)).
@@ -514,6 +517,99 @@ assert_constraints([X\=Y|R]) :-
     X #\= Y,
     assert_constraints(R).
 
+%% represent constraint formulas in a canonical way
+canonical_form(C, F) :-
+    term_variables(C, V),
+    edge_list_form(C, EQ, NEQ),
+    % use ugraphs to compute closure of equality edges
+    complete_equality(EQ, EQC),
+    % complete neq edges
+    complete_disequality(EQC, NEQ, NEQ1),
+    % discard edges between constants
+    discard_spurious_edges(NEQ1, NEQ2),
+    % sort using ordsets to get canonical representation
+    list_to_ord_set(EQC, EQORD),
+    list_to_ord_set(NEQ2, NEQORD),
+    F = cg(EQORD, NEQORD),
+    true.
+
+%% atomic constraints are represented as edges in constraint graph,
+%% we maintain two lists corresponding to equality constraints and
+%% disequality constraints. Since the graph is undirected for each
+%% atomic constraint we have two edges going in either direction
+
+%% we use the same representation as that used by "ugraph" package
+edge_list_form([], [], []).
+edge_list_form([X=Y|R], [S-D, D-S| EQR], NE) :-
+    canonical_label(X, S),
+    canonical_label(Y, D),
+    edge_list_form(R, EQR, NE).
+edge_list_form([X\=Y|R], EQ, [S-D, D-S | NER]) :-
+    canonical_label(X, S),
+    canonical_label(Y, D),
+    edge_list_form(R, EQ, NER).
+
+%% Node labels in constraint graph have a canonical form
+canonical_label(X, id(S, I)) :-
+    var(X),
+    read_id(X, (S, I)).
+canonical_label(X, X) :-
+    atomic(X).
+
+%% complete equality relation in the graph
+complete_equality(E, EC) :-
+    vertices_edges_to_ugraph([], E, UG),
+    transitive_closure(UG, UGC),
+    edges(UGC, EC).
+
+%% complete disequality relation in the graph
+%% look at each vertex and the set of its neighbors, if two neighbors
+%% are connected to it by opposite constraint, add disequality
+%% constraint between them as an implicit constraint
+complete_disequality(EQ, NEQ, NEQ1) :-
+    vertices_edges_to_ugraph([], EQ, G1),
+    vertices_edges_to_ugraph([], NEQ, G2),
+    vertices(G1, V1),
+    vertices(G2, V2),
+    basics:append(V1, V2, V),
+    complete_disequality_1(V, G1, G2, [], IConstr),
+    basics:append(NEQ, IConstr, NEQ1).
+
+% no extra constraints if no variables
+complete_disequality_1([], _, _, L, L). 
+complete_disequality_1([V|R], G1, G2, ICin, ICout) :-
+    (neighbors(V, G1, N1)
+    ->
+	true
+    ;
+    N1 = []
+    ),
+    (neighbors(V, G2, N2)
+    ->
+	true
+    ;
+    N2 = []
+    ),
+    pairwise_edges(N1, N2, N),
+    basics:append(ICin, N, ICtmp),
+    complete_disequality_1(R, G1, G2, ICtmp, ICout).
+
+pairwise_edges(L1, L2, L) :-
+    findall(X-Y, (basics:member(X, L1),basics:member(Y,L2)), L).
+
+discard_spurious_edges([], []).
+discard_spurious_edges([X-Y|R], L) :-
+    X == Y,
+    discard_spurious_edges(R, L).
+discard_spurious_edges([X-Y|R], L) :-
+    X \== Y,
+    ((functor(X, id, 2); functor(Y, id, 2))
+    ->
+	L = [X-Y|L1],
+	discard_spurious_edges(R, L1)
+     ;
+     discard_spurious_edges(R, L)
+     ).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Query processing definitions
