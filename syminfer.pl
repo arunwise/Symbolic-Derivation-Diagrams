@@ -17,7 +17,7 @@
 :- install_attribute_portray_hook(bounds_var, Attr, display_bounds_var(Attr)).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% OSDD construction definitions
+% Constraint/msw definitions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Definition of msw constraint processing.
@@ -110,7 +110,7 @@ constraint(Lhs\=Rhs, C_in, C_out) :-
     ), !.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Tree structure definitions
+% OSDD construction definitions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 one(leaf(1)).
 zero(leaf(0)).
@@ -122,6 +122,14 @@ make_tree(Root, Edges, Subtrees, tree(Root, L)) :-
 myzip([], [], []).
 myzip([E|ER], [T|TR], [edge_subtree(E,T)|R]) :-
     myzip(ER, TR, R).
+
+% Returns a consistent OSDD
+make_osdd(R, Eis, Oh) :-
+    (Eis = []
+    ->  Oh = leaf(0)
+    ;   order_edges(Eis, Eos),
+        Oh = tree(R, Eos)
+    ).
 
 % and_osdd(+OSDD_handle1, +OSDD_handle2, -OSDD_handle):
 and(Oh1, Oh2, Oh) :-
@@ -199,14 +207,6 @@ apply_1_binop(Op, [edge_subtree(C1,Oh1)|E1s], C2, Oh2, Ctxt, Eis, Eos) :-
     ),
     apply_1_binop(Op, E1s, C2, Oh2, Ctxt, Eis, Ets).
 
-make_osdd(R, Eis, Oh) :-
-    prune_inconsistent_edges(Eis, Eps),
-    (Eis = []
-    ->  Oh = leaf(0)
-    ;   order_edges(Eis, Eos),
-        Oh = tree(R, Eos)
-    ).
-
 apply_constraint(Oh1, C, Oh2) :- apply_constraint(Oh1, C, C, Oh2).
 apply_constraint(leaf(X), _, _, leaf(X)).
 apply_constraint(tree(R, E1s), Cons, Ctxt, Oh2) :-
@@ -278,14 +278,8 @@ split_all([edge_subtree(C1,T1)|Es], C, Ctxt, E2s) :-
     split_all(Es, C, Ctxt, Eos).
 
 %---------------- NEEDS DONE -----------------
-% prune_inconsistent_edges(E1s, E2s):  E2s contains only those edges from E1s whose constraints are satisfiable
-prune_inconsistent_edges(X, X).
-
 % order_edges(E1s, E2s): E2s contains all edges in E1s, but ordered in a canonical way
 order_edges(X, X).
-
-%
-apply_constraint(Oh1, _, Oh1).
 %---------------- NEEDS DONE -----------------
 
 % Add a zero branch for or operation if there are none present
@@ -368,9 +362,7 @@ update_edges([edge_subtree(_E, T) | R], X, C, [edge_subtree(_E, T1)| R1]) :-
     update_edges(R, X, C, R1).
 
 % Leaf nodes are left unchanged
-update_edges(leaf(_X), Y, _C, leaf(_X)) :- var(Y).
-
-% Compares two root nodes based on switch/instance ID
+update_edges(leaf(_X), Y, _C, leaf(_X)) :- var(Y).% Compares two root nodes based on switch/instance ID
 compare_roots(R1, R2, 0) :-
     read_id(R1, (S, I)),
     read_id(R2, (S, I)).
@@ -396,73 +388,6 @@ compare_roots(R1, R2, 1) :-
         ;   false
         )
     ).
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Attribute processing definitions
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% Type attribute handler
-type_handler(T, X) :-
-    (var(X) 
-    ->  (get_attr(X, type, _T)
-        ->  T = _T     % X is also attributed variable
-        ;   true       % X is not attributed variable
-        )
-    ;   atomic(X),
-        basics:member(X, T)
-    ).
-
-% Attribute handlers
-id_handler(_,_).
-constraint_handler(_,_).
-bounds_var_handler(_,_).
-
-% Sets type attribute of a variable to the domain to the variable.
-set_type(X, T) :-
-    var(X),
-    (get_attr(X, type, T1)
-    ->  T = T1  % We can't change type of a variable
-    ;   put_attr(X, type, T)
-    ).
-
-% Sets id attribute of a random variable to (S, I).
-% Where S is the switch name and I is the instance.
-set_id(X, (S, I)) :-
-    var(X),
-    (get_attr(X, id, (S1, I1))
-    ->  S=S1, I=I1  % We can't change id of a variable
-    ;   put_attr(X, id, (S, I))
-    ).
-
-% Reads type attribute.
-% If X is a variable and its type is not set, we set it to an unbound value.
-read_type(X, T) :-
-    var(X),
-    (get_attr(X, type, T)
-    ->  true
-    ;   var(T),
-        put_attr(X, type, T)
-    ).
-
-% Lookup type of a constant by searching for a type T which X is an element of.
-lookup_type(X, T) :-
-    atomic(X),
-    values(_, T),
-    basics:member(X, T), !.
-
-% Reads id attribute, if it doesn't exist set it to unbound pair of variables.
-read_id(X, (S, I)) :-
-    var(X),
-    (get_attr(X, id, (S, I))
-    ->  true
-    ;   var(S), var(I),  % [?] Is this needed?
-        put_attr(X, id, (S, I))
-    ).
-
-% Display handlers
-% Assert display_attributes(on) to display the value of the attribute
-display_type(A) :- (display_attributes(on) -> write(A); true).
-display_id(A) :- (display_attributes(on) -> write(A); true).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Constraint processing definitions
@@ -627,6 +552,71 @@ discard_spurious_edges([X-Y|R], L) :-
     ;
         discard_spurious_edges(R, L)
     ).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Attribute processing definitions
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Type attribute handler
+type_handler(T, X) :-
+    (var(X) 
+    ->  (get_attr(X, type, _T)
+        ->  T = _T     % X is also attributed variable
+        ;   true       % X is not attributed variable
+        )
+    ;   atomic(X),
+        basics:member(X, T)
+    ).
+
+% Attribute handlers
+id_handler(_,_).
+
+% Sets type attribute of a variable to the domain to the variable.
+set_type(X, T) :-
+    var(X),
+    (get_attr(X, type, T1)
+    ->  T = T1  % We can't change type of a variable
+    ;   put_attr(X, type, T)
+    ).
+
+% Sets id attribute of a random variable to (S, I).
+% Where S is the switch name and I is the instance.
+set_id(X, (S, I)) :-
+    var(X),
+    (get_attr(X, id, (S1, I1))
+    ->  S=S1, I=I1  % We can't change id of a variable
+    ;   put_attr(X, id, (S, I))
+    ).
+
+% Reads type attribute.
+% If X is a variable and its type is not set, we set it to an unbound value.
+read_type(X, T) :-
+    var(X),
+    (get_attr(X, type, T)
+    ->  true
+    ;   var(T),
+        put_attr(X, type, T)
+    ).
+
+% Lookup type of a constant by searching for a type T which X is an element of.
+lookup_type(X, T) :-
+    atomic(X),
+    values(_, T),
+    basics:member(X, T), !.
+
+% Reads id attribute, if it doesn't exist set it to unbound pair of variables.
+read_id(X, (S, I)) :-
+    var(X),
+    (get_attr(X, id, (S, I))
+    ->  true
+    ;   var(S), var(I),  % [?] Is this needed?
+        put_attr(X, id, (S, I))
+    ).
+
+% Display handlers
+% Assert display_attributes(on) to display the value of the attribute
+display_type(A) :- (display_attributes(on) -> write(A); true).
+display_id(A) :- (display_attributes(on) -> write(A); true).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Query processing definitions
