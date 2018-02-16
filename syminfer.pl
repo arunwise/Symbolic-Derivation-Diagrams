@@ -698,10 +698,10 @@ write1(Handle, X\=Y) :-
 write1(Handle, X<Y) :-
     write(Handle, X<Y).
 
-% collect paths in an OSDD
-% paths are simply sequences (lists) of node,edge,node... values nodes
-% are represented by pairs (VarName, Label). This is needed because,
-% otherwise leaves "and", "or" nodes will get combined.
+% collect paths in an OSDD paths are simply sequences (lists) of
+% node,edge,node... values.  nodes are represented by node(VarName,
+% Label). This way we can either combine or separate nodes with same
+% label
 paths(leaf(X), [[node(_Y,X)]]). % fresh variable Y helps distinguish from other nodes with same value of X
 
 paths(and(T1, T2), P) :-
