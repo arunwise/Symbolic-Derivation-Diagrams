@@ -3,116 +3,220 @@
   * and_osdd(+OSDD_handle1, +OSDD_handle2, -OSDD_handle):
 **/
 
-and(Oh1, Oh2, Oh) :-
-	bin_op(and, Oh1, Oh2, Oh).
+and_osdd(Oh1, Oh2, Oh) :-
+	bin_op(and, Oh1, Oh2, [], Oh).
 
 /**
   * or_osdd(+OSDD_handle1, +OSDD_handle2, -OSDD_handle):
 **/
 
-or(Oh1, Oh2, Oh) :-
-	bin_op(or, Oh1, Oh2, Oh).
+or_osdd(Oh1, Oh2, Oh) :-
+	bin_op(or, Oh1, Oh2, [], Oh).
 
 /**
-  * bin_op logic
+  * bin_op(+Operation, +OSDD_handle1, +OSDD_handle2, +ContextConstraint, -OSDD_handle):
 **/
 
-bin_op(Op, leaf(1), Oh2, Oh) :- !, bin_op1(Op, Oh2, Oh).
-bin_op(Op, leaf(0), Oh2, Oh) :- !, bin_op0(Op, Oh2, Oh).
-bin_op(Op, Oh1, leaf(1), Oh) :- !, bin_op1(Op, Oh1, Oh).
-bin_op(Op, Oh1, leaf(0), Oh) :- !, bin_op0(Op, Oh1, Oh).
-
-bin_op(Op, tree(R1, E1s), tree(R2, E2s), Oh) :-
-	compare(R1, R2, C),
+bin_op(Op, leaf(1), Oh2, Ctxt, Oh) :- !, bin_op1(Op, Oh2, Ctxt, Oh).
+bin_op(Op, leaf(0), Oh2, Ctxt, Oh) :- !, bin_op0(Op, Oh2, Ctxt, Oh).
+bin_op(Op, Oh1, leaf(1), Ctxt, Oh) :- !, bin_op1(Op, Oh1, Ctxt, Oh).
+bin_op(Op, Oh1, leaf(0), Ctxt, Oh) :- !, bin_op0(Op, Oh1, Ctxt, Oh).
+bin_op(Op, Oh1, Oh2, Ctxt, Oh) :-
+	Oh1 = tree(R1, E1s), Oh2 = tree(R2, E2s),
+	compare_root(R1, R2, C),
 	(C < 0  /* R1 is smaller */
-	-> apply_binop(Op, E1s, R2, Es), make_osdd(R1, Es, Oh)
+	-> apply_binop(Op, E1s, Oh2, Ctxt, Es), make_osdd(R1, Es, Oh)
 	;   (C > 0 /* R2 is smaller */
-	    ->  apply_binop(Op, E2s, R1, Es), make_osdd(R2, Es, Oh)
-	    ;	/* R1=R2 */ apply_all_binop(Op, E1s, E2s, Es), make_osdd(R1, Es, Oh)
+	    ->  apply_binop(Op, E2s, Oh1, Ctxt, Es), make_osdd(R2, Es, Oh)
+	    ;	/* R1=R2 */ apply_all_binop(Op, E1s, E2s, Ctxt, Es), make_osdd(R1, Es, Oh)
 	    )
 	).
 
-bin_op1(and, Oh, Oh).
-bin_op1(or, _, leaf(1)).
-bin_op0(or, Oh, Oh).
-bin_op0(and, _, leaf(0)).
-
 /* Do binop with all trees in list (arg 2) and the other given tree (arg 3) */
-:- index apply_binop/4-2.
-apply_binop(_Op, [], _Oh2, []).
-apply_binop(Op, [edge_subtree(C,Oh1)|E1s], Oh2, [edge_subtree(C,Oh)|Es]) :-
-	bin_op(Op, Oh1, Oh2, Oh),
-	apply_binop(Op, E1s, Oh2, Es).
-
+:- index apply_binop/5-2.
+apply_binop(_Op, [], _Oh2, _Ctxt, []).
+apply_binop(Op, [edge_subtree(C,Oh1)|E1s], Oh2, Ctxt, Edges) :-
+	(conjunction(C, Ctxt, Ctxt1)
+	-> 	bin_op(Op, Oh1, Oh2, Ctxt1, Oh),
+                Edges = [edge_subtree(C,Oh)|Es],
+	        apply_binop(Op, E1s, Oh2, Ctxt, Es)
+	;  % inconsistent, drop this edge:
+	        apply_binop(Op, E1s, Oh2, Ctxt, Edges)
+	).
+	
 /* Do binop, pairwise, for all trees in the two lists (arg 2, and arg 3) */
-apply_all_binop(Op, E1s, E2s, Es) :- apply_all_binop(Op, E1s, E2s, [], Es).
+apply_all_binop(Op, E1s, E2s, Ctxt, Es) :- apply_all_binop(Op, E1s, E2s, Ctxt, [], Es).
+:- index apply_all_binop/6-3.
+apply_all_binop(_Op, _E1s, [], _Ctxt, Es, Es).
+apply_all_binop(Op, E1s, [edge_subtree(C2,Oh2)|E2s], Ctxt, Eis, Eos) :-
+	(conjunction(C2, Ctxt, _Ctxt1)
+	->  apply_1_binop(Op, E1s, C2, Oh2, Ctxt, Eis, Ets)
+	;   Eis = Ets  % C2's constraint is inconsistent wrt Ctxt, so drop these edges
+	),
+	apply_all_binop(Op, E1s, E2s, Ctxt, Ets, Eos).
 
-:- index apply_all_binop/5-3.
-apply_all_binop(_Op, _E1s, [], Es, Es).
+apply_1_binop(_Op, [], _C2, _Oh2, _Ctxt, Es, Es).
+apply_1_binop(Op, [edge_subtree(C1,Oh1)|E1s], C2, Oh2, Ctxt, Eis, Eos) :-
+	(conjunction(C1, C2, C), conjunction(C, Ctxt, Ctxt1)
+	->  	bin_op(Op, Oh1, Oh2, Ctxt1, Oh),
+	        Eos = [edge_subtree(C, Oh)|Ets]
+	;       Eos = Ets
+	),
+	apply_1_binop(Op, E1s, C2, Oh2, Ctxt, Eis, Ets).	
 
-apply_all_binop(Op, E1s, [edge_subtree(C2,Oh2)|E2s], Eis, Eos) :-
-	apply_1_binop(Op, E1s, C2, Oh2, Eis, Ets),
-	apply_all_binop(Op, E1s, E2s, Ets, Eos).
-
-apply_1_binop(Op, [], _C2, _Oh2, Es, Es).
-apply_1_binop(Op, [edge_subtree(C1,Oh1)|E1s], C2, Oh2, Eis, Eos) :-
-	bin_op(Op, Oh1, Oh2, Oh),
-	conjunction(C1, C2, C),
-	Eos = [edge_subtree(C, Oh)|Ets],
-	apply_1_binop(Op, E1s, C2, Oh2, Ets, Eos).	
+bin_op1(and, Oh1, Ctxt, Oh) :- apply_constraint(Oh1, Ctxt, Oh).
+bin_op1(or, _, _Ctxt, leaf(1)).
+bin_op0(or, Oh1, Ctxt, Oh) :- apply_constraint(Oh1, Ctxt, Oh).
+bin_op0(and, _, _Ctxt, leaf(0)).
 
 make_osdd(R, Eis, Oh) :-
-	prune_inconsistent_edges(Eis, Eps),
-	(Eps = []
+	(Eis = []
 	->  Oh = leaf(0)
-	;   order_edges(Eps, Eos),
+	;   order_edges(Eis, Eos),
 	    Oh = tree(R, Eos)
 	).
 
+apply_constraint(Oh1, C, Oh2) :- apply_constraint(Oh1, C, C, Oh2).
+apply_constraint(leaf(X), _, _, leaf(X)).
+apply_constraint(tree(R, E1s), Cons, Ctxt, Oh2) :-
+	apply_constraint_edges(E1s, Cons, Ctxt, E2s),
+	(E2s = []
+	->  Oh2 = leaf(0)
+	;   Oh2 = tree(R, E2s)
+	).
+apply_constraint_edges([], _Cons, _Ctxt, []).
+apply_constraint_edges([edge_subtree(C,T)|E1s], Cons, Ctxt, E2s) :-
+	(conjunction(C, Ctxt, Ctxt1)
+	->  conjunction(C, Cons, C1),
+	    apply_constraint(T, Ctxt1, T1),
+	    E2s = [edge_subtree(C1,T1)|Eos]
+	;   E2s = Eos
+	),
+	apply_constraint_edges(E1s, Cons, Ctxt, Eos).
+
+
+split_if_needed(Oh1, Oh2) :-
+	(identify_late_constraint(Oh1, C)
+	->  split(Oh1, C, Oh3),
+	    split_if_needed(Oh3, Oh2)
+	;   Oh2 = Oh1
+	).
+
+identify_late_constraint(Oh, C) :- identify_late_constraint(Oh, [], C).
+identify_late_constraint(tree(R, Es), Ctxt, C) :-
+	identify_late_constraint(Es, R, Ctxt, C).
+identify_late_constraint([edge_subtree(C1,_T1)|_Es], R, Ctxt, C) :-
+	basics:member(C, C1),  % iterate through all constraints in C1
+	not listutil:absmember(C, Ctxt),
+	not_at(R, C),	!.
+identify_late_constraint([edge_subtree(C1,T1)|_Es], _R, Ctxt, C) :-
+	conjunction(C1, Ctxt, Ctxt1),
+	identify_late_constraint(T1, Ctxt1, C), !.
+identify_late_constraint([_|Es], R, Ctxt, C) :-
+	identify_late_constraint(Es, R, Ctxt, C).
+
+
+not_at(R, C) :- not testable_at(R, C).
+
+split(Oh1, C, Oh2) :-
+	split(Oh1, C, [], Oh2).
+
+split(leaf(X), _C, _Ctxt, leaf(X)).
+split(tree(R, E1s), C, Ctxt, tree(R, E2s)) :- 
+	(testable_at(R, C)
+	->   negate(C, NC),
+	    (conjunction([C], Ctxt, Ctxt1)
+	    ->	apply_constraint_edges(E1s, [C], Ctxt1, E11s)
+	    ;	E11s = []
+	    ),
+	    (conjunction([NC], Ctxt, Ctxt2)
+	    ->	apply_constraint_edges(E1s, [NC], Ctxt2, E12s)
+	    ;	E12s = []
+	    ),
+	    basics:append(E11s, E12s, E2m),
+	    order_edges(E2m, E2s)
+	;  split_all(E1s, C, Ctxt, E2s)
+	).
+
+split_all([], _, _, []).
+split_all([edge_subtree(C1,T1)|Es], C, Ctxt, E2s) :-
+	(conjunction(C1, Ctxt, Ctxt1)
+	->  split(T1, C, Ctxt1, T2),
+	    E2s = [edge_subtree(C1, T2)|Eos]
+	;   E2s = Eos
+	),
+	split_all(Es, C, Ctxt, Eos).	
+
+
 /* To be written */
 /**
-  * compare(R1, R2, C):  C=-1 if R1 is smaller; C=+1 if R2 is smaller; C=0 if R1=R2
+  * compare_root(R1, R2, C):  C=-1 if R1 is smaller; C=+1 if R2 is smaller; C=0 if R1=R2
   * Note: do this using the id attributes of R1 and R2
 **/
-compare(R1, R2, 0) :-
-    read_id(R1, (S, I)),
-    read_id(R2, (S, I)).
-
-compare(R1, R2, -1) :-
-    read_id(R1, (S1, I1)),
-    read_id(R2, (S2, I2)),
-    (I1 @< I2
-    ->  true
-    ;   (S1 @< S2
-    	->  true
-    	;   false
-    	)
-    ).
-
-compare(R1, R2, 1) :-
-    read_id(R1, (S1, I1)),
-    read_id(R2, (S2, I2)),
-    (I1 @> I2
-    ->  true
-    ;   (S1 @> S2
-    	->  true
-    	;   false
-    	)
-    ).
 
 /**
   * conjunction(C1, C2, C):  C is the conjunction of two constraint lists C1 and C2
 **/
-conjunction(C1, C2, C) :-
-    listutil:merge(C1, C2, C).
-
-/**
-  * prune_inconsistent_edges(E1s, E2s):  E2s contains only those edges from E1s whose constraints are satisfiable
-**/
-prune_inconsistent_edges(_, _).
 
 /**
   * order_edges(E1s, E2s): E2s contains all edges in E1s, but ordered in a canonical way
 **/
-order_edges(_, _).
 
+/**
+  * apply_constraint(+Oh1, +Constraint, -Oh2): Construct Oh2 from Oh1, selecting only edges that are consistent with Constraint.
+**/
+
+% Dummies for testing.
+compare_root(R1, R2, C) :- (R1 @< R2 -> C = -1; (R1 @> R2 -> C=1 ; C=0)).
+order_edges(E1s, E2s) :- sort(E1s, E2s).
+
+conjunction(C1, C2, C) :-
+	listutil:merge(C1, C2, Cm),
+	all_consistent(Cm),
+	propagate_all(Cm, C).
+
+all_consistent([]).
+all_consistent([X|Xs]) :-
+	constistent(X, Xs),
+	all_consistent(Xs).
+constistent(C, Xs) :-
+	negate(C, NC), commute(NC, CNC),
+	not basics:member(NC, Xs),
+	not basics:member(CNC, Xs).
+
+negate((X=Y), (X\=Y)).
+negate((X\=Y), (X=Y)).
+
+commute((X=Y), (Y=X)).
+commute((X\=Y), (Y\=X)).
+
+propagate_all(C1, C2) :-
+	propagate_eqs(C1, Ce),
+	propagate_neqs(C1, Cne),
+	basics:append(Ce, Cne, Cm),
+	sort(Cm, C2).
+
+propagate_eqs(C1, C2) :- tfindall((X=Y), consequences(C1, X, Y), C2).
+:- table edge/3.
+edge(Cs, X, Y) :- basics:member((X1=Y1), Cs), ((X,Y)= (X1,Y1); (X,Y)= (Y1,X1)).
+:- table consequences/3.
+consequences(Cs, X, Y) :- equalities(Cs, X, Y), X @< Y.
+:- table equalities/3.
+equalities(Cs, X, Y) :- edge(Cs, X, Y).
+equalities(Cs, X, Z) :- equalities(Cs, X, Y), edge(Cs, Y, Z).
+
+propagate_neqs(C1, C2) :- findall(X\=Y, disequalities(C1, X, Y), C2).
+disequalities(C1, A, B) :- basics:member((X\=Z),C1), (X@<Z -> (X,Z) = (A,B); (X,Z) = (B,A)).
+disequalities(C1, A, B) :- basics:member((X\=Y),C1), equalities(C1,Y,Z), (X@<Z -> (X,Z) = (A,B); (X,Z) = (B,A)).
+disequalities(C1, A, B) :- basics:member((X\=Y),C1), equalities(C1,X,Z), (Y@<Z -> (Y,Z) = (A,B); (Y,Z) = (B,A)).
+
+testable_at(R, (_X=R)).
+testable_at(R, (_X\=R)).
+
+
+
+example(1, tree(x, [edge_subtree([], tree(z, [edge_subtree([z=x], leaf(1)), edge_subtree([z\=x], leaf(0))]))])).
+example(2, tree(y, [edge_subtree([], tree(z, [edge_subtree([z=y], leaf(1)), edge_subtree([z\=y], leaf(0))]))])).
+
+% example query:
+query(K) :- example(1, X), example(2, Y), and_osdd(X, Y, H), split_if_needed(H, K).

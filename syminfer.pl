@@ -159,7 +159,7 @@ bin_op(Op, Oh1, leaf(0), Ctxt, Oh) :- !, bin_op0(Op, Oh1, Ctxt, Oh).
 
 bin_op(Op, Oh1, Oh2, Ctxt, Oh) :-
     Oh1 = tree(R1, E1s), Oh2 = tree(R2, E2s),
-    compare_root(R1, R2, C),
+    compare_roots(R1, R2, C),
     (Op == or
     ->  (C < 0
         ->  try_to_add_zero_branch(E1s, _E1s), _E2s = E2s
@@ -170,7 +170,7 @@ bin_op(Op, Oh1, Oh2, Ctxt, Oh) :-
         )
     ;   _E1s = E1s, _E2s = E2s
     ),
-    _Oh1 = tree(R1, _E1s), _Oh2 = tree(R2, _E2s)
+    _Oh1 = tree(R1, _E1s), _Oh2 = tree(R2, _E2s),
     (C < 0  /* R1 is smaller */
     -> apply_binop(Op, E1s, _Oh2, Ctxt, Es), make_osdd(R1, Es, Oh)
     ;   (C > 0 /* R2 is smaller */
@@ -225,11 +225,16 @@ make_osdd(R, Eis, Oh) :- Oh = tree(R, Eis).
         Oh = tree(R, Eos)
     ).*/
 
+%---------------- NEEDS DONE -----------------
 % prune_inconsistent_edges(E1s, E2s):  E2s contains only those edges from E1s whose constraints are satisfiable
 prune_inconsistent_edges(X, X).
 
 % order_edges(E1s, E2s): E2s contains all edges in E1s, but ordered in a canonical way
 order_edges(X, X).
+
+%
+apply_constraint(Oh1, _, Oh1).
+%---------------- NEEDS DONE -----------------
 
 % Add a zero branch for or operation if there are none present
 try_to_add_zero_branch(Es_in, Es_out) :-
