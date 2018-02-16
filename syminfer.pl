@@ -145,21 +145,21 @@ myzip([E|ER], [T|TR], [edge_subtree(E,T)|R]) :-
 
 % and_osdd(+OSDD_handle1, +OSDD_handle2, -OSDD_handle):
 and(Oh1, Oh2, Oh) :-
-    bin_op(and, Oh1, Oh2, Oh).
+    bin_op(and, Oh1, Oh2, [], Oh).
 
 % or_osdd(+OSDD_handle1, +OSDD_handle2, -OSDD_handle):
 or(Oh1, Oh2, Oh) :-
-    writeln('========================'), writeln(Oh1), writeln('      OR'), writeln(Oh2), writeln('========================'),
-    bin_op(or, Oh1, Oh2, Oh).
+    bin_op(or, Oh1, Oh2, [], Oh).
 
 % bin_op(+Operation, +OSDD1, +OSDD2, -OSDD_Out):
-bin_op(Op, leaf(1), Oh2, Oh) :- !, bin_op1(Op, Oh2, Oh).
-bin_op(Op, leaf(0), Oh2, Oh) :- !, bin_op0(Op, Oh2, Oh).
-bin_op(Op, Oh1, leaf(1), Oh) :- !, bin_op1(Op, Oh1, Oh).
-bin_op(Op, Oh1, leaf(0), Oh) :- !, bin_op0(Op, Oh1, Oh).
+bin_op(Op, leaf(1), Oh2, Ctxt, Oh) :- !, bin_op1(Op, Oh2, Ctxt, Oh).
+bin_op(Op, leaf(0), Oh2, Ctxt, Oh) :- !, bin_op0(Op, Oh2, Ctxt, Oh).
+bin_op(Op, Oh1, leaf(1), Ctxt, Oh) :- !, bin_op1(Op, Oh1, Ctxt, Oh).
+bin_op(Op, Oh1, leaf(0), Ctxt, Oh) :- !, bin_op0(Op, Oh1, Ctxt, Oh).
 
-bin_op(Op, tree(R1, E1s), tree(R2, E2s), Oh) :-
-    compare_roots(R1, R2, C),
+bin_op(Op, Oh1, Oh2, Ctxt, Oh) :-
+    Oh1 = tree(R1, E1s), Oh2 = tree(R2, E2s),
+    compare_root(R1, R2, C),
     (Op == or
     ->  (C < 0
         ->  try_to_add_zero_branch(E1s, _E1s), _E2s = E2s
@@ -170,51 +170,58 @@ bin_op(Op, tree(R1, E1s), tree(R2, E2s), Oh) :-
         )
     ;   _E1s = E1s, _E2s = E2s
     ),
+    _Oh1 = tree(R1, _E1s), _Oh2 = tree(R2, _E2s)
     (C < 0  /* R1 is smaller */
-    ->  apply_binop(Op, _E1s, tree(R2, _E2s), Es), make_osdd(R1, Es, Oh)
+    -> apply_binop(Op, E1s, _Oh2, Ctxt, Es), make_osdd(R1, Es, Oh)
     ;   (C > 0 /* R2 is smaller */
-        ->  apply_binop(Op, _E2s, tree(R1, _E1s), Es), make_osdd(R2, Es, Oh)
-        ;   apply_all_binop(Op, _E1s, _E2s, Es), R1=R2, make_osdd(R1, Es, Oh) /* R1=R2 */ 
+        ->  apply_binop(Op, E2s, _Oh1, Ctxt, Es), make_osdd(R2, Es, Oh)
+        ;   /* R1=R2 */ apply_all_binop(Op, E1s, E2s, Ctxt, Es), make_osdd(R1, Es, Oh)
         )
     ).
 
-bin_op1(and, Oh, Oh).
-bin_op1(or, _, leaf(1)).
-bin_op0(or, Oh, Oh).
-bin_op0(and, _, leaf(0)).
+bin_op1(and, Oh1, Ctxt, Oh) :- apply_constraint(Oh1, Ctxt, Oh).
+bin_op1(or, _, _Ctxt, leaf(1)).
+bin_op0(or, Oh1, Ctxt, Oh) :- apply_constraint(Oh1, Ctxt, Oh).
+bin_op0(and, _, _Ctxt, leaf(0)).
 
 /* Do binop with all trees in list (arg 2) and the other given tree (arg 3) */
-:- index apply_binop/4-2.
-apply_binop(_Op, [], _Oh2, []).
-apply_binop(Op, [edge_subtree(C,Oh1)|E1s], Oh2, [edge_subtree(C,Oh)|Es]) :-
-    bin_op(Op, Oh1, Oh2, Oh),
-    apply_binop(Op, E1s, Oh2, Es).
+:- index apply_binop/5-2.
+apply_binop(_Op, [], _Oh2, _Ctxt, []).
+apply_binop(Op, [edge_subtree(C,Oh1)|E1s], Oh2, Ctxt, Edges) :-
+    (conjunction(C, Ctxt, Ctxt1)
+    ->  bin_op(Op, Oh1, Oh2, Ctxt1, Oh),
+        Edges = [edge_subtree(C,Oh)|Es],
+        apply_binop(Op, E1s, Oh2, Ctxt, Es)
+    ;   % inconsistent, drop this edge:
+        apply_binop(Op, E1s, Oh2, Ctxt, Edges)
+    ).
 
 /* Do binop, pairwise, for all trees in the two lists (arg 2, and arg 3) */
-apply_all_binop(Op, E1s, E2s, Es) :- apply_all_binop(Op, E1s, E2s, [], Es).
+apply_all_binop(Op, E1s, E2s, Ctxt, Es) :- apply_all_binop(Op, E1s, E2s, Ctxt, [], Es).
 
-:- index apply_all_binop/5-3.
-apply_all_binop(_Op, _E1s, [], Es, Es).
+:- index apply_all_binop/6-3.
+apply_all_binop(_Op, _E1s, [], _Ctxt, Es, Es).
+apply_all_binop(Op, E1s, [edge_subtree(C2,Oh2)|E2s], Ctxt, Eis, Eos) :-
+    (conjunction(C2, Ctxt, _Ctxt1)
+    ->  apply_1_binop(Op, E1s, C2, Oh2, Ctxt, Eis, Ets)
+    ;   Eis = Ets  % C2's constraint is inconsistent wrt Ctxt, so drop these edges
+    ),
+    apply_all_binop(Op, E1s, E2s, Ctxt, Ets, Eos).
 
-apply_all_binop(Op, E1s, [edge_subtree(C2,Oh2)|E2s], Eis, Eos) :-
-    apply_1_binop(Op, E1s, C2, Oh2, Eis, Ets),
-    apply_all_binop(Op, E1s, E2s, Ets, Eos).
-
-apply_1_binop(Op, [], _C2, _Oh2, Es, Es).
-apply_1_binop(Op, [edge_subtree(C1,Oh1)|E1s], C2, Oh2, Eis, Eos) :-
-    write('\nC2 is: '), writeln(C2),
-    write('Edge is: '), writeln(edge_subtree(C1,Oh1)),
-    bin_op(Op, Oh1, Oh2, Oh),
-    conjunction(C1, C2, C),
-    write('Conjunction is: '), writeln(C),
-    Ets = [edge_subtree(C, Oh)|Eis],
-    apply_1_binop(Op, E1s, C2, Oh2, Ets, Eos).  
+apply_1_binop(_Op, [], _C2, _Oh2, _Ctxt, Es, Es).
+apply_1_binop(Op, [edge_subtree(C1,Oh1)|E1s], C2, Oh2, Ctxt, Eis, Eos) :-
+    (conjunction(C1, C2, C), conjunction(C, Ctxt, Ctxt1)
+    ->  bin_op(Op, Oh1, Oh2, Ctxt1, Oh),
+        Eos = [edge_subtree(C, Oh)|Ets]
+    ;   Eos = Ets
+    ),
+    apply_1_binop(Op, E1s, C2, Oh2, Ctxt, Eis, Ets).
 
 make_osdd(R, Eis, Oh) :- Oh = tree(R, Eis).
     /*prune_inconsistent_edges(Eis, Eps),
-    (Eps = []
+    (Eis = []
     ->  Oh = leaf(0)
-    ;   order_edges(Eps, Eos),
+    ;   order_edges(Eis, Eos),
         Oh = tree(R, Eos)
     ).*/
 
