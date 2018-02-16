@@ -174,7 +174,7 @@ bin_op(Op, tree(R1, E1s), tree(R2, E2s), Oh) :-
     ->  apply_binop(Op, _E1s, tree(R2, _E2s), Es), make_osdd(R1, Es, Oh)
     ;   (C > 0 /* R2 is smaller */
         ->  apply_binop(Op, _E2s, tree(R1, _E1s), Es), make_osdd(R2, Es, Oh)
-        ;   apply_all_binop(Op, _E1s, _E2s, Es), make_osdd(R1, Es, Oh) /* R1=R2 */ 
+        ;   apply_all_binop(Op, _E1s, _E2s, Es), R1=R2, make_osdd(R1, Es, Oh) /* R1=R2 */ 
         )
     ).
 
@@ -450,7 +450,7 @@ display_bounds_var(A) :- (display_attributes(on) -> write(A); true).
 
 % Combines two constraint lists by conjunction
 conjunction(C1, C2, C) :-
-    listutil:merge(C1, C2, C).
+    listutil:absmerge(C1, C2, C).
 
 % Complements a atomic constraint
 complement_atom(X=Y, X\=Y).
