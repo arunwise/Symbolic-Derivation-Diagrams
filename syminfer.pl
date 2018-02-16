@@ -10,12 +10,10 @@
 
 :- install_verify_attribute_handler(type, AttrValue, Target, type_handler(AttrValue, Target)).
 :- install_verify_attribute_handler(id, AttrValue, Target, id_handler(AttrValue, Target)).
-:- install_verify_attribute_handler(constraint, AttrValue, Target, constraint_handler(AttrValue, Target)).
 :- install_verify_attribute_handler(bounds_var, AttrValue, Target, bounds_var_handler(AttrValue, Target)).
 
 :- install_attribute_portray_hook(type, Attr, display_type(Attr)).
 :- install_attribute_portray_hook(id, Attr, display_id(Attr)).
-:- install_attribute_portray_hook(constraint, Attr, display_constr(Attr)).
 :- install_attribute_portray_hook(bounds_var, Attr, display_bounds_var(Attr)).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -38,9 +36,6 @@ msw(S, I, X, C_in, C_out) :- !,
     ->  C_out = C_in
     ;   values(S, T),
         set_type(X, T),
-        %read_bounds_var(X, B),
-        %intrange(S, Low, High),
-        %B in Low..High,
         set_id(X, (S, I)),
         make_tree(X, [[]], [leaf(1)], Osdd),   % osdd: X -- C --> 1
         and(C_in, Osdd, C_out),
@@ -68,15 +63,6 @@ constraint(Lhs=Rhs, C_in, C_out) :-
     ),
     nonvar(T1), nonvar(T2),  % Ensure that constraint occurs after the msw/3 is called
     T1 = T2,  % Type check
-    % Set the constraints
-    /*(var(Lhs)
-    ->  set_constraint(Lhs, [Lhs=Rhs])
-    ;   true
-    ),
-    (var(Rhs) 
-    ->  set_constraint(Rhs, [Lhs=Rhs])
-    ;   true
-    ),*/
     % Update the edges
     (var(Lhs), var(Rhs), compare_roots(Lhs, Rhs, C)  /* If both are vars then we need to order them */
     ->  (C > 0  /* Rhs is smaller */
@@ -108,15 +94,6 @@ constraint(Lhs\=Rhs, C_in, C_out) :-
     ),
     nonvar(T1), nonvar(T2),  % Ensure that constraint occurs after the msw/3 is called
     T1 = T2,  % Type check
-    % Set the constraints
-    /*(var(Lhs) 
-    ->  set_constraint(Lhs, [Lhs\=Rhs])
-    ;   true
-    ),
-    (var(Rhs) 
-    ->  set_constraint(Rhs, [Lhs\=Rhs])
-    ;   true
-    ),*/
     % Update the edges
     (var(Lhs), var(Rhs), compare_roots(Lhs, Rhs, C)  /* If both are vars then we need to order them */
     ->  (C > 0  /* Rhs is smaller */
@@ -457,48 +434,6 @@ set_id(X, (S, I)) :-
     ;   put_attr(X, id, (S, I))
     ).
 
-% Sets constraint attribute of a variable.
-% If X already has a constraint list and C is not already in the list, 
-%     append C to the constraint list.
-% Otherwise initialize the constraint list of X to C.
-set_constraint(X, C) :-
-    writeln('\n    IN SET_CONSTRAINT'),
-    var(X),
-    read_bounds_var(X, B),
-    write('    C: '), writeln(C),
-    (get_attr(X, constraint, CX)
-    ->  (listutil:absmember(C, CX)
-        ->  true
-        ;   basics:append(CX, C, _C),
-            put_attr(X, constraint, _C),
-            rewrite_constraint(B, X, C, CB),
-            apply_bounds(B, CB)
-        )
-    ;   put_attr(X, constraint, C),
-        rewrite_constraint(B, X, C, CB),
-        apply_bounds(B, CB)
-    ), 
-    writeln('    EXIT SET_CONSTRAINT\n').
-
-% Reads bounds_var attribute, if it doesn't exist set to an unbound variable
-% ensuring that X and B are not the same variable.
-read_bounds_var(X, B) :-
-    var(X),
-    (get_attr(X, bounds_var, B)
-    ->  true
-    ;   put_attr(X, bounds_var, B)
-    ), 
-    X \== B, !.
-
-% Reads constraint attribute, if it doesn't exist set to empty constraint.
-read_constraint(X, C) :-
-    var(X),
-    (get_attr(X, constraint, C)
-    ->  true
-    ;   C = [],
-        put_attr(X, constraint, C)
-    ).
-
 % Reads type attribute.
 % If X is a variable and its type is not set, we set it to an unbound value.
 read_type(X, T) :-
@@ -528,8 +463,6 @@ read_id(X, (S, I)) :-
 % Assert display_attributes(on) to display the value of the attribute
 display_type(A) :- (display_attributes(on) -> write(A); true).
 display_id(A) :- (display_attributes(on) -> write(A); true).
-display_constr(A) :- (display_attributes(on) -> write(A); true).
-display_bounds_var(A) :- (display_attributes(on) -> write(A); true).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Constraint processing definitions
@@ -664,22 +597,22 @@ complete_disequality_1([], _, _, L, L).
 complete_disequality_1([V|R], G1, G2, ICin, ICout) :-
     (neighbors(V, G1, N1)
     ->
-	true
+	    true
     ;
-    N1 = []
+        N1 = []
     ),
     (neighbors(V, G2, N2)
     ->
-	true
+	    true
     ;
-    N2 = []
+        N2 = []
     ),
     pairwise_edges(N1, N2, N),
     basics:append(ICin, N, ICtmp),
     complete_disequality_1(R, G1, G2, ICtmp, ICout).
 
 pairwise_edges(L1, L2, L) :-
-    findall(X-Y, (basics:member(X, L1),basics:member(Y,L2)), L).
+    findall(X-Y, (basics:member(X, L1), basics:member(Y,L2)), L).
 
 discard_spurious_edges([], []).
 discard_spurious_edges([X-Y|R], L) :-
@@ -689,11 +622,11 @@ discard_spurious_edges([X-Y|R], L) :-
     X \== Y,
     ((functor(X, id, 2); functor(Y, id, 2))
     ->
-	L = [X-Y|L1],
-	discard_spurious_edges(R, L1)
-     ;
-     discard_spurious_edges(R, L)
-     ).
+	    L = [X-Y|L1],
+	    discard_spurious_edges(R, L1)
+    ;
+        discard_spurious_edges(R, L)
+    ).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Query processing definitions
