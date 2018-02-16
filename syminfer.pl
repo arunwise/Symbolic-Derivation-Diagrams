@@ -165,20 +165,21 @@ bin_op(Op, Oh1, Oh2, Ctxt, Oh) :-
         ->  try_to_add_zero_branch(E1s, _E1s), _E2s = E2s
         ;   (C > 0
             ->  try_to_add_zero_branch(E2s, _E2s), _E1s = E1s
-            ;   _E1s = E1s, _E2s = E2s
+            ;   _E1s = E1s, _E2s = E2s, R1 = R2, writeln('===EQUAL===')
             )
         )
-    ;   _E1s = E1s, _E2s = E2s
+    ;   _E1s = E1s, _E2s = E2s, writeln('------AND------')
     ),
     _Oh1 = tree(R1, _E1s), _Oh2 = tree(R2, _E2s),
-    writeln(_Oh1), writeln(_Oh2),
+    write('    OSDD1: '), writeln(_Oh1), write('    OSDD2: '), writeln(_Oh2),
     (C < 0  /* R1 is smaller */
     -> apply_binop(Op, _E1s, _Oh2, Ctxt, Es), make_osdd(R1, Es, Oh)
     ;   (C > 0 /* R2 is smaller */
         ->  apply_binop(Op, _E2s, _Oh1, Ctxt, Es), make_osdd(R2, Es, Oh)
-        ;   /* R1=R2 */ apply_all_binop(Op, _E1s, _E2s, Ctxt, Es), R1 = R2, make_osdd(R1, Es, Oh)
+        ;   /* R1=R2 */ apply_all_binop(Op, _E1s, _E2s, Ctxt, Es), make_osdd(R1, Es, Oh)
         )
-    ).
+    ),
+    write('    RESULT: '), writeln(Oh).
 
 bin_op1(and, Oh1, Ctxt, Oh) :- apply_constraint(Oh1, Ctxt, Oh).
 bin_op1(or, _, _Ctxt, leaf(1)).
