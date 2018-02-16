@@ -473,6 +473,48 @@ apply_bounds(X, [Y=X]) :- Y #= X.
 apply_bounds(X, [X\=Y]) :- X #\= Y.
 apply_bounds(X, [Y\=X]) :- Y #\= X.
 
+% check satisfiability of constraint formula
+% below code didn't work as expected
+%% satisfiable(C) :-
+%%     \+ \+ fs(C).
+%% fs([]).
+%% fs([X=Y|R]) :-
+%%     call(X=Y),
+%%     fs(R).
+%% fs([X\=Y|R]) :-
+%%     call(X\=Y),
+%%     fs(R).
+
+%% check satisfiability of constraint formula
+satisfiable(C) :-
+    basics:copy_term_nat(C, C1), % create a copy of C in C1 without any attributes
+
+    term_variables(C, L),
+    term_variables(C1, L1),
+
+    assert_bounds(L, L1),
+    assert_constraints(C1),
+    label(L1), !.
+
+%% assert Lower..Upper bounds for each variable in second list by
+%% looking at the corresponding id in first list.
+assert_bounds([], []).
+assert_bounds([V|R], [V1|R1]) :-
+    read_id(V, (S, _)), % get switch associated with V
+    intrange(S, Lower, Upper),
+    V1 in Lower..Upper,
+    assert_bounds(R, R1).
+
+%% assert #= and #\= constraints
+assert_constraints([]).
+assert_constraints([X=Y|R]) :-
+    X #= Y,
+    assert_constraints(R).
+assert_constraints([X\=Y|R]) :-
+    X #\= Y,
+    assert_constraints(R).
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Query processing definitions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
