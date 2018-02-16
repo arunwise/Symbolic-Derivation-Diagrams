@@ -222,13 +222,83 @@ apply_1_binop(Op, [edge_subtree(C1,Oh1)|E1s], C2, Oh2, Ctxt, Eis, Eos) :-
     ),
     apply_1_binop(Op, E1s, C2, Oh2, Ctxt, Eis, Ets).
 
-make_osdd(R, Eis, Oh) :- Oh = tree(R, Eis).
-    /*prune_inconsistent_edges(Eis, Eps),
+make_osdd(R, Eis, Oh) :-
+    prune_inconsistent_edges(Eis, Eps),
     (Eis = []
     ->  Oh = leaf(0)
     ;   order_edges(Eis, Eos),
         Oh = tree(R, Eos)
-    ).*/
+    ).
+
+apply_constraint(Oh1, C, Oh2) :- apply_constraint(Oh1, C, C, Oh2).
+apply_constraint(leaf(X), _, _, leaf(X)).
+apply_constraint(tree(R, E1s), Cons, Ctxt, Oh2) :-
+    apply_constraint_edges(E1s, Cons, Ctxt, E2s),
+    (E2s = []
+    ->  Oh2 = leaf(0)
+    ;   Oh2 = tree(R, E2s)
+    ).
+apply_constraint_edges([], _Cons, _Ctxt, []).
+apply_constraint_edges([edge_subtree(C,T)|E1s], Cons, Ctxt, E2s) :-
+    (conjunction(C, Ctxt, Ctxt1)
+    ->  conjunction(C, Cons, C1),
+        apply_constraint(T, Ctxt1, T1),
+        E2s = [edge_subtree(C1,T1)|Eos]
+    ;   E2s = Eos
+    ),
+    apply_constraint_edges(E1s, Cons, Ctxt, Eos).
+
+
+split_if_needed(Oh1, Oh2) :-
+    (identify_late_constraint(Oh1, C)
+    ->  split(Oh1, C, Oh3),
+        split_if_needed(Oh3, Oh2)
+    ;   Oh2 = Oh1
+    ).
+
+identify_late_constraint(Oh, C) :- identify_late_constraint(Oh, [], C).
+identify_late_constraint(tree(R, Es), Ctxt, C) :-
+    identify_late_constraint(Es, R, Ctxt, C).
+identify_late_constraint([edge_subtree(C1,_T1)|_Es], R, Ctxt, C) :-
+    basics:member(C, C1),  % iterate through all constraints in C1
+    not listutil:absmember(C, Ctxt),
+    not_at(R, C),   !.
+identify_late_constraint([edge_subtree(C1,T1)|_Es], _R, Ctxt, C) :-
+    conjunction(C1, Ctxt, Ctxt1),
+    identify_late_constraint(T1, Ctxt1, C), !.
+identify_late_constraint([_|Es], R, Ctxt, C) :-
+    identify_late_constraint(Es, R, Ctxt, C).
+
+not_at(R, C) :- not testable_at(R, C).
+
+split(Oh1, C, Oh2) :-
+    split(Oh1, C, [], Oh2).
+
+split(leaf(X), _C, _Ctxt, leaf(X)).
+split(tree(R, E1s), C, Ctxt, tree(R, E2s)) :- 
+    (testable_at(R, C)
+    ->   negate(C, NC),
+        (conjunction([C], Ctxt, Ctxt1)
+        ->  apply_constraint_edges(E1s, [C], Ctxt1, E11s)
+        ;   E11s = []
+        ),
+        (conjunction([NC], Ctxt, Ctxt2)
+        ->  apply_constraint_edges(E1s, [NC], Ctxt2, E12s)
+        ;   E12s = []
+        ),
+        basics:append(E11s, E12s, E2m),
+        order_edges(E2m, E2s)
+    ;  split_all(E1s, C, Ctxt, E2s)
+    ).
+
+split_all([], _, _, []).
+split_all([edge_subtree(C1,T1)|Es], C, Ctxt, E2s) :-
+    (conjunction(C1, Ctxt, Ctxt1)
+    ->  split(T1, C, Ctxt1, T2),
+        E2s = [edge_subtree(C1, T2)|Eos]
+    ;   E2s = Eos
+    ),
+    split_all(Es, C, Ctxt, Eos).
 
 %---------------- NEEDS DONE -----------------
 % prune_inconsistent_edges(E1s, E2s):  E2s contains only those edges from E1s whose constraints are satisfiable

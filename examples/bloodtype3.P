@@ -5,5 +5,6 @@ set_sw(gene, [0.5, 0.25, 0.25]).
 
 bloodtype(P) :- msw(gene, 1, X), msw(gene, 2, Y), {X=Y}, {P=X}.
 bloodtype(P) :- msw(gene, 1, X), msw(gene, 2, Y), {X=o}, {P=Y}.
+bloodtype(P) :- msw(gene, 1, X), msw(gene, 2, Y), {Y=o}, {P=X}.
 bloodtype(P) :- msw(gene, 1, X), msw(gene, 2, Y), {X=a}, {Y=b}, P=ab.
 bloodtype(P) :- msw(gene, 1, X), msw(gene, 2, Y), {X=b}, {Y=a}, P=ab.
