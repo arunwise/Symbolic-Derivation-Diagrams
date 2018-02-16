@@ -645,16 +645,44 @@ map_args([Arg|Args], [_Arg|_Args], L) :-
 % Visualization using DOT
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 writeDot(OSDD, DotFile) :-
-    paths(OSDD, Paths),
+    % paths(OSDD, Paths),
+    dotEdges(OSDD, [], Edges),
     current_prolog_flag(write_attributes, F),
     set_prolog_flag(write_attributes, ignore),
     open(DotFile, write, Handle),
-    write(Handle, 'strict digraph osdd {\n'),
-    writeDotPaths(Paths, Handle),
+    % write(Handle, 'strict digraph osdd {\n'),
+    write(Handle, 'digraph osdd {\n'),
+    % writeDotPaths(Paths, Handle),
+    writeDotEdges(Edges, Handle),
     write(Handle, '}\n'),
     close(Handle),
     set_prolog_flag(write_attributes, F).
 
+% no edges to collect if we reach the leaf
+dotEdges(leaf(_), Ein, Ein).
+dotEdges(tree(Root, SubTrees), Ein, Eout) :-
+    dotEdges_1(Root, SubTrees, Ein, Eout).
+% no edges to collect if we processed all subtrees
+dotEdges_1(Root, [], Ein, Ein).
+dotEdges_1(Root, [edge_subtree(E, T)| R], Ein, Eout) :-
+    dotEdge_term(Root, E, T, DE),
+    basics:append(Ein, [DE], Etmp),
+    dotEdges(T, Etmp, Etmp1),
+    dotEdges_1(Root, R, Etmp1, Eout).
+
+dotEdge_term(Root, E, leaf(X), [node(Root,Root), E, node(X,X)]).
+dotEdge_term(Root, E, tree(R, _), [node(Root,Root), E, node(R,R)]).
+
+writeDotEdges([], _H).
+writeDotEdges([ [node(X,X), E, node(Y,Y)] | R], Handle) :-
+    writeDotEdge([node(X,X), E, node(Y,Y)], Handle),
+    writeDotEdges(R, Handle).
+
+writeDotEdge([node(X,X), E, node(Y,Y)], Handle) :-
+    write(Handle, X), write(Handle, ' [label='), write(Handle, X), write(Handle, '];\n'),
+    write(Handle, Y), write(Handle, ' [label='), write(Handle, Y), write(Handle, '];\n'),    
+    write(Handle, X), write(Handle, ' -> '), write(Handle, Y), write(Handle, ' [label='), write(Handle, '"'), writeDotConstraint(Handle, E), write(Handle, '"'), write(Handle, '];\n').
+    
 writeDotPaths([], _H).
 writeDotPaths([P|R], Handle) :-
     writeDotPath(P, Handle),
