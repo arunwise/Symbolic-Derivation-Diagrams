@@ -321,6 +321,9 @@ contains(or(_T1, T2), X) :-
 % If X is a constant, leave T_in unchanged
 update_edges(T_in, X, _C, T_in) :- atomic(X).
 
+% Base case for edge recursion
+update_edges([], _Y, _C, []).
+
 % If the input tree is connected with an and/or node
 %     recurse on the left and right subtrees
 update_edges(and(T1,T2), X, C, and(T1out,T2out)) :-
@@ -332,37 +335,10 @@ update_edges(or(T1,T2), X, C, or(T1out,T2out)) :-
     update_edges(T1, X, C, T1out),
     update_edges(T2, X, C, T2out).
 
-% Handles logic for when X is the root of the tree
-update_edges(tree(X, Edges), Y, C, tree(X, UpdatedEdges)) :-
-    writeln('UPDATING EDGES...'),
-    X == Y,
-    update_subtrees(Edges, C, [], UpdatedEdges).
-
-% Implements completeness by adding the complement of C to the previous constraints
-update_subtrees([], C, Prev, [edge_subtree(Complement, leaf(0))]) :-
-    complement_atom(C, _C),
-    basics:append(Prev, [_C], Complement).
-
-% Add C to the constraint list on an edge which does not have 0 child
-update_subtrees([edge_subtree(C1, T)|Edges], C, Prev, [edge_subtree(C2, T)| UpdatedEdges]) :-
-    writeln('UPDATING SUBTREES...'),
-    (T \== leaf(0)
-    ->  basics:append(C1, [C], C2),
-        writeln('BEFORE SAT'),
-	    satisfiable(C2),
-        writeln('AFTER SAT'),
-        basics:append(Prev, C1, Next)
-    ;   Next = Prev, C2 = C1
-    ),
-    update_subtrees(Edges, C, Next, UpdatedEdges).
-
 % If X is not the root, recurse on the edges of the tree
 update_edges(tree(X, S1), Y, C, tree(X, S2)) :-
     X \== Y,
     update_edges(S1, Y, C, S2).
-
-% Base case for edge recursion
-update_edges([], _Y, _C, []).
 
 % Updates the subtrees in the edge list one at a time
 update_edges([edge_subtree(_E, T) | R], X, C, [edge_subtree(_E, T1)| R1]) :-
@@ -370,7 +346,46 @@ update_edges([edge_subtree(_E, T) | R], X, C, [edge_subtree(_E, T1)| R1]) :-
     update_edges(R, X, C, R1).
 
 % Leaf nodes are left unchanged
-update_edges(leaf(_X), Y, _C, leaf(_X)) :- var(Y).% Compares two root nodes based on switch/instance ID
+update_edges(leaf(_X), Y, _C, leaf(_X)) :- var(Y).
+
+% Handles logic for when X is the root of the tree
+update_edges(tree(X, Edges), Y, C, tree(X, _UpdatedSubtrees)) :-
+    writeln('UPDATING EDGES...'),
+    X == Y,
+    update_subtrees(Edges, C, [], UpdatedSubtrees),
+    remove_empty_edge_subtrees(UpdatedSubtrees, _UpdatedSubtrees).
+
+% Implements completeness by adding the complement of C to the previous constraints
+update_subtrees([], C, Prev, [edge_subtree(Complement, leaf(0))]) :-
+    complement_atom(C, _C),
+    basics:append(Prev, [_C], Complement).
+
+% Add C to the constraint list on an edge which does not have 0 child
+update_subtrees([edge_subtree(C1, T)|Edges], C, Prev, [UpdatedSubTree | UpdatedEdges]) :-
+    writeln('UPDATING SUBTREES...'),
+    (T \== leaf(0)
+    ->  basics:append(C1, [C], C2),
+        writeln('BEFORE SAT'),
+	    (satisfiable(C2)
+        ->  writeln('AFTER SAT'),
+            basics:append(Prev, C1, Next),
+            UpdatedSubTree = edge_subtree(C2, T)
+        ;   UpdatedSubTree = []
+        )
+    ;   Next = Prev, C2 = C1, UpdatedSubTree = edge_subtree(C2, T)
+    ),
+    update_subtrees(Edges, C, Next, UpdatedEdges).
+
+% Removes empty lists generated when an added constraint makes the total formula unsatisfiable
+remove_empty_edge_subtrees([], []).
+remove_empty_edge_subtrees([[]|Rest], Cleaned) :-
+    remove_empty_edge_subtrees(Rest, Cleaned).
+
+remove_empty_edge_subtrees([X|Rest], [X|Cleaned]) :-
+    X \== [],
+    remove_empty_edge_subtrees(Rest, Cleaned).
+
+% Compares two root nodes based on switch/instance ID
 compare_roots(R1, R2, 0) :-
     read_id(R1, id(S, I)),
     read_id(R2, id(S, I)).
