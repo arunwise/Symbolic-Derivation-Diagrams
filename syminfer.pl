@@ -235,6 +235,7 @@ apply_context_edges([edge_subtree(C,T)|E1s], Ctxt, E2s) :-
     apply_context_edges(E1s, Ctxt, Eos). 
 
 split_if_needed(Oh1, Oh2) :-
+    writeln('...Split if needed...'),
     (identify_late_constraint(Oh1, C)
     ->  split(Oh1, C, Oh3),
         split_if_needed(Oh3, Oh2)
@@ -255,6 +256,9 @@ identify_late_constraint([_|Es], R, Ctxt, C) :-
     identify_late_constraint(Es, R, Ctxt, C).
 
 not_at(R, C) :- not testable_at(R, C).
+
+testable_at(R, (_X=R)).
+testable_at(R, (_X\=R)).
 
 split(Oh1, C, Oh2) :-
     split(Oh1, C, [], Oh2).
@@ -284,9 +288,6 @@ split_all([edge_subtree(C1,T1)|Es], C, Ctxt, E2s) :-
     ;   E2s = Eos
     ),
     split_all(Es, C, Ctxt, Eos).
-
-testable_at(R, (_X=R)).
-testable_at(R, (_X\=R)).
 
 %---------------- NEEDS DONE -----------------
 % order_edges(E1s, E2s): E2s contains all edges in E1s, but ordered in
@@ -450,9 +451,8 @@ contains(or(_T1, T2), X) :-
 
 % Combines two constraint lists by conjunction
 conjunction(C1, C2, C) :-
-    write('-------CONJUNCTION OF CONSTRAINTS--------'),
     listutil:absmerge(C1, C2, C), 
-    write('C is '), writeln(C), satisfiable(C).
+    satisfiable(C).
 
 % Complements a atomic constraint
 complement_atom(X=Y, X\=Y).
@@ -484,23 +484,6 @@ order_constraint(X=Y, X=Y) :- var(X), atomic(Y).
 order_constraint(X=Y, Y=X) :- var(Y), atomic(X).
 order_constraint(X\=Y, X\=Y) :- var(X), atomic(Y).
 order_constraint(X\=Y, Y\=X) :- var(Y), atomic(X).
-
-% Rewrites constraints from X to X:bounds_var
-rewrite_constraint(B, X, [X=Const], [B=Const]) :- X\==B, var(X), atomic(Const), !.
-rewrite_constraint(B, X, [Const=X], [Const=B]) :- X\==B, var(X), atomic(Const), !.
-rewrite_constraint(B, X, [X\=Const], [B\=Const]) :- X\==B, var(X), atomic(Const), !.
-rewrite_constraint(B, X, [Const\=X], [Const\=B]) :- X\==B, var(X), atomic(Const), !.
-rewrite_constraint(B, X, [X=Y], [B=C]) :- X\==B, X\==Y, var(Y), read_bounds_var(Y, C), !.
-rewrite_constraint(B, X, [Y=X], [C=B]) :- X\==B, X\==Y, var(Y), read_bounds_var(Y, C), !.
-rewrite_constraint(B, X, [X\=Y], [B\=C]) :- X\==B, X\==Y, var(Y), read_bounds_var(Y, C), !.
-rewrite_constraint(B, X, [Y\=X], [C\=B]) :- X\==B, X\==Y, var(Y), read_bounds_var(Y, C), !.
-
-% Uses constraint C to set corresponding bounds constraint
-% Handles =, \= constraints
-apply_bounds(X, [X=Y]) :- X #= Y.
-apply_bounds(X, [Y=X]) :- Y #= X.
-apply_bounds(X, [X\=Y]) :- X #\= Y.
-apply_bounds(X, [Y\=X]) :- Y #\= X.
 
 %% check satisfiability of constraint formula
 satisfiable([]) :- !.
