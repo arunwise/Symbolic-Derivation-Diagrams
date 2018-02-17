@@ -155,23 +155,12 @@ bin_op(Op, Oh1, leaf(0), Ctxt, Oh) :- !, bin_op0(Op, Oh1, Ctxt, Oh).
 bin_op(Op, Oh1, Oh2, Ctxt, Oh) :-
     Oh1 = tree(R1, E1s), Oh2 = tree(R2, E2s),
     compare_roots(R1, R2, C),
-    (Op == or, writeln('------OR------')
-    ->  (C < 0
-        ->  try_to_add_zero_branch(E1s, _E1s), _E2s = E2s
-        ;   (C > 0
-            ->  try_to_add_zero_branch(E2s, _E2s), _E1s = E1s
-            ;   _E1s = E1s, _E2s = E2s, R1 = R2, writeln('===EQUAL===')
-            )
-        )
-    ;   _E1s = E1s, _E2s = E2s, writeln('------AND------')
-    ),
-    _Oh1 = tree(R1, _E1s), _Oh2 = tree(R2, _E2s),
-    write('    OSDD1: '), writeln(_Oh1), write('    OSDD2: '), writeln(_Oh2),
+    write('    OSDD1: '), writeln(Oh1), write('    OSDD2: '), writeln(Oh2),
     (C < 0  /* R1 is smaller */
-    -> apply_binop(Op, _E1s, _Oh2, Ctxt, Es), make_osdd(R1, Es, Oh)
+    -> apply_binop(Op, E1s, Oh2, Ctxt, Es), make_osdd(R1, Es, Oh)
     ;   (C > 0 /* R2 is smaller */
-        ->  apply_binop(Op, _E2s, _Oh1, Ctxt, Es), make_osdd(R2, Es, Oh)
-        ;   /* R1=R2 */ apply_all_binop(Op, _E1s, _E2s, Ctxt, Es), make_osdd(R1, Es, Oh)
+        ->  apply_binop(Op, E2s, Oh1, Ctxt, Es), make_osdd(R2, Es, Oh)
+        ;   /* R1=R2 */ R1 = R2, apply_all_binop(Op, E1s, E2s, Ctxt, Es), make_osdd(R1, Es, Oh)
         )
     ),
     write('    RESULT: '), writeln(Oh).
@@ -237,7 +226,8 @@ apply_context_edges([edge_subtree(C,T)|E1s], Ctxt, E2s) :-
 split_if_needed(Oh1, Oh2) :-
     writeln('...Split if needed...'),
     (identify_late_constraint(Oh1, C)
-    ->  split(Oh1, C, Oh3),
+    ->  writeln('-----------LATE-----------\n'),
+        split(Oh1, C, Oh3),
         split_if_needed(Oh3, Oh2)
     ;   Oh2 = Oh1
     ).
@@ -251,7 +241,8 @@ identify_late_constraint([edge_subtree(C1,_T1)|_Es], R, Ctxt, C) :-
     write('IMPLICIT CONSTRAINTS: '), writeln(C2), write('\n'),
     basics:member(C, C2),  % iterate through all constraints in C1
     not listutil:absmember(C, Ctxt),
-    not_at(R, C), !.
+    not_at(R, C), 
+    writeln('NOT TESTABLE!!!!!'), !.
 identify_late_constraint([edge_subtree(C1,T1)|_Es], _R, Ctxt, C) :-
     conjunction(C1, Ctxt, Ctxt1),
     identify_late_constraint(T1, Ctxt1, C), !.
@@ -260,8 +251,8 @@ identify_late_constraint([_|Es], R, Ctxt, C) :-
 
 not_at(R, C) :- not testable_at(R, C).
 
-testable_at(R, (_X=R)).
-testable_at(R, (_X\=R)).
+testable_at(R, _X=R).
+testable_at(R, _X\=R).
 
 split(Oh1, C, Oh2) :-
     split(Oh1, C, [], Oh2).
@@ -292,7 +283,6 @@ split_all([edge_subtree(C1,T1)|Es], C, Ctxt, E2s) :-
     ),
     split_all(Es, C, Ctxt, Eos).
 
-%---------------- NEEDS DONE -----------------
 % order_edges(E1s, E2s): E2s contains all edges in E1s, but ordered in
 % a canonical way
 order_edges(ETin, ETout) :-
@@ -321,14 +311,6 @@ sorted_edgesubtrees([], _, []).
 sorted_edgesubtrees([CC|CCR], A, [ET|ETR]) :-
     get_assoc(CC, A, ET),
     sorted_edgesubtrees(CCR, A, ETR).
-%---------------- NEEDS DONE -----------------
-
-% Add a zero branch for or operation if there are none present
-try_to_add_zero_branch(Es_in, Es_out) :-
-    (basics:member(edge_subtree(_, leaf(0)), Es_in)
-    ->  Es_out = Es_in
-    ;   basics:append(Es_in, [edge_subtree([], leaf(0))], Es_out)
-    ).
 
 % If X is a constant, leave T_in unchanged
 update_edges(T_in, X, _C, T_in) :- atomic(X).
