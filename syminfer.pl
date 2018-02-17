@@ -246,7 +246,8 @@ identify_late_constraint(Oh, C) :- identify_late_constraint(Oh, [], C).
 identify_late_constraint(tree(R, Es), Ctxt, C) :-
     identify_late_constraint(Es, R, Ctxt, C).
 identify_late_constraint([edge_subtree(C1,_T1)|_Es], R, Ctxt, C) :-
-    basics:member(C, C1),  % iterate through all constraints in C1
+    get_implicit_constraints(C1, C2),
+    basics:member(C, C2),  % iterate through all constraints in C1
     not listutil:absmember(C, Ctxt),
     not_at(R, C), !.
 identify_late_constraint([edge_subtree(C1,T1)|_Es], _R, Ctxt, C) :-
@@ -586,27 +587,27 @@ graph_to_formula(Assoc, Op, [ID1-ID2|R], Cin, Cout) :-
 	->
 	    get_assoc(ID1, Assoc, X)
 	;
-	X = ID1
+	    X = ID1
 	),
 	(functor(ID2, id, 2)
 	->
 	    get_assoc(ID2, Assoc, Y)
 	;
-	Y = ID2
+	    Y = ID2
 	),
 	(Op = eq
 	->
 	    basics:append(Cin, [X=Y], Ctmp)
-	; (Op = neq
-	  ->
-	      basics:append(Cin, [X\=Y], Ctmp)
-	  ;
-	  fail
-	  )
+	;   (Op = neq
+	    ->
+		basics:append(Cin, [X\=Y], Ctmp)
+	    ;
+	        fail
+	    )
 	),
 	graph_to_formula(Assoc, Op, R, Ctmp, Cout)
     ;
-    graph_to_formula(Assoc, Op, R, Cin, Cout)
+        graph_to_formula(Assoc, Op, R, Cin, Cout)
     ).
 
 %% atomic constraints are represented as edges in constraint graph,
