@@ -448,8 +448,8 @@ satisfiable(C) :-
     getvars(C, [], L),
     getvars(C1, [], L1),
     assert_bounds(L, L1),
-    assert_constraints(C1), !,
-    label(L1).
+    assert_constraints(C1),
+    label(L1), !.
 
 getvars([], L, L).
 getvars([X=Y|R], L, Lout) :-
