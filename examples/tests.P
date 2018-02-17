@@ -38,3 +38,6 @@ test14 :- msw(alpha, 1, X), {X=a}.
 test14 :- msw(alpha, 1, X), {X=b}.
 
 test15 :- msw(alpha, 1, X), msw(alpha, 2, Y), msw(alpha, 3, Z), {X = Y}, {Z = a}, {Z \= Y}.
+
+% Tests for case split
+test16 :- msw(alpha, 1, X), msw(alpha, 2, Y), msw(alpha, 3, Z), {Z = Y}, {Z = X}.
