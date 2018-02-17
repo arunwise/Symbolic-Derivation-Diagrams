@@ -283,6 +283,9 @@ split_all([edge_subtree(C1,T1)|Es], C, Ctxt, E2s) :-
     ),
     split_all(Es, C, Ctxt, Eos).
 
+testable_at(R, (_X=R)).
+testable_at(R, (_X\=R)).
+
 %---------------- NEEDS DONE -----------------
 % order_edges(E1s, E2s): E2s contains all edges in E1s, but ordered in
 % a canonical way
