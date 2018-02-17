@@ -36,7 +36,7 @@ msw(S, I, X, C_in, C_out) :- !,
     ->  C_out = C_in
     ;   values(S, T),
         set_type(X, T),
-        set_id(X, (S, I)),
+        set_id(X, id(S, I)),
         make_tree(X, [[]], [leaf(1)], Osdd),   % osdd: X -- C --> 1
         and(C_in, Osdd, C_out),
         write('C_in: '), writeln(C_in), write('C_out: '), writeln(C_out)
@@ -169,9 +169,14 @@ bin_op(Op, Oh1, Oh2, Ctxt, Oh) :-
     ),
     write('    RESULT: '), writeln(Oh).
 
-bin_op1(and, Oh1, Ctxt, Oh) :- apply_constraint(Oh1, Ctxt, Oh).
+%% bin_op1(and, Oh1, Ctxt, Oh) :- apply_constraint(Oh1, Ctxt, Oh).
+%% bin_op1(or, _, _Ctxt, leaf(1)).
+%% bin_op0(or, Oh1, Ctxt, Oh) :- apply_constraint(Oh1, Ctxt, Oh).
+%% bin_op0(and, _, _Ctxt, leaf(0)).
+
+bin_op1(and, Oh1, Ctxt, Oh).
 bin_op1(or, _, _Ctxt, leaf(1)).
-bin_op0(or, Oh1, Ctxt, Oh) :- apply_constraint(Oh1, Ctxt, Oh).
+bin_op0(or, Oh1, Ctxt, Oh).
 bin_op0(and, _, _Ctxt, leaf(0)).
 
 /* Do binop with all trees in list (arg 2) and the other given tree (arg 3) */
@@ -192,8 +197,8 @@ apply_all_binop(Op, E1s, E2s, Ctxt, Es) :- apply_all_binop(Op, E1s, E2s, Ctxt, [
 :- index apply_all_binop/6-3.
 apply_all_binop(_Op, _E1s, [], _Ctxt, Es, Es).
 apply_all_binop(Op, E1s, [edge_subtree(C2,Oh2)|E2s], Ctxt, Eis, Eos) :-
-    (conjunction(C2, Ctxt, _Ctxt1)
-    ->  apply_1_binop(Op, E1s, C2, Oh2, Ctxt, Eis, Ets)
+    (conjunction(C2, Ctxt, Ctxt1)
+    ->  apply_1_binop(Op, E1s, C2, Oh2, Ctxt1, Eis, Ets)
     ;   Eis = Ets  % C2's constraint is inconsistent wrt Ctxt, so drop these edges
     ),
     apply_all_binop(Op, E1s, E2s, Ctxt, Ets, Eos).
@@ -207,24 +212,40 @@ apply_1_binop(Op, [edge_subtree(C1,Oh1)|E1s], C2, Oh2, Ctxt, Eis, Eos) :-
     ),
     apply_1_binop(Op, E1s, C2, Oh2, Ctxt, Eis, Ets).
 
-apply_constraint(Oh1, C, Oh2) :- apply_constraint(Oh1, C, C, Oh2).
-apply_constraint(leaf(X), _, _, leaf(X)).
-apply_constraint(tree(R, E1s), Cons, Ctxt, Oh2) :-
-    apply_constraint_edges(E1s, Cons, Ctxt, E2s),
+%% apply_constraint(Oh1, C, Oh2) :- apply_constraint(Oh1, [], C, Oh2).
+%% apply_constraint(leaf(X), _, _, leaf(X)).
+%% apply_constraint(tree(R, E1s), Cons, Ctxt, Oh2) :-
+%%     apply_constraint_edges(E1s, Cons, Ctxt, E2s),
+%%     (E2s = []
+%%     ->  Oh2 = leaf(0)
+%%     ;   Oh2 = tree(R, E2s)
+%%     ).
+%% apply_constraint_edges([], _Cons, _Ctxt, []).
+%% apply_constraint_edges([edge_subtree(C,T)|E1s], Cons, Ctxt, E2s) :-
+%%     (conjunction(C, Ctxt, Ctxt1)
+%%     ->  conjunction(C, Cons, C1),
+%%         apply_constraint(T, Ctxt1, T1),
+%%         E2s = [edge_subtree(C1,T1)|Eos]
+%%     ;   E2s = Eos
+%%     ),
+%%     apply_constraint_edges(E1s, Cons, Ctxt, Eos).
+
+% apply context constraints to prune inconsistent edges
+apply_constraint(leaf(X), _, leaf(X)).
+apply_constraint(tree(R, E1s), Ctxt, Oh2) :-
+    apply_constraint_edges(E1s, Ctxt, E2s),
     (E2s = []
     ->  Oh2 = leaf(0)
     ;   Oh2 = tree(R, E2s)
     ).
-apply_constraint_edges([], _Cons, _Ctxt, []).
-apply_constraint_edges([edge_subtree(C,T)|E1s], Cons, Ctxt, E2s) :-
+apply_constraint_edges([], _Ctxt, []).
+apply_constraint_edges([edge_subtree(C,T)|E1s], Ctxt, E2s) :-
     (conjunction(C, Ctxt, Ctxt1)
-    ->  conjunction(C, Cons, C1),
-        apply_constraint(T, Ctxt1, T1),
-        E2s = [edge_subtree(C1,T1)|Eos]
+    ->  apply_constraint(T, Ctxt1, T1),
+        E2s = [edge_subtree(C,T1)|Eos]
     ;   E2s = Eos
     ),
-    apply_constraint_edges(E1s, Cons, Ctxt, Eos).
-
+    apply_constraint_edges(E1s, Ctxt, Eos). 
 
 split_if_needed(Oh1, Oh2) :-
     (identify_late_constraint(Oh1, C)
@@ -343,6 +364,11 @@ update_subtrees([], C, Prev, [edge_subtree(Complement, leaf(0))]) :-
 update_subtrees([edge_subtree(C1, T)|Edges], C, Prev, [edge_subtree(C2, T)| UpdatedEdges]) :-
     (T \== leaf(0)
     ->  basics:append(C1, [C], C2),
+	writeln('-----------before satisfiable--------------'),
+	writeln(C2),
+	satisfiable(C2),
+	writeln('-------after satisfiable---------'),
+	writeln(C2),
         basics:append(Prev, C1, Next)
     ;   Next = Prev, C2 = C1
     ),
@@ -364,12 +390,12 @@ update_edges([edge_subtree(_E, T) | R], X, C, [edge_subtree(_E, T1)| R1]) :-
 % Leaf nodes are left unchanged
 update_edges(leaf(_X), Y, _C, leaf(_X)) :- var(Y).% Compares two root nodes based on switch/instance ID
 compare_roots(R1, R2, 0) :-
-    read_id(R1, (S, I)),
-    read_id(R2, (S, I)).
+    read_id(R1, id(S, I)),
+    read_id(R2, id(S, I)).
 
 compare_roots(R1, R2, -1) :-
-    read_id(R1, (S1, I1)),
-    read_id(R2, (S2, I2)),
+    read_id(R1, id(S1, I1)),
+    read_id(R2, id(S2, I2)),
     (I1 @< I2
     ->  true
     ;   (S1 @< S2
@@ -379,8 +405,8 @@ compare_roots(R1, R2, -1) :-
     ).
 
 compare_roots(R1, R2, 1) :-
-    read_id(R1, (S1, I1)),
-    read_id(R2, (S2, I2)),
+    read_id(R1, id(S1, I1)),
+    read_id(R2, id(S2, I2)),
     (I1 @> I2
     ->  true
     ;   (S1 @> S2
@@ -395,7 +421,7 @@ compare_roots(R1, R2, 1) :-
 
 % Combines two constraint lists by conjunction
 conjunction(C1, C2, C) :-
-    listutil:absmerge(C1, C2, C).
+    listutil:absmerge(C1, C2, C), satisfiable(C).
 
 % Complements a atomic constraint
 complement_atom(X=Y, X\=Y).
@@ -432,20 +458,42 @@ apply_bounds(X, [Y\=X]) :- Y #\= X.
 
 %% check satisfiability of constraint formula
 satisfiable(C) :-
-    basics:copy_term_nat(C, C1), % create a copy of C in C1 without any attributes
-
-    term_variables(C, L),
-    term_variables(C1, L1),
-
+    writeln(C),
+    copy_term(C, C1),
+    getvars(C, [], L),
+    getvars(C1, [], L1),
     assert_bounds(L, L1),
-    assert_constraints(C1),
-    label(L1), !.
+    writeln('-----------copied variables-------------'),
+    writeln(L1),
+    writeln('-----------copied constraint------------'),
+    writeln(C1),
+    assert_constraints(C1), !,
+    true.
+
+getvars([], L, L).
+getvars([X=Y|R], L, Lout) :-
+    (var(X)
+    ->
+	\+ lists:memberchk_eq(X, L),
+	basics:append(L, [X], Ltmp)
+    ;
+    Ltmp = L
+    ),
+    (var(Y)
+    ->
+	\+ lists:memberchk_eq(Y, L),
+	basics:append(Ltmp, [Y], Ltmp1)
+    ;
+    Ltmp1 = Ltmp
+    ),
+    getvars(R, Ltmp1, Lout).
+
 
 %% assert Lower..Upper bounds for each variable in second list by
 %% looking at the corresponding id in first list.
 assert_bounds([], []).
 assert_bounds([V|R], [V1|R1]) :-
-    read_id(V, (S, _)), % get switch associated with V
+    read_id(V, id(S, _)), % get switch associated with V
     intrange(S, Lower, Upper),
     V1 in Lower..Upper,
     assert_bounds(R, R1).
@@ -494,7 +542,7 @@ edge_list_form([X\=Y|R], EQ, [S-D, D-S | NER]) :-
 %% Node labels in constraint graph have a canonical form
 canonical_label(X, id(S, I)) :-
     var(X),
-    read_id(X, (S, I)).
+    read_id(X, id(S, I)).
 canonical_label(X, X) :-
     atomic(X).
 
@@ -581,11 +629,11 @@ set_type(X, T) :-
 
 % Sets id attribute of a random variable to (S, I).
 % Where S is the switch name and I is the instance.
-set_id(X, (S, I)) :-
+set_id(X, id(S, I)) :-
     var(X),
-    (get_attr(X, id, (S1, I1))
+    (get_attr(X, id, id(S1, I1))
     ->  S=S1, I=I1  % We can't change id of a variable
-    ;   put_attr(X, id, (S, I))
+    ;   put_attr(X, id, id(S, I))
     ).
 
 % Reads type attribute.
@@ -605,12 +653,12 @@ lookup_type(X, T) :-
     basics:member(X, T), !.
 
 % Reads id attribute, if it doesn't exist set it to unbound pair of variables.
-read_id(X, (S, I)) :-
+read_id(X, id(S, I)) :-
     var(X),
-    (get_attr(X, id, (S, I))
+    (get_attr(X, id, id(S, I))
     ->  true
     ;   var(S), var(I),  % [?] Is this needed?
-        put_attr(X, id, (S, I))
+        put_attr(X, id, id(S, I))
     ).
 
 % Display handlers
@@ -644,19 +692,48 @@ map_args([Arg|Args], [_Arg|_Args], L) :-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Visualization using DOT
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% writeDot(OSDD, DotFile) :-
+%%     % paths(OSDD, Paths),
+%%     dotEdges(OSDD, [], Edges),
+%%     current_prolog_flag(write_attributes, F),
+%%     set_prolog_flag(write_attributes, ignore),
+%%     open(DotFile, write, Handle),
+%%     % write(Handle, 'strict digraph osdd {\n'),
+%%     write(Handle, 'digraph osdd {\n'),
+%%     % writeDotPaths(Paths, Handle),
+%%     writeDotEdges(Edges, Handle),
+%%     write(Handle, '}\n'),
+%%     close(Handle),
+%%     set_prolog_flag(write_attributes, F).
+
 writeDot(OSDD, DotFile) :-
-    % paths(OSDD, Paths),
-    dotEdges(OSDD, [], Edges),
     current_prolog_flag(write_attributes, F),
     set_prolog_flag(write_attributes, ignore),
     open(DotFile, write, Handle),
-    % write(Handle, 'strict digraph osdd {\n'),
-    write(Handle, 'digraph osdd {\n'),
-    % writeDotPaths(Paths, Handle),
-    writeDotEdges(Edges, Handle),
+    write(Handle, 'strict digraph osdd {\n'),
+    traverse(OSDD, Handle),
     write(Handle, '}\n'),
     close(Handle),
     set_prolog_flag(write_attributes, F).
+
+traverse(T, Handle) :-
+    traverse(T, _, Handle).
+
+traverse(leaf(X), ID, Handle) :-
+    write(Handle, ID),
+    write(Handle, ' [label='),
+    write(Handle, X),
+    write(Handle, '];\n').
+traverse(tree(R, Es), ID, Handle) :-
+    write(Handle, ID), write(Handle, ' [label='), write(Handle, R), write(Handle, '];\n'),
+    traverse_edges(Es, ID, Handle).
+traverse_edges([], _, _).
+traverse_edges([edge_subtree(C,T)|Es], ParentID, Handle) :-
+    ChildID=_, % fresh
+    write(Handle, ParentID), write(Handle, ' -> '), write(Handle, ChildID),
+    write(Handle, ' [label='), write(Handle, '"'),writeDotConstraint(Handle, C), write(Handle, '"'), write(Handle, '];\n'),
+    traverse(T, ChildID, Handle),
+    traverse_edges(Es, ParentID, Handle).
 
 % no edges to collect if we reach the leaf
 dotEdges(leaf(_), Ein, Ein).
@@ -670,18 +747,18 @@ dotEdges_1(Root, [edge_subtree(E, T)| R], Ein, Eout) :-
     dotEdges(T, Etmp, Etmp1),
     dotEdges_1(Root, R, Etmp1, Eout).
 
-dotEdge_term(Root, E, leaf(X), [node(Root,Root), E, node(X,X)]).
-dotEdge_term(Root, E, tree(R, _), [node(Root,Root), E, node(R,R)]).
+dotEdge_term(Root, E, leaf(X), [node(Root,Root), E, node(Y,X)]).
+dotEdge_term(Root, E, tree(R, _), [node(Root,Root), E, node(Y,R)]).
 
 writeDotEdges([], _H).
-writeDotEdges([ [node(X,X), E, node(Y,Y)] | R], Handle) :-
-    writeDotEdge([node(X,X), E, node(Y,Y)], Handle),
+writeDotEdges([ [node(V1,L1), E, node(V2,L2)] | R], Handle) :-
+    writeDotEdge([node(V1,L1), E, node(V2,L2)], Handle),
     writeDotEdges(R, Handle).
 
-writeDotEdge([node(X,X), E, node(Y,Y)], Handle) :-
-    write(Handle, X), write(Handle, ' [label='), write(Handle, X), write(Handle, '];\n'),
-    write(Handle, Y), write(Handle, ' [label='), write(Handle, Y), write(Handle, '];\n'),    
-    write(Handle, X), write(Handle, ' -> '), write(Handle, Y), write(Handle, ' [label='), write(Handle, '"'), writeDotConstraint(Handle, E), write(Handle, '"'), write(Handle, '];\n').
+writeDotEdge([node(Var1,Label1), E, node(Var2,Label2)], Handle) :-
+    write(Handle, Var1), write(Handle, ' [label='), write(Handle, Label1), write(Handle, '];\n'),
+    write(Handle, Var2), write(Handle, ' [label='), write(Handle, Label2), write(Handle, '];\n'),    
+    write(Handle, Var1), write(Handle, ' -> '), write(Handle, Var2), write(Handle, ' [label='), write(Handle, '"'), writeDotConstraint(Handle, E), write(Handle, '"'), write(Handle, '];\n').
     
 writeDotPaths([], _H).
 writeDotPaths([P|R], Handle) :-
