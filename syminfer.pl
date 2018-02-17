@@ -7,6 +7,7 @@
 :- import vertices_edges_to_ugraph/3, transitive_closure/2, edges/2,
    neighbors/3, vertices/2 from ugraphs.
 :- import list_to_ord_set/2 from ordsets.
+:- import empty_assoc/1, put_assoc/4, get_assoc/3 from assoc_xsb.
 
 :- install_verify_attribute_handler(type, AttrValue, Target, type_handler(AttrValue, Target)).
 :- install_verify_attribute_handler(id, AttrValue, Target, id_handler(AttrValue, Target)).
@@ -281,8 +282,34 @@ split_all([edge_subtree(C1,T1)|Es], C, Ctxt, E2s) :-
     split_all(Es, C, Ctxt, Eos).
 
 %---------------- NEEDS DONE -----------------
-% order_edges(E1s, E2s): E2s contains all edges in E1s, but ordered in a canonical way
-order_edges(X, X).
+% order_edges(E1s, E2s): E2s contains all edges in E1s, but ordered in
+% a canonical way
+order_edges(ETin, ETout) :-
+    empty_assoc(Ain),
+    % create a list containing canonical constraints and also insert
+    % them into association list
+    fill_assoc(ETin, Ain, [], Aout, Lout),
+    % sort the canonical constraints
+    sort(Lout, Lsort),
+    % return the edge_subtrees in the corresponding order
+    sorted_edgesubtrees(Lsort, Aout, ETout),
+    true.
+
+% fill_assoc(EdgeTreeList, AssocIn, ListIn, AssocOut, ListOut)
+% Iterate over 'EdgeTreeList', add canonical form of constraint to
+% ListIn, also add key-value pair of canonical constraint and
+% Edge-Subtree term in AssocIn
+fill_assoc([], A, L, A, L).
+fill_assoc([edge_subtree(E, T)|R], Ain, Lin, Aout, Lout) :-
+    canonical_form(E, C),
+    put_assoc(C, Ain, edge_subtree(E, T), Atmp),
+    basics:append(Lin, [C], Ltmp),
+    fill_assoc(R, Atmp, Ltmp, Aout, Lout).
+
+sorted_edgesubtrees([], _, []).
+sorted_edgesubtrees([CC|CCR], A, [ET|ETR]) :-
+    get_assoc(CC, A, ET),
+    sorted_edgesubtrees(CCR, A, ETR).
 %---------------- NEEDS DONE -----------------
 
 % Add a zero branch for or operation if there are none present
@@ -680,7 +707,7 @@ map_args([Arg|Args], [_Arg|_Args], L) :-
     ->  _Arg = I
     ;   _Arg = Arg
     ),
-    map_args(Args, _Args, L).
+    map_args(Args, _Args, L).    
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Visualization using DOT
