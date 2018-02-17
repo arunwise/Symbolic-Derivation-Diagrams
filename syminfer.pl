@@ -214,6 +214,7 @@ apply_1_binop(Op, [edge_subtree(C1,Oh1)|E1s], C2, Oh2, Ctxt, Eis, Eos) :-
 % apply context constraints to prune inconsistent edges
 apply_context(leaf(X), _, leaf(X)).
 apply_context(tree(R, E1s), Ctxt, Oh2) :-
+    writeln('...Applying context...'),
     apply_context_edges(E1s, Ctxt, E2s),
     (E2s = []
     ->  Oh2 = leaf(0)
@@ -222,6 +223,7 @@ apply_context(tree(R, E1s), Ctxt, Oh2) :-
 
 apply_context_edges([], _Ctxt, []).
 apply_context_edges([edge_subtree(C,T)|E1s], Ctxt, E2s) :-
+    writeln('...Applying context to edges...'),
     (conjunction(C, Ctxt, Ctxt1)
     ->  apply_context(T, Ctxt1, T1),
         E2s = [edge_subtree(C,T1)|Eos]
@@ -242,7 +244,7 @@ identify_late_constraint(tree(R, Es), Ctxt, C) :-
 identify_late_constraint([edge_subtree(C1,_T1)|_Es], R, Ctxt, C) :-
     basics:member(C, C1),  % iterate through all constraints in C1
     not listutil:absmember(C, Ctxt),
-    not_at(R, C),   !.
+    not_at(R, C), !.
 identify_late_constraint([edge_subtree(C1,T1)|_Es], _R, Ctxt, C) :-
     conjunction(C1, Ctxt, Ctxt1),
     identify_late_constraint(T1, Ctxt1, C), !.
