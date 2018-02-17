@@ -10,39 +10,39 @@ test2 :-
     satisfiable([X=1,X\=1]).
 
 test3 :-
-    set_id(X, (alpha, 1)),
-    set_id(Y, (alpha, 2)),
+    set_id(X, id(alpha, 1)),
+    set_id(Y, id(alpha, 2)),
     satisfiable([X=Y]).
 
 test4 :-
-    set_id(X, (alpha, 1)),
-    set_id(Y, (alpha, 2)),
+    set_id(X, id(alpha, 1)),
+    set_id(Y, id(alpha, 2)),
     satisfiable([X\=Y]).
 
 test5 :-
-    set_id(X, (alpha, 1)),
-    set_id(Y, (alpha, 2)),
-    set_id(Z, (alpha, 3)),
+    set_id(X, id(alpha, 1)),
+    set_id(Y, id(alpha, 2)),
+    set_id(Z, id(alpha, 3)),
     satisfiable([X=Y,X=Z]).
 
 test6 :-
-    set_id(X, (alpha, 1)),
-    set_id(Y, (alpha, 2)),
-    set_id(Z, (alpha, 3)),
+    set_id(X, id(alpha, 1)),
+    set_id(Y, id(alpha, 2)),
+    set_id(Z, id(alpha, 3)),
     satisfiable([X\=Y,X\=Z]).
 
 test7 :-
-    set_id(X, (alpha, 1)),
-    set_id(Y, (alpha, 2)),
-    set_id(Z, (alpha, 3)),
+    set_id(X, id(alpha, 1)),
+    set_id(Y, id(alpha, 2)),
+    set_id(Z, id(alpha, 3)),
     satisfiable([X\=Y,X\=Z,Y\=Z]).
 
 % unsatisfiable
 test8 :-
-    set_id(X, (alpha, 1)),
-    set_id(Y, (alpha, 2)),
-    set_id(Z, (alpha, 3)),
-    set_id(W, (alpha, 4)),
+    set_id(X, id(alpha, 1)),
+    set_id(Y, id(alpha, 2)),
+    set_id(Z, id(alpha, 3)),
+    set_id(W, id(alpha, 4)),
     satisfiable([X\=Y,X\=Z,Y\=Z,W\=X,W\=Y,W\=Z]).
 
 
@@ -51,15 +51,15 @@ test9 :-
     canonical_form([], cg([], [])).
 
 test10 :-
-    set_id(X, (alpha, 1)),
+    set_id(X, id(alpha, 1)),
     canonical_form([X=1], cg([1 - id(alpha,1), id(alpha,1) - 1], [])).
 
 test11 :-
-    set_id(X, (alpha, 1)),
-    set_id(Y, (alpha, 2)),
+    set_id(X, id(alpha, 1)),
+    set_id(Y, id(alpha, 2)),
     canonical_form([X=Y], cg([id(alpha,1)-id(alpha,2), id(alpha,2)-id(alpha,1)],[])).
 
 test12 :-
-    set_id(X, (alpha, 1)),
-    set_id(Y, (alpha, 2)),
+    set_id(X, id(alpha, 1)),
+    set_id(Y, id(alpha, 2)),
     canonical_form([X\=Y], cg([], [id(alpha,1)-id(alpha,2), id(alpha,2)-id(alpha,1)])).
