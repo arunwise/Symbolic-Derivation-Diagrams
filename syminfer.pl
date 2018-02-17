@@ -702,7 +702,8 @@ writeDot(OSDD, DotFile) :-
     current_prolog_flag(write_attributes, F),
     set_prolog_flag(write_attributes, ignore),
     open(DotFile, write, Handle),
-    write(Handle, 'strict digraph osdd {\n'),
+%    write(Handle, 'strict digraph osdd {\n'),
+    write(Handle, ' digraph osdd {\n'),
     traverse(OSDD, Handle),
     write(Handle, '}\n'),
     close(Handle),
@@ -727,49 +728,6 @@ traverse_edges([edge_subtree(C,T)|Es], ParentID, Handle) :-
     traverse(T, ChildID, Handle),
     traverse_edges(Es, ParentID, Handle).
 
-% no edges to collect if we reach the leaf
-dotEdges(leaf(_), Ein, Ein).
-dotEdges(tree(Root, SubTrees), Ein, Eout) :-
-    dotEdges_1(Root, SubTrees, Ein, Eout).
-% no edges to collect if we processed all subtrees
-dotEdges_1(Root, [], Ein, Ein).
-dotEdges_1(Root, [edge_subtree(E, T)| R], Ein, Eout) :-
-    dotEdge_term(Root, E, T, DE),
-    basics:append(Ein, [DE], Etmp),
-    dotEdges(T, Etmp, Etmp1),
-    dotEdges_1(Root, R, Etmp1, Eout).
-
-dotEdge_term(Root, E, leaf(X), [node(Root,Root), E, node(Y,X)]).
-dotEdge_term(Root, E, tree(R, _), [node(Root,Root), E, node(Y,R)]).
-
-writeDotEdges([], _H).
-writeDotEdges([ [node(V1,L1), E, node(V2,L2)] | R], Handle) :-
-    writeDotEdge([node(V1,L1), E, node(V2,L2)], Handle),
-    writeDotEdges(R, Handle).
-
-writeDotEdge([node(Var1,Label1), E, node(Var2,Label2)], Handle) :-
-    write(Handle, Var1), write(Handle, ' [label='), write(Handle, Label1), write(Handle, '];\n'),
-    write(Handle, Var2), write(Handle, ' [label='), write(Handle, Label2), write(Handle, '];\n'),    
-    write(Handle, Var1), write(Handle, ' -> '), write(Handle, Var2), write(Handle, ' [label='), write(Handle, '"'), writeDotConstraint(Handle, E), write(Handle, '"'), write(Handle, '];\n').
-    
-writeDotPaths([], _H).
-writeDotPaths([P|R], Handle) :-
-    writeDotPath(P, Handle),
-    writeDotPaths(R, Handle).
-
-writeDotPath([node(Var,Label)], Handle) :-
-    (Label=0;Label=1),
-    write(Handle, Var),
-    write(Handle, ' [label='),
-    write(Handle, Label),
-    write(Handle, '];\n').
-
-writeDotPath([node(V1,L1), E| R], Handle) :-
-    R = [node(V2,_L2)|_],
-    write(Handle, V1), write(Handle, ' [label='), write(Handle, L1), write(Handle, '];\n'),
-    write(Handle, V1), write(Handle, ' -> '), write(Handle, V2), write(Handle, ' [label='), write(Handle, '"'),writeDotConstraint(Handle, E), write(Handle, '"'), write(Handle, '];\n'),
-    writeDotPath(R, Handle).
-
 writeDotConstraint(Handle, null) :-
     write(Handle, '').
 writeDotConstraint(Handle, []) :-
@@ -787,41 +745,6 @@ write1(Handle, X\=Y) :-
     write(Handle, X), write(Handle, '\\\='), write(Handle, Y).
 write1(Handle, X<Y) :-
     write(Handle, X<Y).
-
-% collect paths in an OSDD paths are simply sequences (lists) of
-% node,edge,node... values.  nodes are represented by node(VarName,
-% Label). This way we can either combine or separate nodes with same
-% label
-paths(leaf(X), [[node(_Y,X)]]). % fresh variable Y helps distinguish from other nodes with same value of X
-
-paths(and(T1, T2), P) :-
-    paths(T1, P1),
-    addprefix([node(Y,and),null], P1, P1A),
-    paths(T2, P2),
-    addprefix([node(Y,and),null], P2, P2A),
-    basics:append(P1A, P2A, P).
-
-paths(or(T1, T2), P) :-
-    paths(T1, P1),
-    addprefix([node(Y,or),null], P1, P1A),
-    paths(T2, P2),
-    addprefix([node(Y,or),null], P2, P2A),
-    basics:append(P1A, P2A, P).
-
-paths(tree(Root, Subtrees), P) :-
-    paths1(Root, Subtrees, [], P).
-
-paths1(_Root, [], _P, _P).
-paths1(Root, [edge_subtree(E,T)|R], Pin, Pout) :-
-    paths(T, P1),
-    addprefix([node(Root,Root),E], P1, P2),
-    basics:append(Pin, P2, P3),
-    paths1(Root, R, P3, Pout).
-
-addprefix(_L, [], []).
-addprefix(L, [P|R], [P1|RR]) :-
-    basics:append(L, P, P1),
-    addprefix(L, R, RR).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Misc
