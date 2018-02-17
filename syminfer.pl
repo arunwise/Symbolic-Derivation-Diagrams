@@ -169,14 +169,9 @@ bin_op(Op, Oh1, Oh2, Ctxt, Oh) :-
     ),
     write('    RESULT: '), writeln(Oh).
 
-%% bin_op1(and, Oh1, Ctxt, Oh) :- apply_constraint(Oh1, Ctxt, Oh).
-%% bin_op1(or, _, _Ctxt, leaf(1)).
-%% bin_op0(or, Oh1, Ctxt, Oh) :- apply_constraint(Oh1, Ctxt, Oh).
-%% bin_op0(and, _, _Ctxt, leaf(0)).
-
-bin_op1(and, Oh1, Ctxt, Oh).
+bin_op1(and, Oh1, Ctxt, Oh) :- apply_constraint(Oh1, Ctxt, Oh).
 bin_op1(or, _, _Ctxt, leaf(1)).
-bin_op0(or, Oh1, Ctxt, Oh).
+bin_op0(or, Oh1, Ctxt, Oh) :- apply_constraint(Oh1, Ctxt, Oh).
 bin_op0(and, _, _Ctxt, leaf(0)).
 
 /* Do binop with all trees in list (arg 2) and the other given tree (arg 3) */
@@ -352,7 +347,7 @@ update_edges(or(T1,T2), X, C, or(T1out,T2out)) :-
 
 % Handles logic for when X is the root of the tree
 update_edges(tree(X, Edges), Y, C, tree(X, UpdatedEdges)) :-
-    X == Y,
+    X == Y, write('UPDATING EDGES...'),
     update_subtrees(Edges, C, [], UpdatedEdges).
 
 % Implements completeness by adding the complement of C to the previous constraints
@@ -463,28 +458,23 @@ satisfiable(C) :-
     getvars(C, [], L),
     getvars(C1, [], L1),
     assert_bounds(L, L1),
-    writeln('-----------copied variables-------------'),
-    writeln(L1),
-    writeln('-----------copied constraint------------'),
-    writeln(C1),
-    assert_constraints(C1), !,
-    true.
+    assert_constraints(C1), !.
 
 getvars([], L, L).
 getvars([X=Y|R], L, Lout) :-
     (var(X)
     ->
-	\+ lists:memberchk_eq(X, L),
-	basics:append(L, [X], Ltmp)
+	    \+ lists:memberchk_eq(X, L),
+	    basics:append(L, [X], Ltmp)
     ;
-    Ltmp = L
+        Ltmp = L
     ),
     (var(Y)
     ->
-	\+ lists:memberchk_eq(Y, L),
-	basics:append(Ltmp, [Y], Ltmp1)
+	    \+ lists:memberchk_eq(Y, L),
+	    basics:append(Ltmp, [Y], Ltmp1)
     ;
-    Ltmp1 = Ltmp
+        Ltmp1 = Ltmp
     ),
     getvars(R, Ltmp1, Lout).
 
