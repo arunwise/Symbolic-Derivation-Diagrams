@@ -246,7 +246,9 @@ identify_late_constraint(Oh, C) :- identify_late_constraint(Oh, [], C).
 identify_late_constraint(tree(R, Es), Ctxt, C) :-
     identify_late_constraint(Es, R, Ctxt, C).
 identify_late_constraint([edge_subtree(C1,_T1)|_Es], R, Ctxt, C) :-
+    write('\nORIGINAL CONSTRAINTS: '), writeln(C1),
     get_implicit_constraints(C1, C2),
+    write('IMPLICIT CONSTRAINTS: '), writeln(C2), write('\n'),
     basics:member(C, C2),  % iterate through all constraints in C1
     not listutil:absmember(C, Ctxt),
     not_at(R, C), !.
@@ -583,29 +585,29 @@ graph_to_formula(Assoc, Op, [ID1-ID2|R], Cin, Cout) :-
     % use only one of the edges in the constraint graph
     (ID1 @< ID2
     ->
-	(functor(ID1, id, 2)
-	->
-	    get_assoc(ID1, Assoc, X)
-	;
-	    X = ID1
-	),
-	(functor(ID2, id, 2)
-	->
-	    get_assoc(ID2, Assoc, Y)
-	;
-	    Y = ID2
-	),
-	(Op = eq
-	->
-	    basics:append(Cin, [X=Y], Ctmp)
-	;   (Op = neq
-	    ->
-		basics:append(Cin, [X\=Y], Ctmp)
-	    ;
-	        fail
-	    )
-	),
-	graph_to_formula(Assoc, Op, R, Ctmp, Cout)
+        (functor(ID1, id, 2)
+        ->
+            get_assoc(ID1, Assoc, X)
+        ;
+            X = ID1
+        ),
+        (functor(ID2, id, 2)
+        ->
+            get_assoc(ID2, Assoc, Y)
+        ;
+            Y = ID2
+        ),
+        (Op = eq
+        ->
+            basics:append(Cin, [X=Y], Ctmp)
+        ;   (Op = neq
+            ->
+                basics:append(Cin, [X\=Y], Ctmp)
+            ;
+                fail
+            )
+        ),
+        graph_to_formula(Assoc, Op, R, Ctmp, Cout)
     ;
         graph_to_formula(Assoc, Op, R, Cin, Cout)
     ).
