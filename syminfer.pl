@@ -7,7 +7,7 @@
 :- import vertices_edges_to_ugraph/3, transitive_closure/2, edges/2,
    neighbors/3, vertices/2 from ugraphs.
 :- import list_to_ord_set/2 from ordsets.
-:- import empty_assoc/1, put_assoc/4, get_assoc/3 from assoc_xsb.
+:- import empty_assoc/1, put_assoc/4, get_assoc/3, list_to_assoc/2 from assoc_xsb.
 
 :- install_verify_attribute_handler(type, AttrValue, Target, type_handler(AttrValue, Target)).
 :- install_verify_attribute_handler(id, AttrValue, Target, id_handler(AttrValue, Target)).
@@ -542,6 +542,48 @@ canonical_form(C, F) :-
     list_to_ord_set(NEQ2, NEQORD),
     F = cg(EQORD, NEQORD),
     true.
+
+%% complete a constraint formula with implicit constraints
+%% CComp is the union of C and implicit constraints
+get_implicit_constraints(C, CComp) :-
+    getvars(C, [], Vars),
+    id_var_pairs(Vars, Pairs),
+    list_to_assoc(Pairs, A),
+    canonical_form(C, cg(EQ, NEQ)),
+    graph_to_formula(A, eq, EQ, [], C1),
+    graph_to_formula(A, neq, NEQ, C1, CComp),
+    true.
+
+id_var_pairs([], []).
+id_var_pairs([V|R], [Id-V|PR]) :-
+    canonical_label(V, Id),
+    id_var_pairs(R, PR).
+
+graph_to_formula(Assoc, Op, [], C, C).
+graph_to_formula(Assoc, Op, [ID1-ID2|R], Cin, Cout) :-
+    (functor(ID1, id, 2)
+    ->
+	get_assoc(ID1, Assoc, X)
+    ;
+    X = ID1
+    ),
+    (functor(ID2, id, 2)
+    ->
+	get_assoc(ID2, Assoc, Y)
+    ;
+    Y = ID2
+    ),
+    (Op = eq
+    ->
+	basics:append(Cin, [X=Y], Ctmp)
+    ; (Op = neq
+      ->
+	  basics:append(Cin, [X\=Y], Ctmp)
+      ;
+      fail
+      )
+    ),
+    graph_to_formula(Assoc, Op, R, Ctmp, Cout).
 
 %% atomic constraints are represented as edges in constraint graph,
 %% we maintain two lists corresponding to equality constraints and
