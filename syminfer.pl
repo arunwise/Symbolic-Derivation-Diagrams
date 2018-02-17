@@ -341,10 +341,8 @@ update_subtrees([edge_subtree(C1, T)|Edges], C, Prev, [UpdatedSubTree | UpdatedE
     ->  basics:append(C1, [C], C2),
 	    (satisfiable(C2)
         ->  basics:append(Prev, C1, Next),
-            UpdatedSubTree = edge_subtree(C2, T),
-            write(C2), writeln(' is satisfiable------------------')
-        ;   UpdatedSubTree = [],
-            write(C2), writeln(' is NOT satisfiable------------------')
+            UpdatedSubTree = edge_subtree(C2, T)
+        ;   UpdatedSubTree = []
         )
     ;   Next = Prev, C2 = C1, UpdatedSubTree = edge_subtree(C2, T)
     ),
@@ -446,18 +444,14 @@ apply_bounds(X, [Y\=X]) :- Y #\= X.
 %% check satisfiability of constraint formula
 satisfiable([]) :- !.
 satisfiable(C) :-
-    writeln('IN SAT'),
     copy_term(C, C1),
-    write(C), writeln(' -> '), write(C1), writeln('COPIED'),
     getvars(C, [], L),
     getvars(C1, [], L1),
-    writeln('GOT VARS'),
     assert_bounds(L, L1),
     assert_constraints(C1), !.
 
 getvars([], L, L).
 getvars([X=Y|R], L, Lout) :-
-    write('STARTING LIST IS: '), writeln(L),
     (var(X), \+ lists:memberchk_eq(X, L)
     ->
 	    basics:append(L, [X], Ltmp)
@@ -470,12 +464,9 @@ getvars([X=Y|R], L, Lout) :-
     ;
         Ltmp1 = Ltmp
     ),
-    write('FINAL LIST IS: '), writeln(Ltmp1),
-    write('R IS: '), writeln(R),
     getvars(R, Ltmp1, Lout).
 
 getvars([X\=Y|R], L, Lout) :-
-    write('STARTING LIST IS: '), writeln(L),
     (var(X), \+ lists:memberchk_eq(X, L)
     ->
         basics:append(L, [X], Ltmp)
@@ -488,8 +479,6 @@ getvars([X\=Y|R], L, Lout) :-
     ;
         Ltmp1 = Ltmp
     ),
-    write('FINAL LIST IS: '), writeln(Ltmp1),
-    write('R IS: '), writeln(R),
     getvars(R, Ltmp1, Lout).
 
 %% assert Lower..Upper bounds for each variable in second list by
