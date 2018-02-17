@@ -173,9 +173,9 @@ bin_op(Op, Oh1, Oh2, Ctxt, Oh) :-
     ),
     write('    RESULT: '), writeln(Oh).
 
-bin_op1(and, Oh1, Ctxt, Oh) :- apply_constraint(Oh1, Ctxt, Oh).
+bin_op1(and, Oh1, Ctxt, Oh) :- apply_context(Oh1, Ctxt, Oh).
 bin_op1(or, _, _Ctxt, leaf(1)).
-bin_op0(or, Oh1, Ctxt, Oh) :- apply_constraint(Oh1, Ctxt, Oh).
+bin_op0(or, Oh1, Ctxt, Oh) :- apply_context(Oh1, Ctxt, Oh).
 bin_op0(and, _, _Ctxt, leaf(0)).
 
 /* Do binop with all trees in list (arg 2) and the other given tree (arg 3) */
@@ -212,22 +212,22 @@ apply_1_binop(Op, [edge_subtree(C1,Oh1)|E1s], C2, Oh2, Ctxt, Eis, Eos) :-
     apply_1_binop(Op, E1s, C2, Oh2, Ctxt, Eis, Ets).
 
 % apply context constraints to prune inconsistent edges
-apply_constraint(leaf(X), _, leaf(X)).
-apply_constraint(tree(R, E1s), Ctxt, Oh2) :-
-    apply_constraint_edges(E1s, Ctxt, E2s),
+apply_context(leaf(X), _, leaf(X)).
+apply_context(tree(R, E1s), Ctxt, Oh2) :-
+    apply_context_edges(E1s, Ctxt, E2s),
     (E2s = []
     ->  Oh2 = leaf(0)
     ;   Oh2 = tree(R, E2s)
     ).
 
-apply_constraint_edges([], _Ctxt, []).
-apply_constraint_edges([edge_subtree(C,T)|E1s], Ctxt, E2s) :-
+apply_context_edges([], _Ctxt, []).
+apply_context_edges([edge_subtree(C,T)|E1s], Ctxt, E2s) :-
     (conjunction(C, Ctxt, Ctxt1)
-    ->  apply_constraint(T, Ctxt1, T1),
+    ->  apply_context(T, Ctxt1, T1),
         E2s = [edge_subtree(C,T1)|Eos]
     ;   E2s = Eos
     ),
-    apply_constraint_edges(E1s, Ctxt, Eos). 
+    apply_context_edges(E1s, Ctxt, Eos). 
 
 split_if_needed(Oh1, Oh2) :-
     (identify_late_constraint(Oh1, C)
@@ -259,11 +259,11 @@ split(tree(R, E1s), C, Ctxt, tree(R, E2s)) :-
     (testable_at(R, C)
     ->  complement_atom(C, NC),
         (conjunction([C], Ctxt, Ctxt1)
-        ->  apply_constraint_edges(E1s, [C], Ctxt1, E11s)
+        ->  apply_context_edges(E1s, [C], Ctxt1, E11s)
         ;   E11s = []
         ),
         (conjunction([NC], Ctxt, Ctxt2)
-        ->  apply_constraint_edges(E1s, [NC], Ctxt2, E12s)
+        ->  apply_context_edges(E1s, [NC], Ctxt2, E12s)
         ;   E12s = []
         ),
         basics:append(E11s, E12s, E2m),
@@ -291,32 +291,6 @@ try_to_add_zero_branch(Es_in, Es_out) :-
     ->  Es_out = Es_in
     ;   basics:append(Es_in, [edge_subtree([], leaf(0))], Es_out)
     ).
-
-% OSSD contains X if X is the root
-contains(tree(Y, _), X) :- X==Y, !.
-
-% OSDD contains X if X is in the children lists
-contains(tree(Y, L), X) :-
-    X \== Y,
-    contains(L, X).
-
-% OSDD constaints X if X is in the current sub-OSDD
-% or if X is in a later sub-OSDD
-contains([edge_subtree(_C,T)|R], X) :-
-    (contains(T, X) 
-    -> true
-    ;  contains(R, X)
-    ).
-
-% For and/or OSDD pairs, X is in the left or right OSDD
-contains(and(T1, _T2), X) :-
-    contains(T1, X), !.
-contains(and(_T1, T2), X) :-
-    contains(T2, X), !.
-contains(or(T1, _T2), X) :-
-    contains(T1, X), !.
-contains(or(_T1, T2), X) :-
-    contains(T2, X), !.
 
 % If X is a constant, leave T_in unchanged
 update_edges(T_in, X, _C, T_in) :- atomic(X).
@@ -365,10 +339,8 @@ update_subtrees([edge_subtree(C1, T)|Edges], C, Prev, [UpdatedSubTree | UpdatedE
     writeln('UPDATING SUBTREES...'),
     (T \== leaf(0)
     ->  basics:append(C1, [C], C2),
-        writeln('BEFORE SAT'),
 	    (satisfiable(C2)
-        ->  writeln('AFTER SAT'),
-            basics:append(Prev, C1, Next),
+        ->  basics:append(Prev, C1, Next),
             UpdatedSubTree = edge_subtree(C2, T)
         ;   UpdatedSubTree = []
         )
@@ -411,6 +383,32 @@ compare_roots(R1, R2, 1) :-
         ;   false
         )
     ).
+
+% OSSD contains X if X is the root
+contains(tree(Y, _), X) :- X==Y, !.
+
+% OSDD contains X if X is in the children lists
+contains(tree(Y, L), X) :-
+    X \== Y,
+    contains(L, X).
+
+% OSDD constaints X if X is in the current sub-OSDD
+% or if X is in a later sub-OSDD
+contains([edge_subtree(_C,T)|R], X) :-
+    (contains(T, X) 
+    -> true
+    ;  contains(R, X)
+    ).
+
+% For and/or OSDD pairs, X is in the left or right OSDD
+contains(and(T1, _T2), X) :-
+    contains(T1, X), !.
+contains(and(_T1, T2), X) :-
+    contains(T2, X), !.
+contains(or(T1, _T2), X) :-
+    contains(T1, X), !.
+contains(or(_T1, T2), X) :-
+    contains(T2, X), !.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Constraint processing definitions
