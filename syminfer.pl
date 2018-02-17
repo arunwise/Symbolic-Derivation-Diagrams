@@ -54,6 +54,7 @@ constraint(Lhs=Rhs, C_in, C_out) :-
     write('\n= CONSTRAINT: '),writeln(Lhs=Rhs),
     write('Cin: '), writeln(C_in),
     (var(Lhs); var(Rhs)),  % at most one of Lhs and Rhs can be a ground term
+    order_constraint(Lhs=Rhs, Ordered_Constraint),
     % Get the types
     (var(Lhs) 
     ->  read_type(Lhs, T1)
@@ -68,15 +69,15 @@ constraint(Lhs=Rhs, C_in, C_out) :-
     % Update the edges
     (var(Lhs), var(Rhs), compare_roots(Lhs, Rhs, C)  /* If both are vars then we need to order them */
     ->  (C > 0  /* Rhs is smaller */
-        -> update_edges(C_in, Lhs, Lhs=Rhs, C_out)
+        -> update_edges(C_in, Lhs, Ordered_Constraint, C_out)
         ;   (C < 0 /* Lhs is smaller */
-            ->  update_edges(C_in, Rhs, Lhs=Rhs, C_out)
-            ;   update_edges(C_in, Rhs, Lhs=Rhs, C_out) /* Lhs=Rhs */ 
+            ->  update_edges(C_in, Rhs, Ordered_Constraint, C_out)
+            ;   update_edges(C_in, Rhs, Ordered_Constraint, C_out) /* Lhs=Rhs */ 
             )
         )
     ;   (var(Lhs)
-        ->  update_edges(C_in, Lhs, Lhs=Rhs, C_out)
-        ;   update_edges(C_in, Rhs, Lhs=Rhs, C_out)  /* One of Lhs and Rhs is a variable */
+        ->  update_edges(C_in, Lhs, Ordered_Constraint, C_out)
+        ;   update_edges(C_in, Rhs, Ordered_Constraint, C_out)  /* One of Lhs and Rhs is a variable */
         )
     ), 
     write('Cout: '), writeln(C_out), !.
@@ -87,6 +88,7 @@ constraint(Lhs\=Rhs, C_in, C_out) :-
     write('\n\= CONSTRAINT: '),writeln(Lhs\=Rhs),
     write('Cin: '), writeln(C_in),
     (var(Lhs); var(Rhs)),  % at most one of Lhs and Rhs can be a ground term
+    order_constraint(Lhs\=Rhs, Ordered_Constraint),
     % Get the types
     (var(Lhs) 
     ->  read_type(Lhs, T1)
@@ -101,15 +103,15 @@ constraint(Lhs\=Rhs, C_in, C_out) :-
     % Update the edges
     (var(Lhs), var(Rhs), compare_roots(Lhs, Rhs, C)  /* If both are vars then we need to order them */
     ->  (C > 0  /* Rhs is smaller */
-        -> update_edges(C_in, Lhs, Lhs\=Rhs, C_out)
+        -> update_edges(C_in, Lhs, Ordered_Constraint, C_out)
         ;   (C < 0 /* Lhs is smaller */
-            ->  update_edges(C_in, Rhs, Lhs\=Rhs, C_out)
-            ;   update_edges(C_in, Rhs, Lhs\=Rhs, C_out) /* Lhs=Rhs */ 
+            ->  update_edges(C_in, Rhs, Ordered_Constraint, C_out)
+            ;   update_edges(C_in, Rhs, Ordered_Constraint, C_out) /* Lhs=Rhs */ 
             )
         )
     ;   (var(Lhs)
-        ->  update_edges(C_in, Lhs, Lhs\=Rhs, C_out)
-        ;   update_edges(C_in, Rhs, Lhs\=Rhs, C_out)  /* One of Lhs and Rhs is a variable */
+        ->  update_edges(C_in, Lhs, Ordered_Constraint, C_out)
+        ;   update_edges(C_in, Rhs, Ordered_Constraint, C_out)  /* One of Lhs and Rhs is a variable */
         )
     ), 
     write('Cout: '), writeln(C_out), !.
@@ -215,6 +217,7 @@ apply_1_binop(Op, [edge_subtree(C1,Oh1)|E1s], C2, Oh2, Ctxt, Eis, Eos) :-
 % apply context constraints to prune inconsistent edges
 apply_context(leaf(X), _, leaf(X)).
 apply_context(tree(R, E1s), Ctxt, Oh2) :-
+    writeln('...Applying context...'),
     apply_context_edges(E1s, Ctxt, E2s),
     (E2s = []
     ->  Oh2 = leaf(0)
@@ -223,6 +226,7 @@ apply_context(tree(R, E1s), Ctxt, Oh2) :-
 
 apply_context_edges([], _Ctxt, []).
 apply_context_edges([edge_subtree(C,T)|E1s], Ctxt, E2s) :-
+    writeln('...Applying context to edges...'),
     (conjunction(C, Ctxt, Ctxt1)
     ->  apply_context(T, Ctxt1, T1),
         E2s = [edge_subtree(C,T1)|Eos]
@@ -231,6 +235,7 @@ apply_context_edges([edge_subtree(C,T)|E1s], Ctxt, E2s) :-
     apply_context_edges(E1s, Ctxt, Eos). 
 
 split_if_needed(Oh1, Oh2) :-
+    writeln('...Split if needed...'),
     (identify_late_constraint(Oh1, C)
     ->  split(Oh1, C, Oh3),
         split_if_needed(Oh3, Oh2)
@@ -243,7 +248,7 @@ identify_late_constraint(tree(R, Es), Ctxt, C) :-
 identify_late_constraint([edge_subtree(C1,_T1)|_Es], R, Ctxt, C) :-
     basics:member(C, C1),  % iterate through all constraints in C1
     not listutil:absmember(C, Ctxt),
-    not_at(R, C),   !.
+    not_at(R, C), !.
 identify_late_constraint([edge_subtree(C1,T1)|_Es], _R, Ctxt, C) :-
     conjunction(C1, Ctxt, Ctxt1),
     identify_late_constraint(T1, Ctxt1, C), !.
@@ -251,6 +256,9 @@ identify_late_constraint([_|Es], R, Ctxt, C) :-
     identify_late_constraint(Es, R, Ctxt, C).
 
 not_at(R, C) :- not testable_at(R, C).
+
+testable_at(R, (_X=R)).
+testable_at(R, (_X\=R)).
 
 split(Oh1, C, Oh2) :-
     split(Oh1, C, [], Oh2).
@@ -443,30 +451,39 @@ contains(or(_T1, T2), X) :-
 
 % Combines two constraint lists by conjunction
 conjunction(C1, C2, C) :-
-    write('-------CONJUNCTION OF CONSTRAINTS--------'),
     listutil:absmerge(C1, C2, C), 
-    write('C is '), writeln(C), satisfiable(C).
+    satisfiable(C).
 
 % Complements a atomic constraint
 complement_atom(X=Y, X\=Y).
 complement_atom(X\=Y, X=Y).
 
-% Rewrites constraints from X to X:bounds_var
-rewrite_constraint(B, X, [X=Const], [B=Const]) :- X\==B, var(X), atomic(Const), !.
-rewrite_constraint(B, X, [Const=X], [Const=B]) :- X\==B, var(X), atomic(Const), !.
-rewrite_constraint(B, X, [X\=Const], [B\=Const]) :- X\==B, var(X), atomic(Const), !.
-rewrite_constraint(B, X, [Const\=X], [Const\=B]) :- X\==B, var(X), atomic(Const), !.
-rewrite_constraint(B, X, [X=Y], [B=C]) :- X\==B, X\==Y, var(Y), read_bounds_var(Y, C), !.
-rewrite_constraint(B, X, [Y=X], [C=B]) :- X\==B, X\==Y, var(Y), read_bounds_var(Y, C), !.
-rewrite_constraint(B, X, [X\=Y], [B\=C]) :- X\==B, X\==Y, var(Y), read_bounds_var(Y, C), !.
-rewrite_constraint(B, X, [Y\=X], [C\=B]) :- X\==B, X\==Y, var(Y), read_bounds_var(Y, C), !.
+% Syntactically reorders constraints
+order_constraint(X=Y, A=B) :-
+    var(X), var(Y), compare_roots(X, Y, C),
+    (C < 0
+    ->  A=X, B=Y
+    ;   (C > 0
+        ->  A=Y, B=X 
+        ;   false  % A constraint must be between distinct variables
+        )
+    ).
 
-% Uses constraint C to set corresponding bounds constraint
-% Handles =, \= constraints
-apply_bounds(X, [X=Y]) :- X #= Y.
-apply_bounds(X, [Y=X]) :- Y #= X.
-apply_bounds(X, [X\=Y]) :- X #\= Y.
-apply_bounds(X, [Y\=X]) :- Y #\= X.
+order_constraint(X\=Y, A\=B) :-
+    var(X), var(Y), compare_roots(X, Y, C),
+    (C < 0
+    ->  A=X, B=Y
+    ;   (C > 0
+        ->  A=Y, B=X 
+        ;   false  % A constraint must be between distinct variables
+        )
+    ).
+
+% Always order constants to the Rhs
+order_constraint(X=Y, X=Y) :- var(X), atomic(Y).
+order_constraint(X=Y, Y=X) :- var(Y), atomic(X).
+order_constraint(X\=Y, X\=Y) :- var(X), atomic(Y).
+order_constraint(X\=Y, Y\=X) :- var(Y), atomic(X).
 
 %% check satisfiability of constraint formula
 satisfiable([]) :- !.

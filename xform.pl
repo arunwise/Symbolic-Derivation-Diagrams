@@ -78,12 +78,12 @@ transform(F_in, F_out, File) :-
 %     Apply transform_body/3 on the single goal G_in to produce G_out, 
 %     Recurse on Gs_in
 transform_body((G_in, Gs_in), (G_out, Gs_out), (Arg_in, Arg_out)) :- !,
-    transform_body(G_in, G_out, (Arg_in, Arg)),
+    transform_pred(G_in, G_out, (Arg_in, Arg)),
     transform_body(Gs_in, Gs_out, (Arg, Arg_out)).
 
 % Transform a single goal
-transform_body(G_in, G_out, Args) :-
-    transform_pred(G_in, G_out, Args).
+transform_body(G_in, (G_out, split_if_needed(Arg, Arg_out)), (Arg_in, Arg_out)) :-
+    transform_pred(G_in, G_out, (Arg_in, Arg)).
 
 % Transform predicates. The following predicates don't get transformed
 transform_pred(true, true, (Arg, Arg)) :- !.
