@@ -51,6 +51,7 @@ msw(S, I, X, C_in, C_out) :- !,
 % Finally update the edges for Lhs and Rhs.
 constraint(Lhs=Rhs, C_in, C_out) :-
     write('\n= CONSTRAINT: '),writeln(Lhs=Rhs),
+    write('Cin: '), writeln(C_in),
     (var(Lhs); var(Rhs)),  % at most one of Lhs and Rhs can be a ground term
     % Get the types
     (var(Lhs) 
@@ -76,12 +77,14 @@ constraint(Lhs=Rhs, C_in, C_out) :-
         ->  update_edges(C_in, Lhs, Lhs=Rhs, C_out)
         ;   update_edges(C_in, Rhs, Lhs=Rhs, C_out)  /* One of Lhs and Rhs is a variable */
         )
-    ), !.
+    ), 
+    write('Cout: '), writeln(C_out), !.
 
 % Definition of atomic constraint processing for inequality constraints.
 % Same logic as in equality constraints.
 constraint(Lhs\=Rhs, C_in, C_out) :-
     write('\n\= CONSTRAINT: '),writeln(Lhs\=Rhs),
+    write('Cin: '), writeln(C_in),
     (var(Lhs); var(Rhs)),  % at most one of Lhs and Rhs can be a ground term
     % Get the types
     (var(Lhs) 
@@ -107,7 +110,8 @@ constraint(Lhs\=Rhs, C_in, C_out) :-
         ->  update_edges(C_in, Lhs, Lhs\=Rhs, C_out)
         ;   update_edges(C_in, Rhs, Lhs\=Rhs, C_out)  /* One of Lhs and Rhs is a variable */
         )
-    ), !.
+    ), 
+    write('Cout: '), writeln(C_out), !.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % OSDD construction definitions
@@ -207,24 +211,6 @@ apply_1_binop(Op, [edge_subtree(C1,Oh1)|E1s], C2, Oh2, Ctxt, Eis, Eos) :-
     ),
     apply_1_binop(Op, E1s, C2, Oh2, Ctxt, Eis, Ets).
 
-%% apply_constraint(Oh1, C, Oh2) :- apply_constraint(Oh1, [], C, Oh2).
-%% apply_constraint(leaf(X), _, _, leaf(X)).
-%% apply_constraint(tree(R, E1s), Cons, Ctxt, Oh2) :-
-%%     apply_constraint_edges(E1s, Cons, Ctxt, E2s),
-%%     (E2s = []
-%%     ->  Oh2 = leaf(0)
-%%     ;   Oh2 = tree(R, E2s)
-%%     ).
-%% apply_constraint_edges([], _Cons, _Ctxt, []).
-%% apply_constraint_edges([edge_subtree(C,T)|E1s], Cons, Ctxt, E2s) :-
-%%     (conjunction(C, Ctxt, Ctxt1)
-%%     ->  conjunction(C, Cons, C1),
-%%         apply_constraint(T, Ctxt1, T1),
-%%         E2s = [edge_subtree(C1,T1)|Eos]
-%%     ;   E2s = Eos
-%%     ),
-%%     apply_constraint_edges(E1s, Cons, Ctxt, Eos).
-
 % apply context constraints to prune inconsistent edges
 apply_constraint(leaf(X), _, leaf(X)).
 apply_constraint(tree(R, E1s), Ctxt, Oh2) :-
@@ -233,6 +219,7 @@ apply_constraint(tree(R, E1s), Ctxt, Oh2) :-
     ->  Oh2 = leaf(0)
     ;   Oh2 = tree(R, E2s)
     ).
+
 apply_constraint_edges([], _Ctxt, []).
 apply_constraint_edges([edge_subtree(C,T)|E1s], Ctxt, E2s) :-
     (conjunction(C, Ctxt, Ctxt1)
@@ -270,7 +257,7 @@ split(Oh1, C, Oh2) :-
 split(leaf(X), _C, _Ctxt, leaf(X)).
 split(tree(R, E1s), C, Ctxt, tree(R, E2s)) :- 
     (testable_at(R, C)
-    ->   negate(C, NC),
+    ->  complement_atom(C, NC),
         (conjunction([C], Ctxt, Ctxt1)
         ->  apply_constraint_edges(E1s, [C], Ctxt1, E11s)
         ;   E11s = []
@@ -281,7 +268,7 @@ split(tree(R, E1s), C, Ctxt, tree(R, E2s)) :-
         ),
         basics:append(E11s, E12s, E2m),
         order_edges(E2m, E2s)
-    ;  split_all(E1s, C, Ctxt, E2s)
+    ;   split_all(E1s, C, Ctxt, E2s)
     ).
 
 split_all([], _, _, []).
@@ -347,7 +334,8 @@ update_edges(or(T1,T2), X, C, or(T1out,T2out)) :-
 
 % Handles logic for when X is the root of the tree
 update_edges(tree(X, Edges), Y, C, tree(X, UpdatedEdges)) :-
-    X == Y, write('UPDATING EDGES...'),
+    writeln('UPDATING EDGES...'),
+    X == Y,
     update_subtrees(Edges, C, [], UpdatedEdges).
 
 % Implements completeness by adding the complement of C to the previous constraints
@@ -357,13 +345,12 @@ update_subtrees([], C, Prev, [edge_subtree(Complement, leaf(0))]) :-
 
 % Add C to the constraint list on an edge which does not have 0 child
 update_subtrees([edge_subtree(C1, T)|Edges], C, Prev, [edge_subtree(C2, T)| UpdatedEdges]) :-
+    writeln('UPDATING SUBTREES...'),
     (T \== leaf(0)
     ->  basics:append(C1, [C], C2),
-	writeln('-----------before satisfiable--------------'),
-	writeln(C2),
-	satisfiable(C2),
-	writeln('-------after satisfiable---------'),
-	writeln(C2),
+        writeln('BEFORE SAT'),
+	    satisfiable(C2),
+        writeln('AFTER SAT'),
         basics:append(Prev, C1, Next)
     ;   Next = Prev, C2 = C1
     ),
@@ -416,7 +403,9 @@ compare_roots(R1, R2, 1) :-
 
 % Combines two constraint lists by conjunction
 conjunction(C1, C2, C) :-
-    listutil:absmerge(C1, C2, C), satisfiable(C).
+    write('-------CONJUNCTION OF CONSTRAINTS--------'),
+    listutil:absmerge(C1, C2, C), 
+    write('C is '), writeln(C), satisfiable(C).
 
 % Complements a atomic constraint
 complement_atom(X=Y, X\=Y).
@@ -439,24 +428,16 @@ apply_bounds(X, [Y=X]) :- Y #= X.
 apply_bounds(X, [X\=Y]) :- X #\= Y.
 apply_bounds(X, [Y\=X]) :- Y #\= X.
 
-% check satisfiability of constraint formula
-% below code didn't work as expected
-%% satisfiable(C) :-
-%%     \+ \+ fs(C).
-%% fs([]).
-%% fs([X=Y|R]) :-
-%%     call(X=Y),
-%%     fs(R).
-%% fs([X\=Y|R]) :-
-%%     call(X\=Y),
-%%     fs(R).
-
 %% check satisfiability of constraint formula
+satisfiable([]) :- !.
 satisfiable(C) :-
+    writeln('IN SAT'),
     writeln(C),
     copy_term(C, C1),
+    writeln('COPIED'),
     getvars(C, [], L),
     getvars(C1, [], L1),
+    writeln('GOT VARS'),
     assert_bounds(L, L1),
     assert_constraints(C1), !.
 
@@ -478,6 +459,22 @@ getvars([X=Y|R], L, Lout) :-
     ),
     getvars(R, Ltmp1, Lout).
 
+getvars([X\=Y|R], L, Lout) :-
+    (var(X)
+    ->
+        \+ lists:memberchk_eq(X, L),
+        basics:append(L, [X], Ltmp)
+    ;
+        Ltmp = L
+    ),
+    (var(Y)
+    ->
+        \+ lists:memberchk_eq(Y, L),
+        basics:append(Ltmp, [Y], Ltmp1)
+    ;
+        Ltmp1 = Ltmp
+    ),
+    getvars(R, Ltmp1, Lout).
 
 %% assert Lower..Upper bounds for each variable in second list by
 %% looking at the corresponding id in first list.
