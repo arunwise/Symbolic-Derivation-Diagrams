@@ -63,3 +63,15 @@ test12 :-
     set_id(X, id(alpha, 1)),
     set_id(Y, id(alpha, 2)),
     canonical_form([X\=Y], cg([], [id(alpha,1)-id(alpha,2), id(alpha,2)-id(alpha,1)])).
+
+test13 :-
+    set_id(X, id(alpha, 1)),
+    set_id(Y, id(alpha, 2)),
+    set_id(Z, id(alpha, 3)),
+    get_implicit_constraints([X=Y,X=Z], [X=Y,X=Z,Y=Z]).
+
+test14 :-
+    set_id(X, id(alpha, 1)),
+    set_id(Y, id(alpha, 2)),
+    set_id(Z, id(alpha, 3)),
+    get_implicit_constraints([X=Y,X\=Z], [X=Y,X\=Z,Y\=Z]).

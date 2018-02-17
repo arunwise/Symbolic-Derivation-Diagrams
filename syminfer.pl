@@ -550,12 +550,13 @@ canonical_form(C, F) :-
     edge_list_form(C, EQ, NEQ),
     % use ugraphs to compute closure of equality edges
     complete_equality(EQ, EQC),
+    discard_spurious_edges(EQC, EQC1),    
     % complete neq edges
-    complete_disequality(EQC, NEQ, NEQ1),
+    complete_disequality(EQC1, NEQ, NEQ1),
     % discard edges between constants
     discard_spurious_edges(NEQ1, NEQ2),
     % sort using ordsets to get canonical representation
-    list_to_ord_set(EQC, EQORD),
+    list_to_ord_set(EQC1, EQORD),
     list_to_ord_set(NEQ2, NEQORD),
     F = cg(EQORD, NEQORD),
     true.
@@ -578,29 +579,35 @@ id_var_pairs([V|R], [Id-V|PR]) :-
 
 graph_to_formula(Assoc, Op, [], C, C).
 graph_to_formula(Assoc, Op, [ID1-ID2|R], Cin, Cout) :-
-    (functor(ID1, id, 2)
+    % use only one of the edges in the constraint graph
+    (ID1 @< ID2
     ->
-	get_assoc(ID1, Assoc, X)
+	(functor(ID1, id, 2)
+	->
+	    get_assoc(ID1, Assoc, X)
+	;
+	X = ID1
+	),
+	(functor(ID2, id, 2)
+	->
+	    get_assoc(ID2, Assoc, Y)
+	;
+	Y = ID2
+	),
+	(Op = eq
+	->
+	    basics:append(Cin, [X=Y], Ctmp)
+	; (Op = neq
+	  ->
+	      basics:append(Cin, [X\=Y], Ctmp)
+	  ;
+	  fail
+	  )
+	),
+	graph_to_formula(Assoc, Op, R, Ctmp, Cout)
     ;
-    X = ID1
-    ),
-    (functor(ID2, id, 2)
-    ->
-	get_assoc(ID2, Assoc, Y)
-    ;
-    Y = ID2
-    ),
-    (Op = eq
-    ->
-	basics:append(Cin, [X=Y], Ctmp)
-    ; (Op = neq
-      ->
-	  basics:append(Cin, [X\=Y], Ctmp)
-      ;
-      fail
-      )
-    ),
-    graph_to_formula(Assoc, Op, R, Ctmp, Cout).
+    graph_to_formula(Assoc, Op, R, Cin, Cout)
+    ).
 
 %% atomic constraints are represented as edges in constraint graph,
 %% we maintain two lists corresponding to equality constraints and
