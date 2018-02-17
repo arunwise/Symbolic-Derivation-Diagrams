@@ -341,8 +341,10 @@ update_subtrees([edge_subtree(C1, T)|Edges], C, Prev, [UpdatedSubTree | UpdatedE
     ->  basics:append(C1, [C], C2),
 	    (satisfiable(C2)
         ->  basics:append(Prev, C1, Next),
-            UpdatedSubTree = edge_subtree(C2, T)
-        ;   UpdatedSubTree = []
+            UpdatedSubTree = edge_subtree(C2, T),
+            write(C2), writeln(' is satisfiable------------------')
+        ;   UpdatedSubTree = [],
+            write(C2), writeln(' is NOT satisfiable------------------')
         )
     ;   Next = Prev, C2 = C1, UpdatedSubTree = edge_subtree(C2, T)
     ),
@@ -445,9 +447,8 @@ apply_bounds(X, [Y\=X]) :- Y #\= X.
 satisfiable([]) :- !.
 satisfiable(C) :-
     writeln('IN SAT'),
-    writeln(C),
     copy_term(C, C1),
-    writeln('COPIED'),
+    write(C), writeln(' -> '), write(C1), writeln('COPIED'),
     getvars(C, [], L),
     getvars(C1, [], L1),
     writeln('GOT VARS'),
@@ -456,37 +457,39 @@ satisfiable(C) :-
 
 getvars([], L, L).
 getvars([X=Y|R], L, Lout) :-
-    (var(X)
+    write('STARTING LIST IS: '), writeln(L),
+    (var(X), \+ lists:memberchk_eq(X, L)
     ->
-	    \+ lists:memberchk_eq(X, L),
 	    basics:append(L, [X], Ltmp)
     ;
         Ltmp = L
     ),
-    (var(Y)
+    (var(Y), \+ lists:memberchk_eq(Y, L)
     ->
-	    \+ lists:memberchk_eq(Y, L),
 	    basics:append(Ltmp, [Y], Ltmp1)
     ;
         Ltmp1 = Ltmp
     ),
+    write('FINAL LIST IS: '), writeln(Ltmp1),
+    write('R IS: '), writeln(R),
     getvars(R, Ltmp1, Lout).
 
 getvars([X\=Y|R], L, Lout) :-
-    (var(X)
+    write('STARTING LIST IS: '), writeln(L),
+    (var(X), \+ lists:memberchk_eq(X, L)
     ->
-        \+ lists:memberchk_eq(X, L),
         basics:append(L, [X], Ltmp)
     ;
         Ltmp = L
     ),
-    (var(Y)
+    (var(Y), \+ lists:memberchk_eq(Y, L)
     ->
-        \+ lists:memberchk_eq(Y, L),
         basics:append(Ltmp, [Y], Ltmp1)
     ;
         Ltmp1 = Ltmp
     ),
+    write('FINAL LIST IS: '), writeln(Ltmp1),
+    write('R IS: '), writeln(R),
     getvars(R, Ltmp1, Lout).
 
 %% assert Lower..Upper bounds for each variable in second list by
