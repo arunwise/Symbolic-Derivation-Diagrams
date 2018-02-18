@@ -223,16 +223,14 @@ apply_context_edges([edge_subtree(C,T)|E1s], Ctxt, E2s) :-
     ),
     apply_context_edges(E1s, Ctxt, Eos). 
 
-split_if_needed(Oh1, Oh1).
-
-/*split_if_needed(Oh1, Oh2) :-
+split_if_needed(Oh1, Oh2) :-
     writeln('...Split if needed...'),
     (identify_late_constraint(Oh1, C)
     ->  writeln('-----------LATE-----------\n'),
         split(Oh1, C, Oh3),
         split_if_needed(Oh3, Oh2)
     ;   Oh2 = Oh1
-    ).*/
+    ).
 
 identify_late_constraint(Oh, C) :- identify_late_constraint(Oh, [], C).
 identify_late_constraint(tree(R, Es), Ctxt, C) :-
@@ -266,11 +264,11 @@ split(tree(R, E1s), C, Ctxt, tree(R, E2s)) :-
     (testable_at(R, C)
     ->  complement_atom(C, NC),
         (conjunction([C], Ctxt, Ctxt1)
-        ->  apply_context_edges(E1s, [C], Ctxt1, E11s)
+        ->  apply_context_edges(E1s, Ctxt1, E11s)
         ;   E11s = []
         ),
         (conjunction([NC], Ctxt, Ctxt2)
-        ->  apply_context_edges(E1s, [NC], Ctxt2, E12s)
+        ->  apply_context_edges(E1s, Ctxt2, E12s)
         ;   E12s = []
         ),
         basics:append(E11s, E12s, E2m),
@@ -329,18 +327,12 @@ update_edges(tree(X, S1), Y, C, Ctxt, tree(X, S2)) :-
 
 % Updates the subtrees in the edge list one at a time
 update_edges([edge_subtree(Constraints, T) | R], X, C, Ctxt, [edge_subtree(Constraints, T1)| R1]) :-
-    writeln('-----\nUPDATING EDGES...'),
-    write('EDGE SUBTREE: '), writeln(edge_subtree(Constraints, T)),
-    write('CONTEX: '), writeln(Ctxt),
     listutil:absmerge(Constraints, Ctxt, Ctxt1),
     update_edges(T, X, C, Ctxt1, T1),
     update_edges(R, X, C, Ctxt, R1).
 
 % Handles logic for when X is the root of the tree
 update_edges(tree(X, Edges), Y, C, Ctxt, tree(X, _UpdatedSubtrees)) :-
-    writeln('-----\nFOUND THE ROOT...'),
-    write('TREE: '), writeln(tree(X, Edges)),
-    write('CONTEX: '), writeln(Ctxt),
     X == Y,
     update_subtrees(Edges, C, [], Ctxt, UpdatedSubtrees),
     remove_empty_edge_subtrees(UpdatedSubtrees, _UpdatedSubtrees).
@@ -355,8 +347,6 @@ update_subtrees([], C, Prev, Ctxt, [edge_subtree(Complement, leaf(0))]) :-
 
 % Add C to the constraint list on an edge which does not have 0 child
 update_subtrees([edge_subtree(C1, T)|Edges], C, Prev, Ctxt, [UpdatedSubtree | UpdatedEdges]) :-
-    writeln('-----\nUPDATING SUBTREES...'),
-    write('CONTEX: '), writeln(Ctxt),
     (T \== leaf(0)
     ->  basics:append(C1, [C], C2),
         % Check if the tree is satisfiable
