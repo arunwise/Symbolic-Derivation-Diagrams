@@ -6,6 +6,13 @@ values(rule_select(latex_f_tex), [r4, r5, r6]).
 values(select_user, [tex, other]).
 values(select_file, [f1, f2]).
 
+set_sw(rule_select(start), [0.55, 0.45]).
+set_sw(rule_select(ls_u), [0.4, 0.6]).
+set_sw(rule_select(emacs_f_u), [0.7, 0.3]).
+set_sw(rule_select(emacs_f_tex), [0.6, 0.3, 0.1]).
+set_sw(rule_select(latex_f_tex), [0.2, 0.2, 0.6]).
+set_sw(select_user, [0.5, 0.5]).
+set_sw(select_file, [0.5, 0.5]).
 
 % rule(bpart, rule, current state, next state, output)
 rule(start, r1, start, ls(U), null).

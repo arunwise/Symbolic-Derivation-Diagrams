@@ -94,6 +94,7 @@ transform_pred(>(_X, _Y), >(_X, _Y), (Arg, Arg)) :- !.
 transform_pred(!, !, (Arg, Arg)) :- !.
 transform_pred(.(X, Y), [X | Y], (Arg, Arg)) :- !.
 transform_pred(=..(X, Y), =..(X, Y), (Arg, Arg)) :- !.
+transform_pred(is(X, Y), is(X, Y), (Arg, Arg)) :- !.
 
 % Transform atomic constraints of the form {C} in constraint language
 % If C has some ground domain element we map this element to the integer domain
