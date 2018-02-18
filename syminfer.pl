@@ -11,11 +11,9 @@
 
 :- install_verify_attribute_handler(type, AttrValue, Target, type_handler(AttrValue, Target)).
 :- install_verify_attribute_handler(id, AttrValue, Target, id_handler(AttrValue, Target)).
-:- install_verify_attribute_handler(bounds_var, AttrValue, Target, bounds_var_handler(AttrValue, Target)).
 
 :- install_attribute_portray_hook(type, Attr, display_type(Attr)).
 :- install_attribute_portray_hook(id, Attr, display_id(Attr)).
-:- install_attribute_portray_hook(bounds_var, Attr, display_bounds_var(Attr)).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Constraint/msw definitions
@@ -147,7 +145,7 @@ and(Oh1, Oh2, Oh) :-
     bin_op(and, Oh1, Oh2, [], Oh).
 
 % or_osdd(+OSDD_handle1, +OSDD_handle2, -OSDD_handle):
-or(Oh1, Oh2, Oh) :-
+or(Oh1, Oh2, Oh) :- writeln('OR'),
     bin_op(or, Oh1, Oh2, [], Oh).
 
 % bin_op(+Operation, +OSDD1, +OSDD2, -OSDD_Out):
@@ -228,14 +226,16 @@ apply_context_edges([edge_subtree(C,T)|E1s], Ctxt, E2s) :-
     apply_context_edges(E1s, Ctxt, Eos). 
 
 % Splits OSDDs which have late constraints
-split_if_needed(Oh1, Oh2) :-
+/*split_if_needed(Oh1, Oh2) :-
     writeln('...Split if needed...'),
     (identify_late_constraint(Oh1, C)
     ->  writeln('-----------LATE-----------\n'),
         split(Oh1, C, Oh3),
         split_if_needed(Oh3, Oh2)
     ;   Oh2 = Oh1
-    ).
+    ).*/
+
+split_if_needed(X,X).
 
 split(Oh1, C, Oh2) :-
     split(Oh1, C, [], Oh2).

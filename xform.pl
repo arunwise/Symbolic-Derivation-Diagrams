@@ -89,6 +89,8 @@ transform_body(G_in, (G_out, split_if_needed(Arg, Arg_out)), (Arg_in, Arg_out)) 
 transform_pred(true, true, (Arg, Arg)) :- !.
 transform_pred(=(_X, _Y), =(_X, _Y), (Arg, Arg)) :- !.
 transform_pred(\=(_X, _Y), \=(_X, _Y), (Arg, Arg)) :- !.
+transform_pred(<(_X, _Y), <(_X, _Y), (Arg, Arg)) :- !.
+transform_pred(>(_X, _Y), >(_X, _Y), (Arg, Arg)) :- !.
 transform_pred(!, !, (Arg, Arg)) :- !.
 transform_pred(.(X, Y), [X | Y], (Arg, Arg)) :- !.
 transform_pred(=..(X, Y), =..(X, Y), (Arg, Arg)) :- !.
@@ -101,7 +103,7 @@ transform_pred('{}'(C), constraint(_C, Arg_in, Arg_out), (Arg_in, Arg_out)) :-
     ->  find_int_mapping(Lhs, I),
         _C =.. [F, I, Rhs]
     ;   (nonvar(Rhs)
-        ->  find_int_mapping(Rhs, I)
+        ->  find_int_mapping(Rhs, I),
             _C =.. [F, Lhs, I]
         ;   C = _C
         )

@@ -46,3 +46,6 @@ test16 :- msw(alpha, 1, X), msw(alpha, 2, Y), msw(alpha, 3, Z), {Z = Y}, {Z = X}
 test17 :- test17_1(X), {X=a}.
 test17_1(X) :- msw(alpha, 1, X).
 test17_1(X) :- msw(alpha, 2, X).
+
+test18 :- msw(alpha, 1, X), test18_1(X).
+test18_1(X) :- {X = a}.

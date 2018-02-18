@@ -1,0 +1,100 @@
+values(rule_select(start), [r1, r2]).
+values(rule_select(ls_u), [r1, r2]).
+values(rule_select(emacs_f_u), [r1, r2]).
+values(rule_select(emacs_f_tex), [r4, r5, r6]).
+values(rule_select(latex_f_tex), [r4, r5, r6]).
+values(select_user, [tex, other]).
+values(select_file, [f1, f2]).
+
+
+% rule(bpart, rule, current state, next state, output)
+rule(start, r1, start, ls(U), null).
+rule(start, r2, start, emacs(F, U), null).
+rule(ls_u, r1, ls(U), ls(U), ls).
+rule(ls_u, r2, ls(U1), emacs(F, U), ls).
+rule(emacs_f_u, r1, emacs(F, U), ls(U1), emacs(F)).
+rule(emacs_f_u, r2, emacs(F, U), emacs(F1, U), emacs(F)).
+rule(emacs_f_tex, r4, emacs(F, tex), latex(F, tex), emacs(F)).
+rule(emacs_f_tex, r5, emacs(F, tex), ls(U), emacs(F)).
+rule(emacs_f_tex, r6, emacs(F, tex), emacs(F1, U), emacs(F)).
+rule(latex_f_tex, r4, latex(F, tex), ls(U), latex(F)).
+rule(latex_f_tex, r5, latex(F, tex), emacs(F, tex), latex(F)).
+rule(latex_f_tex, r6, latex(F, tex), emacs(F1, U), latex(F)).
+
+% first transition
+trans(0, 1, start, S, null) :-
+    msw(rule_select(start), 0, R),
+    % get current abstract state, next abstract state and output
+    rule(start, R, start, S, null),
+    % ground the next abstract state
+    select(0, start, S, null).
+
+% rest of the transitions
+trans(T1, T, S1, S, O) :-
+    T1 > 0,
+    T is T1 + 1,
+    T2 is T1 - 1,
+    trans(T2, T1, _S2, S1, _O2),
+    % most_specific_bpart(S1, B),
+    bpart(B, S1),
+    msw(rule_select(B), T1, R),
+    rule(B, R, S1, S, O),
+    select(T1, S1, S, O).
+
+lhmm1(_T, _T, [], []).
+lhmm1(T1, E, [S| SR], [O| OR]) :-
+    T1 < E,
+    T is T1 + 1,
+    trans(T1, T, _S1, S, O),
+    lhmm1(T, E, SR, OR).
+
+lhmm(0, [], []).
+lhmm(T, S, O) :-
+    T > 0,
+    lhmm1(0, T, S, O).
+
+stateseq(T, S) :-
+    lhmm(T, S, _).
+
+observations(T, O) :-
+    lhmm(T, _, O).
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+bpart(start, start).
+bpart(ls_u, ls(U)).
+bpart(emacs_f_tex, emacs(F, tex)).
+bpart(emacs_f_u, emacs(F, U)) :- U \= tex.
+bpart(latex_f_tex, latex(F, tex)).
+
+%% most_specific_bpart(S, B) :-
+%%     bpart(B, S), !.
+
+% ground abstract states
+select(T, start, ls(U), null) :-
+    msw(select_user, T, U).
+select(T, start, emacs(F, U), null) :-
+    msw(select_file, T, F),
+    msw(select_user, T, U).
+select(T, ls(U), ls(U), ls).
+select(T, ls(U1), emacs(F, U), ls) :-
+    msw(select_file, T, F),
+    msw(select_user, T, U).
+select(T, emacs(F, U), ls(U1), emacs(F)) :-
+    U \= tex,
+    msw(select_user, T, U1).
+select(T, emacs(F, U), emacs(F1, U), emacs(F)) :-
+    U \= tex,
+    msw(select_file, T, F1).
+select(T, emacs(F, tex), latex(F, tex), emacs(F)).
+select(T, emacs(F, tex), ls(U), emacs(F)) :-
+    msw(select_user, T, U).
+select(T, emacs(F, tex), emacs(F1, U), emacs(F)) :-
+    msw(select_file, T, F1),
+    msw(select_user, T, U).
+select(T, latex(F, tex), ls(U), latex(F)) :-
+    msw(select_user, T, U).
+select(T, latex(F, tex), emacs(F, tex), latex(F)).
+select(T, latex(F, tex), emacs(F1, U), latex(F)) :-
+    msw(select_file, T, F1),
+    msw(select_user, T, U).
