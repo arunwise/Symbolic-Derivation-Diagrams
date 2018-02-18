@@ -1,8 +1,8 @@
 values(rule_select(start), [r1, r2]).
 values(rule_select(ls_u), [r1, r2]).
 values(rule_select(emacs_f_u), [r1, r2]).
-values(rule_select(emacs_f_tex), [r4, r5, r6]).
-values(rule_select(latex_f_tex), [r4, r5, r6]).
+values(rule_select(emacs_f_tex), [r3, r4, r5]).
+values(rule_select(latex_f_tex), [r3, r4, r5]).
 values(select_user, [tex, other]).
 values(select_file, [f1, f2]).
 
@@ -21,12 +21,12 @@ rule(ls_u, r1, ls(U), ls(U), ls).
 rule(ls_u, r2, ls(U1), emacs(F, U), ls).
 rule(emacs_f_u, r1, emacs(F, U), ls(U1), emacs(F)).
 rule(emacs_f_u, r2, emacs(F, U), emacs(F1, U), emacs(F)).
-rule(emacs_f_tex, r4, emacs(F, tex), latex(F, tex), emacs(F)).
-rule(emacs_f_tex, r5, emacs(F, tex), ls(U), emacs(F)).
-rule(emacs_f_tex, r6, emacs(F, tex), emacs(F1, U), emacs(F)).
-rule(latex_f_tex, r4, latex(F, tex), ls(U), latex(F)).
-rule(latex_f_tex, r5, latex(F, tex), emacs(F, tex), latex(F)).
-rule(latex_f_tex, r6, latex(F, tex), emacs(F1, U), latex(F)).
+rule(emacs_f_tex, r3, emacs(F, tex), latex(F, tex), emacs(F)).
+rule(emacs_f_tex, r4, emacs(F, tex), ls(U), emacs(F)).
+rule(emacs_f_tex, r5, emacs(F, tex), emacs(F1, U), emacs(F)).
+rule(latex_f_tex, r3, latex(F, tex), ls(U), latex(F)).
+rule(latex_f_tex, r4, latex(F, tex), emacs(F, tex), latex(F)).
+rule(latex_f_tex, r5, latex(F, tex), emacs(F1, U), latex(F)).
 
 % first transition
 trans(0, 1, start, S, null) :-
