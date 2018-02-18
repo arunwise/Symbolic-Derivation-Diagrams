@@ -51,10 +51,12 @@ msw(S, I, X, C_in, C_out) :- !,
 % Update the constraint lists of any variable arguments
 % Finally update the edges for Lhs and Rhs.
 constraint(Lhs=Rhs, C_in, C_out) :-
-    write('\n= CONSTRAINT: '),writeln(Lhs=Rhs),
-    write('Cin: '), writeln(C_in),
     (var(Lhs); var(Rhs)),  % at most one of Lhs and Rhs can be a ground term
     order_constraint(Lhs=Rhs, Ordered_Constraint),
+
+    write('=======\n\n= CONSTRAINT: '), writeln(Ordered_Constraint),
+    write('\nCin: '), writeln(C_in),
+
     % Get the types
     (var(Lhs) 
     ->  read_type(Lhs, T1)
@@ -80,15 +82,17 @@ constraint(Lhs=Rhs, C_in, C_out) :-
         ;   update_edges(C_in, Rhs, Ordered_Constraint, [], C_out)  
         )
     ), 
-    write('Cout: '), writeln(C_out), !.
+    write('\nCout: '), writeln(C_out), write('\n=======\n'), !.
 
 % Definition of atomic constraint processing for inequality constraints.
 % Same logic as in equality constraints.
 constraint(Lhs\=Rhs, C_in, C_out) :-
-    write('\n\= CONSTRAINT: '),writeln(Lhs\=Rhs),
-    write('Cin: '), writeln(C_in),
     (var(Lhs); var(Rhs)),  % at most one of Lhs and Rhs can be a ground term
     order_constraint(Lhs\=Rhs, Ordered_Constraint),
+
+    write('=======\n\n\= CONSTRAINT: '), writeln(Ordered_Constraint),
+    write('\nCin: '), writeln(C_in),
+
     % Get the types
     (var(Lhs) 
     ->  read_type(Lhs, T1)
@@ -114,7 +118,7 @@ constraint(Lhs\=Rhs, C_in, C_out) :-
         ;   update_edges(C_in, Rhs, Ordered_Constraint, [], C_out)
         )
     ), 
-    write('Cout: '), writeln(C_out), !.
+    write('\nCout: '), writeln(C_out), write('\n=======\n'), !.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % OSDD construction definitions
@@ -170,7 +174,7 @@ bin_op1(or, _, _Ctxt, leaf(1)).
 bin_op0(or, Oh1, Ctxt, Oh) :- apply_context(Oh1, Ctxt, Oh).
 bin_op0(and, _, _Ctxt, leaf(0)).
 
-/* Do binop with all trees in list (arg 2) and the other given tree (arg 3) */
+% Do binop with all trees in list (arg 2) and the other given tree (arg 3)
 :- index apply_binop/5-2.
 apply_binop(_Op, [], _Oh2, _Ctxt, []).
 apply_binop(Op, [edge_subtree(C,Oh1)|E1s], Oh2, Ctxt, Edges) :-
@@ -182,7 +186,7 @@ apply_binop(Op, [edge_subtree(C,Oh1)|E1s], Oh2, Ctxt, Edges) :-
         apply_binop(Op, E1s, Oh2, Ctxt, Edges)
     ).
 
-/* Do binop, pairwise, for all trees in the two lists (arg 2, and arg 3) */
+% Do binop, pairwise, for all trees in the two lists (arg 2, and arg 3)
 apply_all_binop(Op, E1s, E2s, Ctxt, Es) :- apply_all_binop(Op, E1s, E2s, Ctxt, [], Es).
 
 :- index apply_all_binop/6-3.
@@ -203,7 +207,7 @@ apply_1_binop(Op, [edge_subtree(C1,Oh1)|E1s], C2, Oh2, Ctxt, Eis, Eos) :-
     ),
     apply_1_binop(Op, E1s, C2, Oh2, Ctxt, Eis, Ets).
 
-% apply context constraints to prune inconsistent edges
+% Apply context constraints to prune inconsistent edges
 apply_context(leaf(X), _, leaf(X)).
 apply_context(tree(R, E1s), Ctxt, Oh2) :-
     writeln('...Applying context...'),
@@ -223,6 +227,7 @@ apply_context_edges([edge_subtree(C,T)|E1s], Ctxt, E2s) :-
     ),
     apply_context_edges(E1s, Ctxt, Eos). 
 
+% Splits OSDDs which have late constraints
 split_if_needed(Oh1, Oh2) :-
     writeln('...Split if needed...'),
     (identify_late_constraint(Oh1, C)
@@ -232,37 +237,17 @@ split_if_needed(Oh1, Oh2) :-
     ;   Oh2 = Oh1
     ).
 
-identify_late_constraint(Oh, C) :- identify_late_constraint(Oh, [], C).
-identify_late_constraint(tree(R, Es), Ctxt, C) :-
-    identify_late_constraint(Es, R, Ctxt, C).
-identify_late_constraint([edge_subtree(C1,_T1)|_Es], R, Ctxt, C) :-
-    listutil:absmerge(C1, Ctxt, Total_Constraints),
-    write('\nORIGINAL CONSTRAINTS: '), writeln(C1),
-    get_implicit_constraints(C1, C2),
-    write('IMPLICIT CONSTRAINTS: '), writeln(C2), write('\n'),
-    basics:member(C, C2),  % iterate through all constraints in C1
-    not listutil:absmember(C, Total_Constraints),
-    write(C), writeln(' IS NOT IN CONTEXT!!!!'),
-    not_at(R, C), 
-    writeln('NOT TESTABLE!!!!!'), !.
-identify_late_constraint([edge_subtree(C1,T1)|_Es], _R, Ctxt, C) :-
-    conjunction(C1, Ctxt, Ctxt1),
-    identify_late_constraint(T1, Ctxt1, C), !.
-identify_late_constraint([_|Es], R, Ctxt, C) :-
-    identify_late_constraint(Es, R, Ctxt, C).
-
-not_at(R, C) :- not testable_at(R, C).
-
-testable_at(R, _X=Y) :- R == Y.
-testable_at(R, _X\=Y) :- R == Y.
-
 split(Oh1, C, Oh2) :-
     split(Oh1, C, [], Oh2).
 
 split(leaf(X), _C, _Ctxt, leaf(X)).
-split(tree(R, E1s), C, Ctxt, tree(R, E2s)) :- 
+
+/*split(tree(R, E1s), C, Ctxt, tree(R, E2s)) :-
     (testable_at(R, C)
-    ->  complement_atom(C, NC),
+    ->  
+    write('---\nConstraint: '), writeln(C),
+    write('\nTree: '), writeln(tree(R, E1s)), write('---\n'),
+        complement_atom(C, NC),
         (conjunction([C], Ctxt, Ctxt1)
         ->  apply_context_edges(E1s, Ctxt1, E11s)
         ;   E11s = []
@@ -271,9 +256,19 @@ split(tree(R, E1s), C, Ctxt, tree(R, E2s)) :-
         ->  apply_context_edges(E1s, Ctxt2, E12s)
         ;   E12s = []
         ),
+        write('\n~~~~~~~~~~\nE11s IS: '), writeln(E11s), write('\n~~~~~~~~~~~\n'),
+        write('\n~~~~~~~~~~\nE12s IS: '), writeln(E12s), write('\n~~~~~~~~~~~\n'),
         basics:append(E11s, E12s, E2m),
+        write('\n~~~~~~~~~~\nE2M IS: '), writeln(E2m), write('\n~~~~~~~~~~~\n'),
         order_edges(E2m, E2s)
     ;   split_all(E1s, C, Ctxt, E2s)
+    ).*/
+
+split(tree(R, E1s), C, Ctxt, tree(R, Es_out)) :-
+    (testable_at(R, C)
+    ->  update_edges(tree(R, E1s), R, C, [], tree(R, E2s)),
+        order_edges(E2s, Es_out)
+    ;   split_all(E1s, C, Ctxt, Es_out)
     ).
 
 split_all([], _, _, []).
@@ -284,6 +279,28 @@ split_all([edge_subtree(C1,T1)|Es], C, Ctxt, E2s) :-
     ;   E2s = Eos
     ),
     split_all(Es, C, Ctxt, Eos).
+
+% Uses context and implicit constraints to determine if there is a
+% "late constraint" which is an implicit constraint which violates urgency
+identify_late_constraint(Oh, C) :- identify_late_constraint(Oh, [], C).
+identify_late_constraint(tree(R, Es), Ctxt, C) :-
+    identify_late_constraint(Es, R, Ctxt, C).
+identify_late_constraint([edge_subtree(C1,_T1)|_Es], R, Ctxt, C) :-
+    listutil:absmerge(C1, Ctxt, Total_Constraints),
+    get_implicit_constraints(C1, C2),
+    basics:member(C, C2),  % iterate through all constraints in C1
+    not listutil:absmember(C, Total_Constraints),
+    not_at(R, C), !.
+identify_late_constraint([edge_subtree(C1,T1)|_Es], _R, Ctxt, C) :-
+    conjunction(C1, Ctxt, Ctxt1),
+    identify_late_constraint(T1, Ctxt1, C), !.
+identify_late_constraint([_|Es], R, Ctxt, C) :-
+    identify_late_constraint(Es, R, Ctxt, C).
+
+not_at(R, C) :- not testable_at(R, C).
+
+testable_at(R, _X=Y) :- R == Y.
+testable_at(R, _X\=Y) :- R == Y.
 
 % order_edges(E1s, E2s): E2s contains all edges in E1s, but ordered in
 % a canonical way
@@ -476,6 +493,7 @@ satisfiable(C) :-
     assert_constraints(C1),
     label(L1), !.
 
+% Gets the unique variables of a constraint list
 getvars([], L, L).
 getvars([X=Y|R], L, Lout) :-
     (var(X), \+ lists:memberchk_eq(X, L)
@@ -578,7 +596,8 @@ graph_to_formula(Assoc, Op, [ID1-ID2|R], Cin, Cout) :-
         (Op = eq
         ->
             basics:append(Cin, [X=Y], Ctmp)
-        ;   (Op = neq
+        ;   
+            (Op = neq
             ->
                 basics:append(Cin, [X\=Y], Ctmp)
             ;
