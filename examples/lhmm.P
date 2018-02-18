@@ -71,7 +71,7 @@ observations(T, O) :-
 bpart(start, start).
 bpart(ls_u, ls(U)).
 bpart(emacs_f_tex, emacs(F, tex)).
-bpart(emacs_f_u, emacs(F, U)) :- U \= tex.
+bpart(emacs_f_u, emacs(F, U)) :- {U \= tex}.
 bpart(latex_f_tex, latex(F, tex)).
 
 %% most_specific_bpart(S, B) :-
@@ -88,10 +88,10 @@ select(T, ls(U1), emacs(F, U), ls) :-
     msw(select_file, T, F),
     msw(select_user, T, U).
 select(T, emacs(F, U), ls(U1), emacs(F)) :-
-    U \= tex,
+    {U \= tex},
     msw(select_user, T, U1).
 select(T, emacs(F, U), emacs(F1, U), emacs(F)) :-
-    U \= tex,
+    {U \= tex},
     msw(select_file, T, F1).
 select(T, emacs(F, tex), latex(F, tex), emacs(F)).
 select(T, emacs(F, tex), ls(U), emacs(F)) :-
