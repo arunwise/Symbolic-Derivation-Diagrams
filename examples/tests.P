@@ -1,5 +1,6 @@
 values(alpha, [a, b, c]).
 values(num, [1, 2, 3]).
+set_sw(alpha, [0.25, 0.25, 0.5]).
 
 test1 :- msw(alpha, 1, X).
 

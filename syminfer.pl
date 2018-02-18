@@ -776,6 +776,55 @@ map_args([Arg|Args], [_Arg|_Args], L) :-
     map_args(Args, _Args, L).    
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Probability Computation for Tree OSDDs
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+mytreeprob(leaf(X), X).
+
+mytreeprob(tree(R, ETs), P) :-
+    mytreeprob_1(R, ETs, 0, P).
+
+mytreeprob_1(R, [], Pin, Pin).
+mytreeprob_1(R, [edge_subtree(E, T)|Rest], Pin, Pout) :-
+    % get solutions of R for constraint E
+    findall(R, solution(R, E), SS),
+    list_to_ord_set(SS, S),
+    % at this point R is still not bound
+    % compute probability for the edge 'E' without binding R
+    copy_term(var_tree(R, T), Copy),
+    Copy =.. [var_tree| [R1, T1]],
+    edge_prob(var(R1, T1), S, 0, Pedge),
+    Ptmp is Pin + Pedge,
+    mytreeprob_1(R, Rest, Ptmp, Pout),
+    true.
+
+solution(R, E) :-
+    read_id(R, id(S, _)),
+    intrange(S, Lower, Upper),
+    R in Lower..Upper,
+    assert_constraints(E),
+    label([R]).
+
+edge_prob(var(R, T), [], Pin, Pin).
+edge_prob(var(R, T), [V|VR], Pin, Pout) :-
+    copy_term(var_tree(R, T), Copy),
+    Copy =.. [var_tree| [R1, T1]],
+    edge_prob_1(R1, V, T1, P),
+    Ptmp is Pin + P,
+    edge_prob(var(R, T), VR, Ptmp, Pout).
+
+% edge probability under a particular value for output variable
+edge_prob_1(R, V, T, P) :-
+    read_id(R, id(S, _)),
+    intrange(S, Lower, Upper),
+    Index is V - Lower + 1,
+    set_sw(S, Dist),
+    lists:nth(Index, Dist, Pv),
+    R = V,
+    mytreeprob(T, Pt),
+    P is Pv * Pt.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Visualization using DOT
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% writeDot(OSDD, DotFile) :-
