@@ -85,30 +85,30 @@ subsumption(latex(F, tex), latex_r).
 %%
 
 % upsilon rule
-rule(upsilon(start, 1), start, (null, ls(U))).
-rule(upsilon(start, 2), start, (null, emacs(F, U))).
+rule(X, start, (null, ls(U))) :- {X = upsilon(start, 1)}.
+rule(X, start, (null, emacs(F, U))) :- {X = upsilon(start, 2)}.
 
 % ls(U) rule
-rule(delta(ls, 1), ls(U), (ls, ls(U))).
-rule(delta(ls, 2), ls(U), (ls, emacs(F, U1))).
-rule(delta(ls, 3), ls(U), (ls, stop)).
+rule(X, ls(U), (ls, ls(U))) :- {X = delta(ls, 1)}.
+rule(X, ls(U), (ls, emacs(F, U1))) :- {X = delta(ls, 2)}.
+rule(X, ls(U), (ls, stop)) :- {X = delta(ls, 3)}.
 
 % emacs(F, tex) rule
-rule(delta(emacs_2, 1), emacs(F, tex), (emacs(F), ls(U1))).
-rule(delta(emacs_2, 2), emacs(F, tex), (emacs(F), emacs(F1, tex))).
-rule(delta(emacs_2, 3), emacs(F, tex), (emacs(F), latex(F, tex))).
-rule(delta(emacs_2, 4), emacs(F, tex), (emacs(F), stop)).
+rule(X, emacs(F, tex), (emacs(F), ls(U1))) :- {X = delta(emacs_2, 1)}.
+rule(X, emacs(F, tex), (emacs(F), emacs(F1, tex))) :- {X = delta(emacs_2, 2)}.
+rule(X, emacs(F, tex), (emacs(F), latex(F, tex))) :- {X = delta(emacs_2, 3)}.
+rule(X, emacs(F, tex), (emacs(F), stop)) :- {X = delta(emacs_2, 4)}.
 
 % emacs(F, U) rule
-rule(delta(emacs_1, 1), emacs(F,U), (emacs(F), emacs(F1, U))).
-rule(delta(emacs_1, 2), emacs(F,U), (emacs(F), ls(U1))).
-rule(delta(emacs_1, 3), emacs(F,U), (emacs(F), stop)).
+rule(X, emacs(F,U), (emacs(F), emacs(F1, U))) :- {X = delta(emacs_1, 1)}.
+rule(X, emacs(F,U), (emacs(F), ls(U1))) :- {X = delta(emacs_1, 2)}.
+rule(X, emacs(F,U), (emacs(F), stop)) :- {X = delta(emacs_1, 3)}.
 
 % latex(F, tex) rule
-rule(delta(latex, 1), latex(F, tex), (latex(F), ls(U1))).
-rule(delta(latex, 2), latex(F, tex), (latex(F), emacs(F1, U))).
-rule(delta(latex, 3), latex(F, tex), (latex(F), emacs(F, tex))).
-rule(delta(latex, 4), latex(F, tex), (latex(F), stop)).
+rule(X, latex(F, tex), (latex(F), ls(U1))) :- {X = delta(latex, 1)}.
+rule(X, latex(F, tex), (latex(F), emacs(F1, U))) :- {X = delta(latex, 2)}.
+rule(X, latex(F, tex), (latex(F), emacs(F, tex))) :- {X = delta(latex, 3)}.
+rule(X, latex(F, tex), (latex(F), stop)) :- {X = delta(latex, 4)}.
 
 %%------------------------------------
 %% Utility section
@@ -145,7 +145,7 @@ lohmm(Obs) :- lohmm(_, Obs).
 %%
 :- export(lohmm(States, Obs)).
 lohmm(States, Obs) :-
-    set_params,                                 
+    %set_params,                                 
     lohmm(start, [start | States], [_ | Obs], 1). 
 
 %%
@@ -190,7 +190,8 @@ result(Next, States, [Obs|Obss], Itr) :-
 %%
 trans(State, Obs, Next, Itr) :-
     subsumption(State, RuleID), !,
-    msw(RuleID, Itr, Rule), 
+    msw(RuleID, Itr, Rule),
+    writeln('TESTING...'),
     rule(Rule, State, (Obs, Next)).
 
 %%

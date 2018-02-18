@@ -332,7 +332,7 @@ sorted_edgesubtrees([CC|CCR], A, [ET|ETR]) :-
     sorted_edgesubtrees(CCR, A, ETR).
 
 % If X is a constant, leave T_in unchanged
-update_edges(T_in, X, _C, _Ctxt, T_in) :- atomic(X).
+update_edges(T_in, X, _C, _Ctxt, T_in) :- nonvar(X).
 
 % Base case for edge recursion
 update_edges([], _Y, _C, _Ctxt, []).
@@ -478,10 +478,10 @@ order_constraint(X\=Y, A\=B) :-
     ).
 
 % Always order constants to the Rhs
-order_constraint(X=Y, X=Y) :- var(X), atomic(Y).
-order_constraint(X=Y, Y=X) :- var(Y), atomic(X).
-order_constraint(X\=Y, X\=Y) :- var(X), atomic(Y).
-order_constraint(X\=Y, Y\=X) :- var(Y), atomic(X).
+order_constraint(X=Y, X=Y) :- var(X), nonvar(Y).
+order_constraint(X=Y, Y=X) :- var(Y), nonvar(X).
+order_constraint(X\=Y, X\=Y) :- var(X), nonvar(Y).
+order_constraint(X\=Y, Y\=X) :- var(Y), nonvar(X).
 
 %% check satisfiability of constraint formula
 satisfiable([]) :- !.
@@ -630,7 +630,7 @@ canonical_label(X, id(S, I)) :-
     var(X),
     read_id(X, id(S, I)).
 canonical_label(X, X) :-
-    atomic(X).
+    nonvar(X).
 
 %% complete equality relation in the graph
 complete_equality(E, EC) :-
@@ -698,7 +698,7 @@ type_handler(T, X) :-
         ->  T = _T     % X is also attributed variable
         ;   true       % X is not attributed variable
         )
-    ;   atomic(X),
+    ;   nonvar(X),
         basics:member(X, T)
     ).
 
@@ -734,7 +734,7 @@ read_type(X, T) :-
 
 % Lookup type of a constant by searching for a type T which X is an element of.
 lookup_type(X, T) :-
-    atomic(X),
+    nonvar(X),
     values(_, T),
     basics:member(X, T), !.
 
