@@ -101,7 +101,7 @@ transform_pred('{}'(C), constraint(_C, Arg_in, Arg_out), (Arg_in, Arg_out)) :-
     ->  find_int_mapping(Lhs, I),
         _C =.. [F, I, Rhs]
     ;   (nonvar(Rhs)
-        ->  find_int_mapping(Rhs, I),
+        ->  find_int_mapping(Rhs, I)
             _C =.. [F, Lhs, I]
         ;   C = _C
         )
@@ -181,6 +181,11 @@ find_int_mappings([V|Vs], [I|Is]) :-
     find_int_mappings(Vs, Is).
 
 % Returns the integer mapping I for V in the values_list
+find_int_mapping(V, I) :-
+    nonvar(V),
+    values_list(L),
+    basics:ith(I, L, V), !.
+
 find_int_mapping(V, I) :-
     nonvar(V),
     (V =.. [F|Args], Args \= []

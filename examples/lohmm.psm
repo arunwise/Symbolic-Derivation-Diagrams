@@ -191,7 +191,6 @@ result(Next, States, [Obs|Obss], Itr) :-
 trans(State, Obs, Next, Itr) :-
     subsumption(State, RuleID), !,
     msw(RuleID, Itr, Rule),
-    writeln('TESTING...'),
     rule(Rule, State, (Obs, Next)).
 
 %%
