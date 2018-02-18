@@ -69,15 +69,15 @@ constraint(Lhs=Rhs, C_in, C_out) :-
     % Update the edges
     (var(Lhs), var(Rhs), compare_roots(Lhs, Rhs, C)  /* If both are vars then we need to order them */
     ->  (C > 0  /* Rhs is smaller */
-        -> update_edges(C_in, Lhs, Ordered_Constraint, C_out)
+        -> update_edges(C_in, Lhs, Ordered_Constraint, [], C_out)
         ;   (C < 0 /* Lhs is smaller */
-            ->  update_edges(C_in, Rhs, Ordered_Constraint, C_out)
-            ;   update_edges(C_in, Rhs, Ordered_Constraint, C_out) /* Lhs=Rhs */ 
+            ->  update_edges(C_in, Rhs, Ordered_Constraint, [], C_out)
+            ;   fail
             )
         )
-    ;   (var(Lhs)
-        ->  update_edges(C_in, Lhs, Ordered_Constraint, C_out)
-        ;   update_edges(C_in, Rhs, Ordered_Constraint, C_out)  /* One of Lhs and Rhs is a variable */
+    ;   (var(Lhs)  /* One of Lhs and Rhs is a variable */
+        ->  update_edges(C_in, Lhs, Ordered_Constraint, [], C_out)
+        ;   update_edges(C_in, Rhs, Ordered_Constraint, [], C_out)  
         )
     ), 
     write('Cout: '), writeln(C_out), !.
@@ -103,15 +103,15 @@ constraint(Lhs\=Rhs, C_in, C_out) :-
     % Update the edges
     (var(Lhs), var(Rhs), compare_roots(Lhs, Rhs, C)  /* If both are vars then we need to order them */
     ->  (C > 0  /* Rhs is smaller */
-        -> update_edges(C_in, Lhs, Ordered_Constraint, C_out)
+        -> update_edges(C_in, Lhs, Ordered_Constraint, [], C_out)
         ;   (C < 0 /* Lhs is smaller */
-            ->  update_edges(C_in, Rhs, Ordered_Constraint, C_out)
-            ;   update_edges(C_in, Rhs, Ordered_Constraint, C_out) /* Lhs=Rhs */ 
+            ->  update_edges(C_in, Rhs, Ordered_Constraint, [], C_out)
+            ;   fail
             )
         )
-    ;   (var(Lhs)
-        ->  update_edges(C_in, Lhs, Ordered_Constraint, C_out)
-        ;   update_edges(C_in, Rhs, Ordered_Constraint, C_out)  /* One of Lhs and Rhs is a variable */
+    ;   (var(Lhs)  /* One of Lhs and Rhs is a variable */
+        ->  update_edges(C_in, Lhs, Ordered_Constraint, [], C_out)
+        ;   update_edges(C_in, Rhs, Ordered_Constraint, [], C_out)
         )
     ), 
     write('Cout: '), writeln(C_out), !.
@@ -223,24 +223,28 @@ apply_context_edges([edge_subtree(C,T)|E1s], Ctxt, E2s) :-
     ),
     apply_context_edges(E1s, Ctxt, Eos). 
 
-split_if_needed(Oh1, Oh2) :-
+split_if_needed(Oh1, Oh1).
+
+/*split_if_needed(Oh1, Oh2) :-
     writeln('...Split if needed...'),
     (identify_late_constraint(Oh1, C)
     ->  writeln('-----------LATE-----------\n'),
         split(Oh1, C, Oh3),
         split_if_needed(Oh3, Oh2)
     ;   Oh2 = Oh1
-    ).
+    ).*/
 
 identify_late_constraint(Oh, C) :- identify_late_constraint(Oh, [], C).
 identify_late_constraint(tree(R, Es), Ctxt, C) :-
     identify_late_constraint(Es, R, Ctxt, C).
 identify_late_constraint([edge_subtree(C1,_T1)|_Es], R, Ctxt, C) :-
+    listutil:absmerge(C1, Ctxt, Total_Constraints),
     write('\nORIGINAL CONSTRAINTS: '), writeln(C1),
     get_implicit_constraints(C1, C2),
     write('IMPLICIT CONSTRAINTS: '), writeln(C2), write('\n'),
     basics:member(C, C2),  % iterate through all constraints in C1
-    not listutil:absmember(C, Ctxt),
+    not listutil:absmember(C, Total_Constraints),
+    write(C), writeln(' IS NOT IN CONTEXT!!!!'),
     not_at(R, C), 
     writeln('NOT TESTABLE!!!!!'), !.
 identify_late_constraint([edge_subtree(C1,T1)|_Es], _R, Ctxt, C) :-
@@ -251,8 +255,8 @@ identify_late_constraint([_|Es], R, Ctxt, C) :-
 
 not_at(R, C) :- not testable_at(R, C).
 
-testable_at(R, _X=R).
-testable_at(R, _X\=R).
+testable_at(R, _X=Y) :- R == Y.
+testable_at(R, _X\=Y) :- R == Y.
 
 split(Oh1, C, Oh2) :-
     split(Oh1, C, [], Oh2).
@@ -313,60 +317,62 @@ sorted_edgesubtrees([CC|CCR], A, [ET|ETR]) :-
     sorted_edgesubtrees(CCR, A, ETR).
 
 % If X is a constant, leave T_in unchanged
-update_edges(T_in, X, _C, T_in) :- atomic(X).
+update_edges(T_in, X, _C, _Ctxt, T_in) :- atomic(X).
 
 % Base case for edge recursion
-update_edges([], _Y, _C, []).
-
-% If the input tree is connected with an and/or node
-%     recurse on the left and right subtrees
-update_edges(and(T1,T2), X, C, and(T1out,T2out)) :-
-    var(X),
-    update_edges(T1, X, C, T1out),
-    update_edges(T2, X, C, T2out).
-update_edges(or(T1,T2), X, C, or(T1out,T2out)) :-
-    var(X),
-    update_edges(T1, X, C, T1out),
-    update_edges(T2, X, C, T2out).
+update_edges([], _Y, _C, _Ctxt, []).
 
 % If X is not the root, recurse on the edges of the tree
-update_edges(tree(X, S1), Y, C, tree(X, S2)) :-
+update_edges(tree(X, S1), Y, C, Ctxt, tree(X, S2)) :-
     X \== Y,
-    update_edges(S1, Y, C, S2).
+    update_edges(S1, Y, C, Ctxt, S2).
 
 % Updates the subtrees in the edge list one at a time
-update_edges([edge_subtree(_E, T) | R], X, C, [edge_subtree(_E, T1)| R1]) :-
-    update_edges(T, X, C, T1),
-    update_edges(R, X, C, R1).
-
-% Leaf nodes are left unchanged
-update_edges(leaf(_X), Y, _C, leaf(_X)) :- var(Y).
+update_edges([edge_subtree(Constraints, T) | R], X, C, Ctxt, [edge_subtree(Constraints, T1)| R1]) :-
+    writeln('-----\nUPDATING EDGES...'),
+    write('EDGE SUBTREE: '), writeln(edge_subtree(Constraints, T)),
+    write('CONTEX: '), writeln(Ctxt),
+    listutil:absmerge(Constraints, Ctxt, Ctxt1),
+    update_edges(T, X, C, Ctxt1, T1),
+    update_edges(R, X, C, Ctxt, R1).
 
 % Handles logic for when X is the root of the tree
-update_edges(tree(X, Edges), Y, C, tree(X, _UpdatedSubtrees)) :-
-    writeln('UPDATING EDGES...'),
+update_edges(tree(X, Edges), Y, C, Ctxt, tree(X, _UpdatedSubtrees)) :-
+    writeln('-----\nFOUND THE ROOT...'),
+    write('TREE: '), writeln(tree(X, Edges)),
+    write('CONTEX: '), writeln(Ctxt),
     X == Y,
-    update_subtrees(Edges, C, [], UpdatedSubtrees),
+    update_subtrees(Edges, C, [], Ctxt, UpdatedSubtrees),
     remove_empty_edge_subtrees(UpdatedSubtrees, _UpdatedSubtrees).
 
+% Leaf nodes are left unchanged
+update_edges(leaf(_X), Y, _C, _Ctxt, leaf(_X)) :- var(Y).
+
 % Implements completeness by adding the complement of C to the previous constraints
-update_subtrees([], C, Prev, [edge_subtree(Complement, leaf(0))]) :-
+update_subtrees([], C, Prev, Ctxt, [edge_subtree(Complement, leaf(0))]) :-
     complement_atom(C, _C),
     basics:append(Prev, [_C], Complement).
 
 % Add C to the constraint list on an edge which does not have 0 child
-update_subtrees([edge_subtree(C1, T)|Edges], C, Prev, [UpdatedSubTree | UpdatedEdges]) :-
-    writeln('UPDATING SUBTREES...'),
+update_subtrees([edge_subtree(C1, T)|Edges], C, Prev, Ctxt, [UpdatedSubtree | UpdatedEdges]) :-
+    writeln('-----\nUPDATING SUBTREES...'),
+    write('CONTEX: '), writeln(Ctxt),
     (T \== leaf(0)
     ->  basics:append(C1, [C], C2),
+        % Check if the tree is satisfiable
+        (listutil:absmerge(C2, Ctxt, Total_Constraints), 
+            write('total constraints'), writeln(Total_Constraints), satisfiable(Total_Constraints)
+        ->  true
+        ;   fail
+        ),
 	    (satisfiable(C2)
         ->  basics:append(Prev, C1, Next),
-            UpdatedSubTree = edge_subtree(C2, T)
-        ;   UpdatedSubTree = []
+            UpdatedSubtree = edge_subtree(C2, T)
+        ;   UpdatedSubtree = []
         )
-    ;   Next = Prev, C2 = C1, UpdatedSubTree = edge_subtree(C2, T)
+    ;   Next = Prev, C2 = C1, UpdatedSubtree = edge_subtree(C2, T)
     ),
-    update_subtrees(Edges, C, Next, UpdatedEdges).
+    update_subtrees(Edges, C, Next, Ctxt, UpdatedEdges).
 
 % Removes empty lists generated when an added constraint makes the total formula unsatisfiable
 remove_empty_edge_subtrees([], []).
