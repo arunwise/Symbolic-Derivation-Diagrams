@@ -13,9 +13,11 @@ transform_file(File, OutFile) :- !,
     seeing(OF), see(File),
     abolish_table_pred(declare/3),
     assert(values_list([])),
-    read_and_transform(OutFile),
+    open(OutFile, write, Handle),
+    %% read_and_transform(OutFile),
+    read_and_transform(Handle),
     values_list(L),  % Get the final values_list
-    open(OutFile, append, Handle),
+    %% open(OutFile, append, Handle),
     num_vars:numbervars(L),
     write(Handle, 'values_list('), write(Handle, L), writeln(Handle, ').'), 
     close(Handle),
@@ -24,29 +26,30 @@ transform_file(File, OutFile) :- !,
 
 % Read clauses from current inputstream and write transformed clauses
 % to OutFile
-read_and_transform(OutFile) :-
+read_and_transform(Handle) :-
     read(Clause),
     (Clause == end_of_file
     ->  true
-    ;   transform(Clause, XClause, OutFile),
+    ;   transform(Clause, XClause, Handle),
         (XClause = none
-        ->  read_and_transform(OutFile)
+        ->  read_and_transform(Handle)
         ;   num_vars:numbervars(XClause),
             writeln(XClause),
-            write_clause(XClause, OutFile),
-            read_and_transform(OutFile)
+            write_clause(XClause, Handle),
+            read_and_transform(Handle)
         )
     ).
 
 % Write transformed clause (including facts) to outfile
 % (basically strips off the enclosing parentheses)
-write_clause(XClause, OutFile) :-
-    open(OutFile, append, Handle),
+write_clause(XClause, Handle) :-
+    %% open(OutFile, append, Handle),
     ((H :- B) = XClause
     ->  write(Handle, H), write(Handle, ' :- '), write(Handle, B), write(Handle, '.\n')
     ;   write(Handle, XClause), write(Handle, '.\n')
     ), 
-    close(Handle).
+    %% close(Handle),
+    true.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Transformation definitions
@@ -57,20 +60,20 @@ transform((:- export(Q)), (Q :- map_domain(Q, _Q), _Q), File) :- !.
 
 % Transform clauses and write table directives for transformed
 % predicates in the head
-transform((H_in :- B_in), (H_out :- B_out), File) :- !,
+transform((H_in :- B_in), (H_out :- B_out), Handle) :- !,
     functor(H_in, F, N),
-    declare(F, N, File), % write table directives
+    declare(F, N, Handle), % write table directives
     transform_pred(H_in, H_out, ExtraArgs),
     transform_body(B_in, B_out, ExtraArgs).
 
 % Transform facts except values/2 facts. For values/2 facts we define
 % types and write them to file.
-transform(F_in, F_out, File) :-
+transform(F_in, F_out, Handle) :-
     functor(F_in, F, _N),
     (F = values
-    ->  process_domain(F_in, File),
+    ->  process_domain(F_in, Handle),
         transform_pred(F_in, F_out, (Arg, Arg)),
-        write_domain_intrange(F_out, File)
+        write_domain_intrange(F_out, Handle)
     ;   transform_pred(F_in, F_out, (Arg, Arg))
     ), !.
 
@@ -148,7 +151,7 @@ transform_pred(Pred_in, Pred_out, (Arg_in, Arg_out)) :-
 % Processes the domain of a values declaration
 % The integer mapping corresponds to the position of Value in L.
 % If some V in Values is already in L, the type is already mapped
-process_domain(F_in, File) :-
+process_domain(F_in, Handle) :-
     F_in =.. [_ | [_, Values]],
     values_list(L),
     (basics:member(V, Values), basics:member(V, L) % Values is already in L
@@ -160,15 +163,16 @@ process_domain(F_in, File) :-
 
 % Writes intrange/3 facts to the output file
 :- table write_domain_intrange/4.
-write_domain_intrange(F_out, OutFile) :-
+write_domain_intrange(F_out, Handle) :-
     F_out =.. [_, S, V],
     basics:length(V, L),
     basics:ith(1, V, Start),
     basics:ith(L, V, End),
     num_vars:numbervars(S),
-    open(OutFile, append, Handle),
+    %% open(OutFile, append, Handle),
     write(Handle, intrange(S, Start, End)), write(Handle, '.\n'),
-    close(Handle).
+    %% close(Handle),
+    true.
 
 % For each value V we find its position I in values_list
 %     then we add I to the mapped domain list
@@ -209,13 +213,13 @@ find_int_mapping(V, V) :- !.
 
 % Write table declarations for predicate F/N
 :- table declare/3.
-declare(F, N, OutFile) :-
+declare(F, N, Handle) :-
     N1 is N+1,
     placeholders('', N1, P),
     str_cat(P,'lattice(or/3)', P1),
-    open(OutFile, append, Handle),
+    %% open(OutFile, append, Handle),
     fmt_write(Handle, ':- table %s(%s).\n', args(F, P1)),
-    close(Handle),
+    %% close(Handle),
     true.
 
 placeholders(S, 0, S).
