@@ -91,6 +91,8 @@ transform_pred(=(_X, _Y), =(_X, _Y), (Arg, Arg)) :- !.
 transform_pred(\=(_X, _Y), \=(_X, _Y), (Arg, Arg)) :- !.
 transform_pred(<(_X, _Y), <(_X, _Y), (Arg, Arg)) :- !.
 transform_pred(>(_X, _Y), >(_X, _Y), (Arg, Arg)) :- !.
+transform_pred(=<(_X, _Y), =<(_X, _Y), (Arg, Arg)) :- !.
+transform_pred(>=(_X, _Y), >=(_X, _Y), (Arg, Arg)) :- !.
 transform_pred(!, !, (Arg, Arg)) :- !.
 transform_pred(.(X, Y), [X | Y], (Arg, Arg)) :- !.
 transform_pred(=..(X, Y), =..(X, Y), (Arg, Arg)) :- !.

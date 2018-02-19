@@ -1,0 +1,14 @@
+values(birthday, [1,2,3,4]).
+set_sw(birthday, [0.25, 0.25, 0.25, 0.25]).
+
+person(1).
+person(2).
+person(3).
+
+same_birthday :-
+    person(P1),
+    person(P2),
+    P1 < P2,
+    msw(birthday, P1, X),
+    msw(birthday, P2, Y),
+    {X = Y}.
