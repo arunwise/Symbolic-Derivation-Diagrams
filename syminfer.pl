@@ -545,7 +545,7 @@ assert_constraints([X\=Y|R]) :-
 
 %% represent constraint formulas in a canonical way
 canonical_form(C, F) :-
-    term_variables(C, V),
+    % term_variables(C, V),
     edge_list_form(C, EQ, NEQ),
     % use ugraphs to compute closure of equality edges
     complete_equality(EQ, EQC),
