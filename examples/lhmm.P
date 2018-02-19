@@ -19,11 +19,12 @@ set_sw(select_file, [0.5, 0.5]).
 rule(start, R, start, ls(U), null) :- {R = r1}.
 rule(start, R, start, emacs(F, U), null) :- {R = r2}.
 
-rule(ls_u, R, ls(U), ls(U), ls) :- {R = r1}.
-rule(ls_u, R, ls(U1), emacs(F, U), ls) :- {R = r2}.
+% use a different symbol for 'ls' output than 'ls' atom functor
+rule(ls_u, R, ls(U), ls(U), lso) :- {R = r1}.
+rule(ls_u, R, ls(U1), emacs(F, U), lso) :- {R = r2}.
 
-rule(emacs_f_u, R, emacs(F, U), ls(U1), emacs(F)) :- {R = r1}.
-rule(emacs_f_u, R, emacs(F, U), emacs(F1, U), emacs(F)) :- {R = r2}.
+rule(emacs_f_u, R, emacs(F, U), ls(U1), emacs(F)) :- {U \= tex}, {R = r1}.
+rule(emacs_f_u, R, emacs(F, U), emacs(F1, U), emacs(F)) :- {U \= tex}, {R = r2}.
 
 rule(emacs_f_tex, R, emacs(F, U1), latex(F, U1), emacs(F)) :- {U1 = tex}, {R = r3}.
 rule(emacs_f_tex, R, emacs(F, U1), ls(U), emacs(F)) :- {U1 = tex}, {R = r4}.
@@ -32,20 +33,18 @@ rule(emacs_f_tex, R, emacs(F, U1), emacs(F1, U), emacs(F)) :- {U1 = tex}, {R = r
 rule(latex_f_tex, R, latex(F, U1), ls(U), latex(F)) :- {U1 = tex}, {R = r3}.
 rule(latex_f_tex, R, latex(F, U1), emacs(F, U1), latex(F)) :- {U1 = tex}, {R = r4}.
 rule(latex_f_tex, R, latex(F, U1), emacs(F1, U), latex(F)) :- {U1 = tex}, {R = r5}.
-/*
-rule(start, r1, start, ls(U), null).
-rule(start, r2, start, emacs(F, U), null).
-rule(ls_u, r1, ls(U), ls(U), ls).
-rule(ls_u, r2, ls(U1), emacs(F, U), ls).
-rule(emacs_f_u, r1, emacs(F, U), ls(U1), emacs(F)).
-rule(emacs_f_u, r2, emacs(F, U), emacs(F1, U), emacs(F)).
-rule(emacs_f_tex, r3, emacs(F, tex), latex(F, tex), emacs(F)).
-rule(emacs_f_tex, r4, emacs(F, tex), ls(U), emacs(F)).
-rule(emacs_f_tex, r5, emacs(F, tex), emacs(F1, U), emacs(F)).
-rule(latex_f_tex, r3, latex(F, tex), ls(U), latex(F)).
-rule(latex_f_tex, r4, latex(F, tex), emacs(F, tex), latex(F)).
-rule(latex_f_tex, r5, latex(F, tex), emacs(F1, U), latex(F)).
-*/
+
+
+lhmm(T, T, State, [], []).
+lhmm(Tstart, Tend, State, [S| SR], [O| OR]) :-
+    Tstart < Tend,
+    % find the b-part matching the current state
+    bpart(B, State),
+    msw(rule_select(B), Tstart, R),
+    rule(B, R, State, S, O),
+    select(Tstart, State, S, O),
+    T is Tstart + 1,
+    lhmm(T, Tend, S, SR, OR).
 
 q :-
     trans(0, 1, start, ls(U), null),
@@ -54,6 +53,15 @@ q :-
 q1 :-
     trans(1, 2, ls(U), ls(U), ls),
     {U=tex}.
+
+q21 :-
+    trans(0, 1, _, ls(U), null).
+
+q22 :-
+    trans(0, 1, _, emacs(F,U), null).
+
+q2 :- q21.
+q2 :- q22.
 
 % first transition
 trans(0, 1, start, S, null) :-
@@ -69,7 +77,6 @@ trans(T1, T, S1, S, O) :-
     T is T1 + 1,
     T2 is T1 - 1,
     trans(T2, T1, _S2, S1, _O2),
-    % most_specific_bpart(S1, B),
     bpart(B, S1),
     msw(rule_select(B), T1, R),
     rule(B, R, S1, S, O),
@@ -79,8 +86,9 @@ lhmm1(_T, _T, [], []).
 lhmm1(T1, E, [S| SR], [O| OR]) :-
     T1 < E,
     T is T1 + 1,
-    trans(T1, T, _S1, State, Obs),
-    {State = S}, {Obs = O},
+    %% trans(T1, T, _S1, State, Obs),
+    %% {State = S}, {Obs = O},    
+    trans(T1, T, _S1, S, O),    
     lhmm1(T, E, SR, OR).
 
 lhmm(0, [], []).
@@ -101,40 +109,42 @@ bpart(emacs_f_tex, emacs(F, U)) :- {U = tex}.
 bpart(emacs_f_u, emacs(F, U)) :- {U \= tex}.
 bpart(latex_f_tex, latex(F, U)) :- {U = tex}.
 
-%% most_specific_bpart(S, B) :-
-%%     bpart(B, S), !.
-
 % ground abstract states
 select(T, start, ls(U), null) :-
     msw(select_user, T, U).
+
 select(T, start, emacs(F, U), null) :-
     msw(select_file, T, F),
     msw(select_user, T, U).
-select(T, ls(U), ls(U), ls).
-select(T, ls(U1), emacs(F, U), ls) :-
+
+%% use a different symbol for 'ls' output symbol than the functor for 'ls' atom
+select(T, ls(U), ls(U), lso).
+select(T, ls(U1), emacs(F, U), lso) :-
     msw(select_file, T, F),
     msw(select_user, T, U).
-select(T, emacs(F, U), ls(U1), emacs(F)) :-
-    {U \= tex},
-    msw(select_user, T, U1).
-select(T, emacs(F, U), emacs(F1, U), emacs(F)) :-
-    {U \= tex},
-    msw(select_file, T, F1).
 
-select(T, emacs(F, U), latex(F, U), emacs(F)) :- {U = tex}.
+select(T, emacs(F, U), ls(U), emacs(F)) :-
+    {U \= tex},
+    msw(select_user, T, U).
+select(T, emacs(F, U), emacs(F, U), emacs(F)) :-
+    {U \= tex},
+    msw(select_file, T, F).
 
+select(T, emacs(F, U), latex(F, U), emacs(F)) :-
+    {U = tex}.
 select(T, emacs(F, U1), ls(U), emacs(F)) :-
     {U1 = tex},
     msw(select_user, T, U).
-select(T, emacs(F, U1), emacs(F1, U), emacs(F)) :-
+select(T, emacs(F, U1), emacs(F, U), emacs(F)) :-
     {U1 = tex},
-    msw(select_file, T, F1),
+    msw(select_file, T, F),
     msw(select_user, T, U).
+
 select(T, latex(F, U1), ls(U), latex(F)) :-
     {U1 = tex},
     msw(select_user, T, U).
 select(T, latex(F, U), emacs(F, U), latex(F)) :- {U = tex}.
-select(T, latex(F, U1), emacs(F1, U), latex(F)) :-
+select(T, latex(F, U1), emacs(F, U), latex(F)) :-
     {U1 = tex},
-    msw(select_file, T, F1),
+    msw(select_file, T, F),
     msw(select_user, T, U).
