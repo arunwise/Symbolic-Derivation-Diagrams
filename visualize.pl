@@ -1,8 +1,8 @@
-:- export writeDotFile/2.
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Visualization using DOT
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+:- export writeDotFile/2.
 
 writeDotFile(OSDD, DotFile) :-
     current_prolog_flag(write_attributes, F),
