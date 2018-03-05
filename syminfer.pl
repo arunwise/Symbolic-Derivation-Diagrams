@@ -36,7 +36,8 @@ msw(S, I, X, C_in, C_out) :- !,
     ;   values(S, T),
         set_type(X, T),
         set_id(X, id(S, I)),
-        make_tree(X, [[]], [leaf(1)], Osdd),   % osdd: X -- C --> 1
+	make_osdd(X, [edge_subtree([], leaf(1))], Osdd),
+        % make_tree(X, [[]], [leaf(1)], Osdd),   % osdd: X -- C --> 1
         and(C_in, Osdd, C_out),
         write('C_in: '), writeln(C_in), write('C_out: '), writeln(C_out)
     ).
@@ -125,12 +126,12 @@ one(leaf(1)).
 zero(leaf(0)).
 
 % Represent trees as tree(Root,[(Edge1, Subtree1), (Edge2, Subtree2), ...])
-make_tree(Root, Edges, Subtrees, tree(Root, L)) :-
-    myzip(Edges, Subtrees, L).
+%% make_tree(Root, Edges, Subtrees, tree(Root, L)) :-
+%%     myzip(Edges, Subtrees, L).
 
-myzip([], [], []).
-myzip([E|ER], [T|TR], [edge_subtree(E,T)|R]) :-
-    myzip(ER, TR, R).
+%% myzip([], [], []).
+%% myzip([E|ER], [T|TR], [edge_subtree(E,T)|R]) :-
+%%     myzip(ER, TR, R).
 
 % Returns a consistent OSDD
 make_osdd(R, Eis, Oh) :-
