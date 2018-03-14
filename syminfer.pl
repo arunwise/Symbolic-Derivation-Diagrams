@@ -1,6 +1,6 @@
 /*
  * Code for symbolic inference using OSDDs.
- * Usage: ?- [bounds, syminfer, 'path/to/transformed_file'] % Load files and libraries
+ * Usage: ?- [syminfer, 'path/to/transformed_file'] % Load files and libraries
  * To construct an OSDD for ground query q(v1,...,vn) use ?- q(v1,....,vn,leaf(1),O).
  */
 :- import get_attr/3, put_attr/3, install_verify_attribute_handler/4, install_attribute_portray_hook/3 from machine.
@@ -9,6 +9,8 @@
 :- import list_to_ord_set/2 from ordsets.
 :- import empty_assoc/1, put_assoc/4, get_assoc/3, list_to_assoc/2 from assoc_xsb.
 
+:- import (in)/2, (#=)/2, (#\=)/2, label/1 from bounds.
+
 :- import writeDotFile/2 from visualize.
 
 :- install_verify_attribute_handler(type, AttrValue, Target, type_handler(AttrValue, Target)).
@@ -16,6 +18,12 @@
 
 :- install_attribute_portray_hook(type, Attr, display_type(Attr)).
 :- install_attribute_portray_hook(id, Attr, display_id(Attr)).
+
+% copied from bounds.pl
+:- op(700,xfx,(#=)).
+:- op(700,xfx,(#\=)).
+:- op(700,xfx,(in)).
+:- op(550,xfx,(..)).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Constraint/msw definitions
