@@ -16,6 +16,8 @@
 
 :- import set_type/2, set_id/2, read_type/2, read_id/2 from attribs.
 
+:- import satisfiable_constraint_graph/2 from constraints.
+
 % copied from bounds.pl
 :- op(700,xfx,(#=)).
 :- op(700,xfx,(#\=)).
@@ -467,6 +469,60 @@ contains(or(T1, _T2), X) :-
 contains(or(_T1, T2), X) :-
     contains(T2, X), !.
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Change constraint formula representation
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% Constraint formulas are represented as constraint graphs. The
+%% vertices of the constraint graph are made up of variables and
+%% constants appearing in the constraint formula. There exists an
+%% undirected edge between each pair of nodes involved in an atomic
+%% constraint. However, to have canonical representation of each
+%% constraint formula, nodes are not labeled by prolog variables, but
+%% rather by canonical labels based on the 'id' attribute of the
+%% prolog variables. Further we use the "ugraph" package to manipulate
+%% these constraint graphs and use the "S-representation" as described
+%% by the package. Since we have to distinguish between equality and
+%% disequality atomic constraints, we maintain two S-representations
+%% for each constraint formula: one for equality atomic constraints
+%% and the other for disequality atomic constraints.
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+s_representation(+Constraint_Formula, -EQ_List, -NEQ_List)
+Constraint_Formula: Prolog term representing constraint formula
+EQ_List: S-representation of equality constraints using canonical labels
+NEQ_List: S-representation of disequality constraints using canonical labels
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+s_representation([], [], []).
+s_representation([X=Y|R], [S-D, D-S| EQR], NE) :-
+    canonical_label(X, S),
+    canonical_label(Y, D),
+    s_representation(R, EQR, NE).
+s_representation([X\=Y|R], EQ, [S-D, D-S | NER]) :-
+    canonical_label(X, S),
+    canonical_label(Y, D),
+    s_representation(R, EQ, NER).
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+canonical_label(+Var/Const, -Canonical_Label)
+Var/Const: Attributed variable or a "type" constant
+Canonical_Label: Unique label for Var/Const
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+canonical_label(V, L) :-
+    (var(V)
+    ->
+	read_id(V, id(S, I)),
+	id_label(id(S, I), L)
+    ;
+        L = V
+    ).
+
+:- table id_label/2.
+%:- index('$id_label'/2, [2,1]).
+id_label(id(S, I), L) :-
+    gensym(var, L),
+    assert('$id_label'(id(S, I), L)).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Constraint processing definitions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -507,15 +563,23 @@ order_constraint(X=Y, Y=X) :- var(Y), nonvar(X).
 order_constraint(X\=Y, X\=Y) :- var(X), nonvar(Y).
 order_constraint(X\=Y, Y\=X) :- var(Y), nonvar(X).
 
-%% check satisfiability of constraint formula
-satisfiable([]) :- !.
-satisfiable(C) :-
-    copy_term(C, C1),
-    getvars(C, [], L),
-    getvars(C1, [], L1),
-    assert_bounds(L, L1),
-    assert_constraints(C1),
-    label(L1), !.
+%% %% check satisfiability of constraint formula
+%% satisfiable([]) :- !.
+%% satisfiable(C) :-
+%%     copy_term(C, C1),
+%%     getvars(C, [], L),
+%%     getvars(C1, [], L1),
+%%     assert_bounds(L, L1),
+%%     assert_constraints(C1),
+%%     label(L1), !.
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+satisfiable(+CF)
+Is true if constraint formula CF is satisfiable
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+satisfiable(CF) :-
+    s_representation(CF, EQ, NEQ),
+    satisfiable_constraint_graph(EQ, NEQ).
 
 % Gets the unique variables of a constraint list
 getvars([], L, L).
