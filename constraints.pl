@@ -56,8 +56,9 @@ map_labels_to_vars(Ain, [Vertex-_Neighbors| Rest], Aout) :-
 enforce_domain_constraints(+List)
 
 Loop through list of key-value pairs and do: If key represents a
-variable, get its domain and assert domain constraints on
-value. Otherwise key represents a numeric constant, then do nothing.
+variable, get its domain and assert domain constraints on the
+corresponding variable which is given by value. Otherwise key
+represents a numeric constant, then do nothing.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 enforce_domain_constraints([]).
 enforce_domain_constraints([Key-Value|Rest]) :-
@@ -65,6 +66,7 @@ enforce_domain_constraints([Key-Value|Rest]) :-
     ->
 	enforce_domain_constraints(Rest)
     ;
+        % get the id corresponding to the variable, then its domain
         usermod:'$id_label'(id(S, _I), Key),
 	usermod:intrange(S, Lower, Upper),
 	Value in Lower..Upper,
