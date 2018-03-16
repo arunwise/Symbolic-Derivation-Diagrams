@@ -9,6 +9,7 @@
 :- import list_to_ord_set/2 from ordsets.
 :- import empty_assoc/1, put_assoc/4, get_assoc/3, list_to_assoc/2 from assoc_xsb.
 :- import member/2 from basics.
+:- import prepare/1, gensym/2 from gensym.
 
 :- import (in)/2, (#=)/2, (#\=)/2, label/1 from bounds.
 
@@ -480,28 +481,31 @@ contains(or(_T1, T2), X) :-
 %% constraint. However, to have canonical representation of each
 %% constraint formula, nodes are not labeled by prolog variables, but
 %% rather by canonical labels based on the 'id' attribute of the
-%% prolog variables. Further we use the "ugraph" package to manipulate
-%% these constraint graphs and use the "S-representation" as described
-%% by the package. Since we have to distinguish between equality and
-%% disequality atomic constraints, we maintain two S-representations
-%% for each constraint formula: one for equality atomic constraints
-%% and the other for disequality atomic constraints.
+%% prolog variables. We use the vertices edges representation that can
+%% be given as input to "ugraph" package. Since we have to distinguish
+%% between equality and disequality atomic constraints, we maintain
+%% two graphs for each constraint formula: one for equality atomic
+%% constraints and the other for disequality atomic constraints.
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-s_representation(+Constraint_Formula, -EQ_List, -NEQ_List)
+ve_representation(+Constraint_Formula, -EQ_List, -NEQ_List)
 Constraint_Formula: Prolog term representing constraint formula
-EQ_List: S-representation of equality constraints using canonical labels
-NEQ_List: S-representation of disequality constraints using canonical labels
+
+EQ_List: Vertices/Edges representation of equality constraints using
+canonical labels
+
+NEQ_List: Vertices/Edges representation of disequality constraints
+using canonical labels
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-s_representation([], [], []).
-s_representation([X=Y|R], [S-D, D-S| EQR], NE) :-
+ve_representation([], [], []).
+ve_representation([X=Y|R], [S-D, D-S| EQR], NE) :-
     canonical_label(X, S),
     canonical_label(Y, D),
-    s_representation(R, EQR, NE).
-s_representation([X\=Y|R], EQ, [S-D, D-S | NER]) :-
+    ve_representation(R, EQR, NE).
+ve_representation([X\=Y|R], EQ, [S-D, D-S | NER]) :-
     canonical_label(X, S),
     canonical_label(Y, D),
-    s_representation(R, EQ, NER).
+    ve_representation(R, EQ, NER).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 canonical_label(+Var/Const, -Canonical_Label)
@@ -578,7 +582,7 @@ satisfiable(+CF)
 Is true if constraint formula CF is satisfiable
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 satisfiable(CF) :-
-    s_representation(CF, EQ, NEQ),
+    ve_representation(CF, EQ, NEQ),
     satisfiable_constraint_graph(EQ, NEQ).
 
 % Gets the unique variables of a constraint list
@@ -875,3 +879,9 @@ edge_prob_1(R, V, T, P) :-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 writeDot(OSDD, File) :- writeDotFile(OSDD, File).
+
+:- dynamic '$id_label'/2.
+
+initialize :-
+    retractall('$id_label'/2),
+    prepare(0).
