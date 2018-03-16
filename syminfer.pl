@@ -8,6 +8,7 @@
    neighbors/3, vertices/2 from ugraphs.
 :- import list_to_ord_set/2 from ordsets.
 :- import empty_assoc/1, put_assoc/4, get_assoc/3, list_to_assoc/2 from assoc_xsb.
+:- import member/2 from basics.
 
 :- import (in)/2, (#=)/2, (#\=)/2, label/1 from bounds.
 
@@ -62,17 +63,25 @@ constraint(Lhs=Rhs, C_in, C_out) :-
     write('=======\n\n= CONSTRAINT: '), writeln(Ordered_Constraint),
     write('\nCin: '), writeln(C_in),
 
-    % Get the types
-    (var(Lhs) 
-    ->  read_type(Lhs, T1)
-    ;   lookup_type(Lhs, T1)
+    %% % Get the types
+    %% (var(Lhs) 
+    %% ->  read_type(Lhs, T1)
+    %% ;   lookup_type(Lhs, T1)
+    %% ),
+    %% (var(Rhs) 
+    %% ->  read_type(Rhs, T2)
+    %% ;   lookup_type(Rhs, T2)
+    %% ),
+    %% nonvar(T1), nonvar(T2),  % Ensure that constraint occurs after the msw/3 is called
+    %% T1 = T2,  % Type check
+
+    (var(Lhs)
+    ->
+	type_check(Lhs, Rhs)
+    ;
+        type_check(Rhs, Lhs)
     ),
-    (var(Rhs) 
-    ->  read_type(Rhs, T2)
-    ;   lookup_type(Rhs, T2)
-    ),
-    nonvar(T1), nonvar(T2),  % Ensure that constraint occurs after the msw/3 is called
-    T1 = T2,  % Type check
+
     % Update the edges
     (var(Lhs), var(Rhs), compare_roots(Lhs, Rhs, C)  /* If both are vars then we need to order them */
     ->  (C > 0  /* Rhs is smaller */
@@ -99,16 +108,24 @@ constraint(Lhs\=Rhs, C_in, C_out) :-
     write('\nCin: '), writeln(C_in),
 
     % Get the types
-    (var(Lhs) 
-    ->  read_type(Lhs, T1)
-    ;   lookup_type(Lhs, T1)
+    %% (var(Lhs) 
+    %% ->  read_type(Lhs, T1)
+    %% ;   lookup_type(Lhs, T1)
+    %% ),
+    %% (var(Rhs) 
+    %% ->  read_type(Rhs, T2)
+    %% ;   lookup_type(Rhs, T2)
+    %% ),
+    %% nonvar(T1), nonvar(T2),  % Ensure that constraint occurs after the msw/3 is called
+    %% T1 = T2,  % Type check
+
+    (var(Lhs)
+    ->
+	type_check(Lhs, Rhs)
+    ;
+        type_check(Rhs, Lhs)
     ),
-    (var(Rhs) 
-    ->  read_type(Rhs, T2)
-    ;   lookup_type(Rhs, T2)
-    ),
-    nonvar(T1), nonvar(T2),  % Ensure that constraint occurs after the msw/3 is called
-    T1 = T2,  % Type check
+
     % Update the edges
     (var(Lhs), var(Rhs), compare_roots(Lhs, Rhs, C)  /* If both are vars then we need to order them */
     ->  (C > 0  /* Rhs is smaller */
@@ -295,7 +312,7 @@ identify_late_constraint(tree(R, Es), Ctxt, C) :-
 identify_late_constraint([edge_subtree(C1,_T1)|_Es], R, Ctxt, C) :-
     listutil:absmerge(C1, Ctxt, Total_Constraints),
     get_implicit_constraints(C1, C2),
-    basics:member(C, C2),  % iterate through all constraints in C1
+    member(C, C2),  % iterate through all constraints in C1
     not listutil:absmember(C, Total_Constraints),
     not_at(R, C), !.
 identify_late_constraint([edge_subtree(C1,T1)|_Es], _R, Ctxt, C) :-
@@ -678,7 +695,7 @@ complete_disequality_1([V|R], G1, G2, ICin, ICout) :-
     complete_disequality_1(R, G1, G2, ICtmp, ICout).
 
 pairwise_edges(L1, L2, L) :-
-    findall(X-Y, (basics:member(X, L1), basics:member(Y,L2)), L).
+    findall(X-Y, (member(X, L1), member(Y,L2)), L).
 
 discard_spurious_edges([], []).
 discard_spurious_edges([X-Y|R], L) :-
@@ -694,11 +711,28 @@ discard_spurious_edges([X-Y|R], L) :-
         discard_spurious_edges(R, L)
     ).
 
-% Lookup type of a constant by searching for a type T which X is an element of.
-lookup_type(X, T) :-
-    nonvar(X),
-    values(_, T),
-    basics:member(X, T), !.
+%% % Lookup type of a constant by searching for a type T which X is an element of.
+%% lookup_type(X, T) :-
+%%     nonvar(X),
+%%     values(_, T),
+%%     member(X, T), !.
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+type_check(+Term1, +Term2)
+Is true if both Term1 and Term2 have the same type.
+It is required that Term1 be a variable, Term2 can be a variable or const.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+type_check(Term1, Term2) :-
+    % Ensure that constraint occurs after type has been set. Currently
+    % read_type returns a variable for Type if its not been set
+    read_type(Term1, Type),
+    nonvar(Type), 
+    (var(Term2)
+    ->
+	 read_type(Term2, Type)
+    ;
+    member(Term2, Type)
+    ).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Query processing definitions
