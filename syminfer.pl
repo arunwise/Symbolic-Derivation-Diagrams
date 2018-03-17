@@ -11,19 +11,11 @@
 :- import member/2 from basics.
 :- import prepare/1, gensym/2 from gensym.
 
-:- import (in)/2, (#=)/2, (#\=)/2, label/1 from bounds.
-
 :- import writeDotFile/2 from visualize.
 
 :- import set_type/2, set_id/2, read_type/2, read_id/2 from attribs.
 
 :- import satisfiable_constraint_graph/2, solutions/4 from constraints.
-
-% copied from bounds.pl
-:- op(700,xfx,(#=)).
-:- op(700,xfx,(#\=)).
-:- op(700,xfx,(in)).
-:- op(550,xfx,(..)).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Constraint/msw definitions
