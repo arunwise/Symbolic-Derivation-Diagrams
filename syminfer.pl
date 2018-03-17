@@ -17,7 +17,7 @@
 
 :- import set_type/2, set_id/2, read_type/2, read_id/2 from attribs.
 
-:- import satisfiable_constraint_graph/2 from constraints.
+:- import satisfiable_constraint_graph/2, solutions/4 from constraints.
 
 % copied from bounds.pl
 :- op(700,xfx,(#=)).
@@ -619,12 +619,12 @@ getvars([X\=Y|R], L, Lout) :-
 
 %% assert Lower..Upper bounds for each variable in second list by
 %% looking at the corresponding id in first list.
-assert_bounds([], []).
-assert_bounds([V|R], [V1|R1]) :-
-    read_id(V, id(S, _)), % get switch associated with V
-    intrange(S, Lower, Upper),
-    V1 in Lower..Upper,
-    assert_bounds(R, R1).
+%% assert_bounds([], []).
+%% assert_bounds([V|R], [V1|R1]) :-
+%%     read_id(V, id(S, _)), % get switch associated with V
+%%     intrange(S, Lower, Upper),
+%%     V1 in Lower..Upper,
+%%     assert_bounds(R, R1).
 
 %% assert #= and #\= constraints
 assert_constraints([]).
@@ -665,7 +665,7 @@ get_implicit_constraints(C, CComp) :-
 
 id_var_pairs([], []).
 id_var_pairs([V|R], [Id-V|PR]) :-
-    canonical_label(V, Id),
+    canonical_label_1(V, Id),
     id_var_pairs(R, PR).
 
 graph_to_formula(Assoc, Op, [], C, C).
@@ -709,19 +709,19 @@ graph_to_formula(Assoc, Op, [ID1-ID2|R], Cin, Cout) :-
 %% we use the same representation as that used by "ugraph" package
 edge_list_form([], [], []).
 edge_list_form([X=Y|R], [S-D, D-S| EQR], NE) :-
-    canonical_label(X, S),
-    canonical_label(Y, D),
+    canonical_label_1(X, S),
+    canonical_label_1(Y, D),
     edge_list_form(R, EQR, NE).
 edge_list_form([X\=Y|R], EQ, [S-D, D-S | NER]) :-
-    canonical_label(X, S),
-    canonical_label(Y, D),
+    canonical_label_1(X, S),
+    canonical_label_1(Y, D),
     edge_list_form(R, EQ, NER).
 
 %% Node labels in constraint graph have a canonical form
-canonical_label(X, id(S, I)) :-
+canonical_label_1(X, id(S, I)) :-
     var(X),
     read_id(X, id(S, I)).
-canonical_label(X, X) :-
+canonical_label_1(X, X) :-
     nonvar(X).
 
 %% complete equality relation in the graph
@@ -836,11 +836,14 @@ mytreeprob(tree(R, ETs), P) :-
 
 mytreeprob_1(R, [], Pin, Pin).
 mytreeprob_1(R, [edge_subtree(E, T)|Rest], Pin, Pout) :-
-    % get solutions of R for constraint E
-    findall(R, solution(R, E), SS),
-    list_to_ord_set(SS, S),
-    % at this point R is still not bound
-    % compute probability for the edge 'E' without binding R
+    %% % get solutions of R for constraint E
+    %% findall(R, solution(R, E), SS),
+    %% list_to_ord_set(SS, S),
+    %% % at this point R is still not bound
+    %% % compute probability for the edge 'E' without binding R
+    ve_representation(E, EQ, NEQ),
+    canonical_label(R, Label),
+    solutions(Label, EQ, NEQ, S),
     copy_term(var_tree(R, T), Copy),
     Copy =.. [var_tree| [R1, T1]],
     edge_prob(var(R1, T1), S, 0, Pedge),
@@ -848,12 +851,12 @@ mytreeprob_1(R, [edge_subtree(E, T)|Rest], Pin, Pout) :-
     mytreeprob_1(R, Rest, Ptmp, Pout),
     true.
 
-solution(R, E) :-
-    read_id(R, id(S, _)),
-    intrange(S, Lower, Upper),
-    R in Lower..Upper,
-    assert_constraints(E),
-    label([R]).
+%% solution(R, E) :-
+%%     read_id(R, id(S, _)),
+%%     intrange(S, Lower, Upper),
+%%     R in Lower..Upper,
+%%     assert_constraints(E),
+%%     label([R]).
 
 edge_prob(var(R, T), [], Pin, Pin).
 edge_prob(var(R, T), [V|VR], Pin, Pout) :-
@@ -885,3 +888,5 @@ writeDot(OSDD, File) :- writeDotFile(OSDD, File).
 initialize :-
     retractall('$id_label'/2),
     prepare(0).
+
+?- initialize.

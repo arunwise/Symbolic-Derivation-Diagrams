@@ -1,7 +1,9 @@
-:- export satisfiable_constraint_graph/2.
+:- export satisfiable_constraint_graph/2, solutions/4.
 
+:- import is_empty/1 from lists.
 :- import vertices_edges_to_ugraph/3 from ugraphs.
 :- import empty_assoc/1, put_assoc/4, gen_assoc/3, assoc_to_list/2 from assoc_xsb.
+:- import list_to_ord_set/2 from ordsets.
 :- import (in)/2, (#=)/2, (#\=)/2, label/1 from bounds.
 
 % copied from bounds.pl
@@ -110,3 +112,36 @@ enforce_disequality_with_neighbors(Value, Assoc, [H|R]) :-
     gen_assoc(H, Assoc, Value1),
     Value #\= Value1,
     enforce_disequality_with_neighbors(Value, Assoc, R).
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+solutions(+Label, +EQ, +NEQ, -Solutions)
+
+'Label' is the label of a variable in the CSP, represented by graph
+with equality edges 'EQ' and disequality edges 'NEQ'. 'Solutions' is
+the set of all solutions to 'Label' which satisfies the CSP.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+solutions(Label, EQ, NEQ, Solutions) :-
+    ((is_empty(EQ), is_empty(NEQ))
+    ->
+	% Variable corresponding to label is unconstrained
+	usermod:'$id_label'(id(S, _I), Label),
+	usermod:intrange(S, Lower, Upper),
+	var(X),
+	X in Lower..Upper,
+	findall(X, label([X]), Solutions1),
+	list_to_ord_set(Solutions1, Solutions)
+    ;
+        % Variable corresponding to label is constrained
+        vertices_edges_to_ugraph([], EQ, EQ1),
+        vertices_edges_to_ugraph([], NEQ, NEQ1),
+        empty_assoc(A),
+        map_labels_to_vars(A, EQ1, A1),
+        map_labels_to_vars(A1, NEQ1, A2),
+        assoc_to_list(A2, List),
+        enforce_domain_constraints(List),
+        enforce_equality_constraints(A2, EQ1),
+        enforce_disequality_constraints(A2, NEQ1),
+	gen_assoc(Label, A2, Var),
+	findall(Var, label([Var]), Solutions1),
+	list_to_ord_set(Solutions1, Solutions)
+    ).
