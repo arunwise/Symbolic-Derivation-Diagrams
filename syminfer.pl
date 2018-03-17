@@ -66,18 +66,6 @@ constraint(Lhs=Rhs, C_in, C_out) :-
     write('=======\n\n= CONSTRAINT: '), writeln(Ordered_Constraint),
     write('\nCin: '), writeln(C_in),
 
-    %% % Get the types
-    %% (var(Lhs) 
-    %% ->  read_type(Lhs, T1)
-    %% ;   lookup_type(Lhs, T1)
-    %% ),
-    %% (var(Rhs) 
-    %% ->  read_type(Rhs, T2)
-    %% ;   lookup_type(Rhs, T2)
-    %% ),
-    %% nonvar(T1), nonvar(T2),  % Ensure that constraint occurs after the msw/3 is called
-    %% T1 = T2,  % Type check
-
     (var(Lhs)
     ->
 	type_check(Lhs, Rhs)
@@ -110,18 +98,6 @@ constraint(Lhs\=Rhs, C_in, C_out) :-
     write('=======\n\n\= CONSTRAINT: '), writeln(Ordered_Constraint),
     write('\nCin: '), writeln(C_in),
 
-    % Get the types
-    %% (var(Lhs) 
-    %% ->  read_type(Lhs, T1)
-    %% ;   lookup_type(Lhs, T1)
-    %% ),
-    %% (var(Rhs) 
-    %% ->  read_type(Rhs, T2)
-    %% ;   lookup_type(Rhs, T2)
-    %% ),
-    %% nonvar(T1), nonvar(T2),  % Ensure that constraint occurs after the msw/3 is called
-    %% T1 = T2,  % Type check
-
     (var(Lhs)
     ->
 	type_check(Lhs, Rhs)
@@ -150,14 +126,6 @@ constraint(Lhs\=Rhs, C_in, C_out) :-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 one(leaf(1)).
 zero(leaf(0)).
-
-% Represent trees as tree(Root,[(Edge1, Subtree1), (Edge2, Subtree2), ...])
-%% make_tree(Root, Edges, Subtrees, tree(Root, L)) :-
-%%     myzip(Edges, Subtrees, L).
-
-%% myzip([], [], []).
-%% myzip([E|ER], [T|TR], [edge_subtree(E,T)|R]) :-
-%%     myzip(ER, TR, R).
 
 % Returns a consistent OSDD
 make_osdd(R, Eis, Oh) :-
@@ -567,16 +535,6 @@ order_constraint(X=Y, Y=X) :- var(Y), nonvar(X).
 order_constraint(X\=Y, X\=Y) :- var(X), nonvar(Y).
 order_constraint(X\=Y, Y\=X) :- var(Y), nonvar(X).
 
-%% %% check satisfiability of constraint formula
-%% satisfiable([]) :- !.
-%% satisfiable(C) :-
-%%     copy_term(C, C1),
-%%     getvars(C, [], L),
-%%     getvars(C1, [], L1),
-%%     assert_bounds(L, L1),
-%%     assert_constraints(C1),
-%%     label(L1), !.
-
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 satisfiable(+CF)
 Is true if constraint formula CF is satisfiable
@@ -616,24 +574,6 @@ getvars([X\=Y|R], L, Lout) :-
         Ltmp1 = Ltmp
     ),
     getvars(R, Ltmp1, Lout).
-
-%% assert Lower..Upper bounds for each variable in second list by
-%% looking at the corresponding id in first list.
-%% assert_bounds([], []).
-%% assert_bounds([V|R], [V1|R1]) :-
-%%     read_id(V, id(S, _)), % get switch associated with V
-%%     intrange(S, Lower, Upper),
-%%     V1 in Lower..Upper,
-%%     assert_bounds(R, R1).
-
-%% assert #= and #\= constraints
-assert_constraints([]).
-assert_constraints([X=Y|R]) :-
-    X #= Y,
-    assert_constraints(R).
-assert_constraints([X\=Y|R]) :-
-    X #\= Y,
-    assert_constraints(R).
 
 %% represent constraint formulas in a canonical way
 canonical_form(C, F) :-
@@ -779,12 +719,6 @@ discard_spurious_edges([X-Y|R], L) :-
         discard_spurious_edges(R, L)
     ).
 
-%% % Lookup type of a constant by searching for a type T which X is an element of.
-%% lookup_type(X, T) :-
-%%     nonvar(X),
-%%     values(_, T),
-%%     member(X, T), !.
-
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 type_check(+Term1, +Term2)
 Is true if both Term1 and Term2 have the same type.
@@ -836,11 +770,6 @@ mytreeprob(tree(R, ETs), P) :-
 
 mytreeprob_1(R, [], Pin, Pin).
 mytreeprob_1(R, [edge_subtree(E, T)|Rest], Pin, Pout) :-
-    %% % get solutions of R for constraint E
-    %% findall(R, solution(R, E), SS),
-    %% list_to_ord_set(SS, S),
-    %% % at this point R is still not bound
-    %% % compute probability for the edge 'E' without binding R
     ve_representation(E, EQ, NEQ),
     canonical_label(R, Label),
     solutions(Label, EQ, NEQ, S),
@@ -850,13 +779,6 @@ mytreeprob_1(R, [edge_subtree(E, T)|Rest], Pin, Pout) :-
     Ptmp is Pin + Pedge,
     mytreeprob_1(R, Rest, Ptmp, Pout),
     true.
-
-%% solution(R, E) :-
-%%     read_id(R, id(S, _)),
-%%     intrange(S, Lower, Upper),
-%%     R in Lower..Upper,
-%%     assert_constraints(E),
-%%     label([R]).
 
 edge_prob(var(R, T), [], Pin, Pin).
 edge_prob(var(R, T), [V|VR], Pin, Pout) :-
