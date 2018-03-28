@@ -15,7 +15,7 @@
 
 :- import set_type/2, set_id/2, read_type/2, read_id/2 from attribs.
 
-:- import satisfiable_constraint_graph/2, solutions/4 from constraints.
+:- import satisfiable_constraint_graph/2, solutions/4, canonical_form/3 from constraints.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Constraint/msw definitions
@@ -308,7 +308,9 @@ order_edges(ETin, ETout) :-
 % Edge-Subtree term in AssocIn
 fill_assoc([], A, L, A, L).
 fill_assoc([edge_subtree(E, T)|R], Ain, Lin, Aout, Lout) :-
-    canonical_form(E, C),
+    %% canonical_form(E, C),
+    edge_list_form(E, EQ, NEQ),
+    canonical_form(EQ, NEQ, C),
     put_assoc(C, Ain, edge_subtree(E, T), Atmp),
     basics:append(Lin, [C], Ltmp),
     fill_assoc(R, Atmp, Ltmp, Aout, Lout).
@@ -568,21 +570,21 @@ getvars([X\=Y|R], L, Lout) :-
     getvars(R, Ltmp1, Lout).
 
 %% represent constraint formulas in a canonical way
-canonical_form(C, F) :-
-    % term_variables(C, V),
-    edge_list_form(C, EQ, NEQ),
-    % use ugraphs to compute closure of equality edges
-    complete_equality(EQ, EQC),
-    discard_spurious_edges(EQC, EQC1),    
-    % complete neq edges
-    complete_disequality(EQC1, NEQ, NEQ1),
-    % discard edges between constants
-    discard_spurious_edges(NEQ1, NEQ2),
-    % sort using ordsets to get canonical representation
-    list_to_ord_set(EQC1, EQORD),
-    list_to_ord_set(NEQ2, NEQORD),
-    F = cg(EQORD, NEQORD),
-    true.
+%% canonical_form(C, F) :-
+%%     % term_variables(C, V),
+%%     edge_list_form(C, EQ, NEQ),
+%%     % use ugraphs to compute closure of equality edges
+%%     complete_equality(EQ, EQC),
+%%     discard_spurious_edges(EQC, EQC1),    
+%%     % complete neq edges
+%%     complete_disequality(EQC1, NEQ, NEQ1),
+%%     % discard edges between constants
+%%     discard_spurious_edges(NEQ1, NEQ2),
+%%     % sort using ordsets to get canonical representation
+%%     list_to_ord_set(EQC1, EQORD),
+%%     list_to_ord_set(NEQ2, NEQORD),
+%%     F = cg(EQORD, NEQORD),
+%%     true.
 
 %% complete a constraint formula with implicit constraints
 %% CComp is the union of C and implicit constraints
@@ -590,7 +592,9 @@ get_implicit_constraints(C, CComp) :-
     getvars(C, [], Vars),
     id_var_pairs(Vars, Pairs),
     list_to_assoc(Pairs, A),
-    canonical_form(C, cg(EQ, NEQ)),
+    %% canonical_form(C, cg(EQ, NEQ)),
+    edge_list_form(C, E, N),
+    canonical_form(E, N, cg(EQ, NEQ)),
     graph_to_formula(A, eq, EQ, [], C1),
     graph_to_formula(A, neq, NEQ, C1, CComp),
     true.
