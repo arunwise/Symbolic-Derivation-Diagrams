@@ -569,23 +569,6 @@ getvars([X\=Y|R], L, Lout) :-
     ),
     getvars(R, Ltmp1, Lout).
 
-%% represent constraint formulas in a canonical way
-%% canonical_form(C, F) :-
-%%     % term_variables(C, V),
-%%     edge_list_form(C, EQ, NEQ),
-%%     % use ugraphs to compute closure of equality edges
-%%     complete_equality(EQ, EQC),
-%%     discard_spurious_edges(EQC, EQC1),    
-%%     % complete neq edges
-%%     complete_disequality(EQC1, NEQ, NEQ1),
-%%     % discard edges between constants
-%%     discard_spurious_edges(NEQ1, NEQ2),
-%%     % sort using ordsets to get canonical representation
-%%     list_to_ord_set(EQC1, EQORD),
-%%     list_to_ord_set(NEQ2, NEQORD),
-%%     F = cg(EQORD, NEQORD),
-%%     true.
-
 %% complete a constraint formula with implicit constraints
 %% CComp is the union of C and implicit constraints
 get_implicit_constraints(C, CComp) :-
@@ -659,61 +642,6 @@ canonical_label_1(X, id(S, I)) :-
     read_id(X, id(S, I)).
 canonical_label_1(X, X) :-
     nonvar(X).
-
-%% complete equality relation in the graph
-%% complete_equality(E, EC) :-
-%%     vertices_edges_to_ugraph([], E, UG),
-%%     transitive_closure(UG, UGC),
-%%     edges(UGC, EC).
-
-%% complete disequality relation in the graph
-%% look at each vertex and the set of its neighbors, if two neighbors
-%% are connected to it by opposite constraint, add disequality
-%% constraint between them as an implicit constraint
-%% complete_disequality(EQ, NEQ, NEQ1) :-
-%%     vertices_edges_to_ugraph([], EQ, G1),
-%%     vertices_edges_to_ugraph([], NEQ, G2),
-%%     vertices(G1, V1),
-%%     vertices(G2, V2),
-%%     basics:append(V1, V2, V),
-%%     complete_disequality_1(V, G1, G2, [], IConstr),
-%%     basics:append(NEQ, IConstr, NEQ1).
-
-%% % no extra constraints if no variables
-%% complete_disequality_1([], _, _, L, L). 
-%% complete_disequality_1([V|R], G1, G2, ICin, ICout) :-
-%%     (neighbors(V, G1, N1)
-%%     ->
-%% 	    true
-%%     ;
-%%         N1 = []
-%%     ),
-%%     (neighbors(V, G2, N2)
-%%     ->
-%% 	    true
-%%     ;
-%%         N2 = []
-%%     ),
-%%     pairwise_edges(N1, N2, N),
-%%     basics:append(ICin, N, ICtmp),
-%%     complete_disequality_1(R, G1, G2, ICtmp, ICout).
-
-%% pairwise_edges(L1, L2, L) :-
-%%     findall(X-Y, (member(X, L1), member(Y,L2)), L).
-
-%% discard_spurious_edges([], []).
-%% discard_spurious_edges([X-Y|R], L) :-
-%%     X == Y,
-%%     discard_spurious_edges(R, L).
-%% discard_spurious_edges([X-Y|R], L) :-
-%%     X \== Y,
-%%     ((functor(X, id, 2); functor(Y, id, 2))
-%%     ->
-%% 	    L = [X-Y|L1],
-%% 	    discard_spurious_edges(R, L1)
-%%     ;
-%%         discard_spurious_edges(R, L)
-%%     ).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 type_check(+Term1, +Term2)
