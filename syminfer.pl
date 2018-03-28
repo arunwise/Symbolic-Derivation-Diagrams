@@ -309,7 +309,8 @@ order_edges(ETin, ETout) :-
 fill_assoc([], A, L, A, L).
 fill_assoc([edge_subtree(E, T)|R], Ain, Lin, Aout, Lout) :-
     %% canonical_form(E, C),
-    edge_list_form(E, EQ, NEQ),
+    %% edge_list_form(E, EQ, NEQ),
+    ve_representation(E, EQ, NEQ),
     canonical_form(EQ, NEQ, C),
     put_assoc(C, Ain, edge_subtree(E, T), Atmp),
     basics:append(Lin, [C], Ltmp),
@@ -576,7 +577,8 @@ get_implicit_constraints(C, CComp) :-
     id_var_pairs(Vars, Pairs),
     list_to_assoc(Pairs, A),
     %% canonical_form(C, cg(EQ, NEQ)),
-    edge_list_form(C, E, N),
+    %% edge_list_form(C, E, N),
+    ve_representation(C, E, N),
     canonical_form(E, N, cg(EQ, NEQ)),
     graph_to_formula(A, eq, EQ, [], C1),
     graph_to_formula(A, neq, NEQ, C1, CComp),
@@ -626,22 +628,22 @@ graph_to_formula(Assoc, Op, [ID1-ID2|R], Cin, Cout) :-
 %% atomic constraint we have two edges going in either direction
 
 %% we use the same representation as that used by "ugraph" package
-edge_list_form([], [], []).
-edge_list_form([X=Y|R], [S-D, D-S| EQR], NE) :-
-    canonical_label_1(X, S),
-    canonical_label_1(Y, D),
-    edge_list_form(R, EQR, NE).
-edge_list_form([X\=Y|R], EQ, [S-D, D-S | NER]) :-
-    canonical_label_1(X, S),
-    canonical_label_1(Y, D),
-    edge_list_form(R, EQ, NER).
+%% edge_list_form([], [], []).
+%% edge_list_form([X=Y|R], [S-D, D-S| EQR], NE) :-
+%%     canonical_label_1(X, S),
+%%     canonical_label_1(Y, D),
+%%     edge_list_form(R, EQR, NE).
+%% edge_list_form([X\=Y|R], EQ, [S-D, D-S | NER]) :-
+%%     canonical_label_1(X, S),
+%%     canonical_label_1(Y, D),
+%%     edge_list_form(R, EQ, NER).
 
 %% Node labels in constraint graph have a canonical form
-canonical_label_1(X, id(S, I)) :-
-    var(X),
-    read_id(X, id(S, I)).
-canonical_label_1(X, X) :-
-    nonvar(X).
+%% canonical_label_1(X, id(S, I)) :-
+%%     var(X),
+%%     read_id(X, id(S, I)).
+%% canonical_label_1(X, X) :-
+%%     nonvar(X).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 type_check(+Term1, +Term2)
