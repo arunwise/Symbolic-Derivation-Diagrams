@@ -622,29 +622,6 @@ graph_to_formula(Assoc, Op, [ID1-ID2|R], Cin, Cout) :-
         graph_to_formula(Assoc, Op, R, Cin, Cout)
     ).
 
-%% atomic constraints are represented as edges in constraint graph,
-%% we maintain two lists corresponding to equality constraints and
-%% disequality constraints. Since the graph is undirected for each
-%% atomic constraint we have two edges going in either direction
-
-%% we use the same representation as that used by "ugraph" package
-%% edge_list_form([], [], []).
-%% edge_list_form([X=Y|R], [S-D, D-S| EQR], NE) :-
-%%     canonical_label_1(X, S),
-%%     canonical_label_1(Y, D),
-%%     edge_list_form(R, EQR, NE).
-%% edge_list_form([X\=Y|R], EQ, [S-D, D-S | NER]) :-
-%%     canonical_label_1(X, S),
-%%     canonical_label_1(Y, D),
-%%     edge_list_form(R, EQ, NER).
-
-%% Node labels in constraint graph have a canonical form
-%% canonical_label_1(X, id(S, I)) :-
-%%     var(X),
-%%     read_id(X, id(S, I)).
-%% canonical_label_1(X, X) :-
-%%     nonvar(X).
-
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 type_check(+Term1, +Term2)
 Is true if both Term1 and Term2 have the same type.
