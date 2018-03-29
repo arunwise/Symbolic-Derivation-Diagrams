@@ -1,0 +1,71 @@
+values(e, [tt, tf, ft, ff]).
+set_sw(e, [0.49, 0.01, 0.01, 0.49]).
+
+world(E1, E2, E3, E4) :-
+    msw(e, 1, E1),
+    msw(e, 2, E2),
+    msw(e, 3, E3),
+    msw(e, 4, E4),
+    match(E1, E2, 2, 1),
+    match(E2, E3, 2, 1),
+    match(E3, E4, 2, 1),
+    match(E4, E1, 2, 1).
+
+%% %% tt and tt
+%% match(X, Y, 1, 1) :- {X=tt}, {Y=tt}.
+%% match(X, Y, 1, 2) :- {X=tt}, {Y=tt}.
+match(X, Y, 2, 1) :- {X=tt}, {Y=tt}.
+%% match(X, Y, 2, 2) :- {X=tt}, {Y=tt}.
+%% %% tt and tf
+%% match(X, Y, 1, 1) :- {X=tt}, {Y=tf}.
+match(X, Y, 2, 1) :- {X=tt}, {Y=tf}.
+%% %% tt and ft
+%% match(X, Y, 1, 2) :- {X=tt}, {Y=ft}.
+%% match(X, Y, 2, 2) :- {X=tt}, {Y=ft}.
+
+%% %% tf and tt
+%% match(X, Y, 1, 1) :- {X=tf}, {Y=tt}.
+%% match(X, Y, 1, 2) :- {X=tf}, {Y=tt}.
+%% %% tf and tf
+%% match(X, Y, 1, 1) :- {X=tf}, {Y=tf}.
+%% match(X, Y, 2, 2) :- {X=tf}, {Y=tf}.
+%% %% tf and ft
+%% match(X, Y, 1, 2) :- {X=tf}, {Y=ft}.
+match(X, Y, 2, 1) :- {X=tf}, {Y=ft}.
+%% %% tf and ff
+match(X, Y, 2, 1) :- {X=tf}, {Y=ff}.
+%% match(X, Y, 2, 2) :- {X=tf}, {Y=ff}.
+
+%% %% ft and tt
+match(X, Y, 2, 1) :- {X=ft}, {Y=tt}.
+%% match(X, Y, 2, 2) :- {X=ft}, {Y=tt}.
+%% %% ft and tf
+%% match(X, Y, 1, 2) :- {X=ft}, {Y=tf}.
+match(X, Y, 2, 1) :- {X=ft}, {Y=tf}.
+%% %% ft and ft
+%% match(X, Y, 1, 1) :- {X=ft}, {Y=ft}.
+%% match(X, Y, 2, 2) :- {X=ft}, {Y=ft}.
+%% %% ft and ff
+%% match(X, Y, 1, 1) :- {X=ft}, {Y=ff}.
+%% match(X, Y, 1, 2) :- {X=ft}, {Y=ff}.
+
+%% %% ff and tf
+%% match(X, Y, 1, 1) :- {X=ff}, {Y=tf}.
+%% match(X, Y, 2, 2) :- {X=ff}, {Y=tf}.
+%% %% ff and ft
+%% match(X, Y, 1, 1) :- {X=ff}, {Y=ft}.
+match(X, Y, 2, 1) :- {X=ff}, {Y=ft}.
+%% %% ff and ff
+%% match(X, Y, 1, 1) :- {X=ff}, {Y=ff}.
+%% match(X, Y, 1, 2) :- {X=ff}, {Y=ff}.
+match(X, Y, 2, 1) :- {X=ff}, {Y=ff}.
+%% match(X, Y, 2, 2) :- {X=ff}, {Y=ff}.
+
+evidence :- world(_,_,_,_).
+q :- world(tt,tt,tt,tt).
+qe :- q, evidence.
+
+:- export(evidence).
+:- export(q).
+:- export(qe).
+:- export(world1).
