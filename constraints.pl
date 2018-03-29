@@ -1,9 +1,16 @@
-:- export satisfiable_constraint_graph/2, solutions/4, canonical_form/3.
+:- export satisfiable_constraint_graph/2, solutions/4,
+canonical_form/3.
 
 :- import is_empty/1, delete/3 from lists.
-:- import vertices_edges_to_ugraph/3, transitive_closure/2, edges/2, add_edges/3, del_edges/3 from ugraphs.
-:- import empty_assoc/1, put_assoc/4, gen_assoc/3, assoc_to_list/2 from assoc_xsb.
+
+:- import vertices_edges_to_ugraph/3, transitive_closure/2, edges/2,
+add_edges/3, del_edges/3 from ugraphs.
+
+:- import empty_assoc/1, put_assoc/4, gen_assoc/3, assoc_to_list/2
+from assoc_xsb.
+
 :- import list_to_ord_set/2 from ordsets.
+
 :- import (in)/2, (#=)/2, (#\=)/2, label/1 from bounds.
 
 % copied from bounds.pl
