@@ -17,6 +17,8 @@
 
 :- import satisfiable_constraint_graph/2, solutions/4, canonical_form/3 from constraints.
 
+:- import absmerge/3 from listutil.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Constraint/msw definitions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -163,7 +165,7 @@ bin_op0(and, _, _Ctxt, leaf(0)).
 :- index apply_binop/5-2.
 apply_binop(_Op, [], _Oh2, _Ctxt, []).
 apply_binop(Op, [edge_subtree(C,Oh1)|E1s], Oh2, Ctxt, Edges) :-
-    (conjunction(C, Ctxt, Ctxt1)
+    (constraints_conjunction(C, Ctxt, Ctxt1)
     ->  bin_op(Op, Oh1, Oh2, Ctxt1, Oh),
         Edges = [edge_subtree(C,Oh)|Es],
         apply_binop(Op, E1s, Oh2, Ctxt, Es)
@@ -177,7 +179,7 @@ apply_all_binop(Op, E1s, E2s, Ctxt, Es) :- apply_all_binop(Op, E1s, E2s, Ctxt, [
 :- index apply_all_binop/6-3.
 apply_all_binop(_Op, _E1s, [], _Ctxt, Es, Es).
 apply_all_binop(Op, E1s, [edge_subtree(C2,Oh2)|E2s], Ctxt, Eis, Eos) :-
-    (conjunction(C2, Ctxt, Ctxt1)
+    (constraints_conjunction(C2, Ctxt, Ctxt1)
     ->  apply_1_binop(Op, E1s, C2, Oh2, Ctxt1, Eis, Ets)
     ;   Eis = Ets  % C2's constraint is inconsistent wrt Ctxt, so drop these edges
     ),
@@ -185,7 +187,7 @@ apply_all_binop(Op, E1s, [edge_subtree(C2,Oh2)|E2s], Ctxt, Eis, Eos) :-
 
 apply_1_binop(_Op, [], _C2, _Oh2, _Ctxt, Es, Es).
 apply_1_binop(Op, [edge_subtree(C1,Oh1)|E1s], C2, Oh2, Ctxt, Eis, Eos) :-
-    (conjunction(C1, C2, C), conjunction(C, Ctxt, Ctxt1)
+    (constraints_conjunction(C1, C2, C), constraints_conjunction(C, Ctxt, Ctxt1)
     ->  bin_op(Op, Oh1, Oh2, Ctxt1, Oh),
         Eos = [edge_subtree(C, Oh)|Ets]
     ;   Eos = Ets
@@ -205,7 +207,7 @@ apply_context(tree(R, E1s), Ctxt, Oh2) :-
 apply_context_edges([], _Ctxt, []).
 apply_context_edges([edge_subtree(C,T)|E1s], Ctxt, E2s) :-
     writeln('...Applying context to edges...'),
-    (conjunction(C, Ctxt, Ctxt1)
+    (constraints_conjunction(C, Ctxt, Ctxt1)
     ->  apply_context(T, Ctxt1, T1),
         E2s = [edge_subtree(C,T1)|Eos]
     ;   E2s = Eos
@@ -235,11 +237,11 @@ split(leaf(X), _C, _Ctxt, leaf(X)).
     write('---\nConstraint: '), writeln(C),
     write('\nTree: '), writeln(tree(R, E1s)), write('---\n'),
         complement_atom(C, NC),
-        (conjunction([C], Ctxt, Ctxt1)
+        (constraints_conjunction([C], Ctxt, Ctxt1)
         ->  apply_context_edges(E1s, Ctxt1, E11s)
         ;   E11s = []
         ),
-        (conjunction([NC], Ctxt, Ctxt2)
+        (constraints_conjunction([NC], Ctxt, Ctxt2)
         ->  apply_context_edges(E1s, Ctxt2, E12s)
         ;   E12s = []
         ),
@@ -260,7 +262,7 @@ split(tree(R, E1s), C, Ctxt, tree(R, Es_out)) :-
 
 split_all([], _, _, []).
 split_all([edge_subtree(C1,T1)|Es], C, Ctxt, E2s) :-
-    (conjunction(C1, Ctxt, Ctxt1)
+    (constraints_conjunction(C1, Ctxt, Ctxt1)
     ->  split(T1, C, Ctxt1, T2),
         E2s = [edge_subtree(C1, T2)|Eos]
     ;   E2s = Eos
@@ -273,13 +275,13 @@ identify_late_constraint(Oh, C) :- identify_late_constraint(Oh, [], C).
 identify_late_constraint(tree(R, Es), Ctxt, C) :-
     identify_late_constraint(Es, R, Ctxt, C).
 identify_late_constraint([edge_subtree(C1,_T1)|_Es], R, Ctxt, C) :-
-    listutil:absmerge(C1, Ctxt, Total_Constraints),
+    absmerge(C1, Ctxt, Total_Constraints),
     get_implicit_constraints(C1, C2),
     member(C, C2),  % iterate through all constraints in C1
     not listutil:absmember(C, Total_Constraints),
     not_at(R, C), !.
 identify_late_constraint([edge_subtree(C1,T1)|_Es], _R, Ctxt, C) :-
-    conjunction(C1, Ctxt, Ctxt1),
+    constraints_conjunction(C1, Ctxt, Ctxt1),
     identify_late_constraint(T1, Ctxt1, C), !.
 identify_late_constraint([_|Es], R, Ctxt, C) :-
     identify_late_constraint(Es, R, Ctxt, C).
@@ -334,7 +336,7 @@ update_edges(tree(X, S1), Y, C, Ctxt, tree(X, S2)) :-
 
 % Updates the subtrees in the edge list one at a time
 update_edges([edge_subtree(Constraints, T) | R], X, C, Ctxt, [edge_subtree(Constraints, T1)| R1]) :-
-    listutil:absmerge(Constraints, Ctxt, Ctxt1),
+    absmerge(Constraints, Ctxt, Ctxt1),
     update_edges(T, X, C, Ctxt1, T1),
     update_edges(R, X, C, Ctxt, R1).
 
@@ -357,7 +359,7 @@ update_subtrees([edge_subtree(C1, T)|Edges], C, Prev, Ctxt, [UpdatedSubtree | Up
     (T \== leaf(0)
     ->  basics:append(C1, [C], C2),
         % Check if the tree is satisfiable
-        (listutil:absmerge(C2, Ctxt, Total_Constraints), 
+        (absmerge(C2, Ctxt, Total_Constraints), 
             write('total constraints'), writeln(Total_Constraints), satisfiable(Total_Constraints)
         ->  true
         ;   fail
@@ -495,8 +497,8 @@ id_label(id(S, I), L) :-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Combines two constraint lists by conjunction
-conjunction(C1, C2, C) :-
-    listutil:absmerge(C1, C2, C), 
+constraints_conjunction(C1, C2, C) :-
+    absmerge(C1, C2, C), 
     satisfiable(C).
 
 % Complements a atomic constraint
