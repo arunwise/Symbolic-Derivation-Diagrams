@@ -55,9 +55,10 @@ msw(S, I, X, C_in, C_out) :- !,
 % Finally update the edges for Lhs and Rhs.
 constraint(Lhs=Rhs, C_in, C_out) :-
     (var(Lhs); var(Rhs)),  % at most one of Lhs and Rhs can be a ground term
-    order_constraint(Lhs=Rhs, Ordered_Constraint),
+    %% order_constraint(Lhs=Rhs, Ordered_Constraint),
 
-    write('=======\n\n= CONSTRAINT: '), writeln(Ordered_Constraint),
+    %% write('=======\n\n= CONSTRAINT: '), writeln(Ordered_Constraint),
+    write('=======\n\n= CONSTRAINT: '), writeln(Lhs=Rhs),
     write('\nCin: '), writeln(C_in),
 
     (var(Lhs)
@@ -70,15 +71,15 @@ constraint(Lhs=Rhs, C_in, C_out) :-
     % Update the edges
     (var(Lhs), var(Rhs), compare_roots(Lhs, Rhs, C)  /* If both are vars then we need to order them */
     ->  (C > 0  /* Rhs is smaller */
-        -> update_edges(C_in, Lhs, Ordered_Constraint, [], C_out)
+        -> update_edges(C_in, Lhs, Lhs=Rhs, [], C_out)
         ;   (C < 0 /* Lhs is smaller */
-            ->  update_edges(C_in, Rhs, Ordered_Constraint, [], C_out)
+            ->  update_edges(C_in, Rhs, Lhs=Rhs, [], C_out)
             ;   fail
             )
         )
     ;   (var(Lhs)  /* One of Lhs and Rhs is a variable */
-        ->  update_edges(C_in, Lhs, Ordered_Constraint, [], C_out)
-        ;   update_edges(C_in, Rhs, Ordered_Constraint, [], C_out)  
+        ->  update_edges(C_in, Lhs, Lhs=Rhs, [], C_out)
+        ;   update_edges(C_in, Rhs, Lhs=Rhs, [], C_out)  
         )
     ), 
     write('\nCout: '), writeln(C_out), write('\n=======\n'), !.
@@ -87,9 +88,10 @@ constraint(Lhs=Rhs, C_in, C_out) :-
 % Same logic as in equality constraints.
 constraint(Lhs\=Rhs, C_in, C_out) :-
     (var(Lhs); var(Rhs)),  % at most one of Lhs and Rhs can be a ground term
-    order_constraint(Lhs\=Rhs, Ordered_Constraint),
+    %% order_constraint(Lhs\=Rhs, Ordered_Constraint),
 
-    write('=======\n\n\= CONSTRAINT: '), writeln(Ordered_Constraint),
+    %% write('=======\n\n\= CONSTRAINT: '), writeln(Ordered_Constraint),
+    write('=======\n\n\= CONSTRAINT: '), writeln(Lhs\=Rhs),
     write('\nCin: '), writeln(C_in),
 
     (var(Lhs)
@@ -102,15 +104,15 @@ constraint(Lhs\=Rhs, C_in, C_out) :-
     % Update the edges
     (var(Lhs), var(Rhs), compare_roots(Lhs, Rhs, C)  /* If both are vars then we need to order them */
     ->  (C > 0  /* Rhs is smaller */
-        -> update_edges(C_in, Lhs, Ordered_Constraint, [], C_out)
+        -> update_edges(C_in, Lhs, Lhs\=Rhs, [], C_out)
         ;   (C < 0 /* Lhs is smaller */
-            ->  update_edges(C_in, Rhs, Ordered_Constraint, [], C_out)
+            ->  update_edges(C_in, Rhs, Lhs\=Rhs, [], C_out)
             ;   fail
             )
         )
     ;   (var(Lhs)  /* One of Lhs and Rhs is a variable */
-        ->  update_edges(C_in, Lhs, Ordered_Constraint, [], C_out)
-        ;   update_edges(C_in, Rhs, Ordered_Constraint, [], C_out)
+        ->  update_edges(C_in, Lhs, Lhs\=Rhs, [], C_out)
+        ;   update_edges(C_in, Rhs, Lhs\=Rhs, [], C_out)
         )
     ), 
     write('\nCout: '), writeln(C_out), write('\n=======\n'), !.
@@ -505,32 +507,32 @@ constraints_conjunction(C1, C2, C) :-
 complement_atom(X=Y, X\=Y).
 complement_atom(X\=Y, X=Y).
 
-% Syntactically reorders constraints
-order_constraint(X=Y, A=B) :-
-    var(X), var(Y), compare_roots(X, Y, C),
-    (C < 0
-    ->  A=X, B=Y
-    ;   (C > 0
-        ->  A=Y, B=X 
-        ;   false  % A constraint must be between distinct variables
-        )
-    ).
+%% % Syntactically reorders constraints
+%% order_constraint(X=Y, A=B) :-
+%%     var(X), var(Y), compare_roots(X, Y, C),
+%%     (C < 0
+%%     ->  A=X, B=Y
+%%     ;   (C > 0
+%%         ->  A=Y, B=X 
+%%         ;   false  % A constraint must be between distinct variables
+%%         )
+%%     ).
 
-order_constraint(X\=Y, A\=B) :-
-    var(X), var(Y), compare_roots(X, Y, C),
-    (C < 0
-    ->  A=X, B=Y
-    ;   (C > 0
-        ->  A=Y, B=X 
-        ;   false  % A constraint must be between distinct variables
-        )
-    ).
+%% order_constraint(X\=Y, A\=B) :-
+%%     var(X), var(Y), compare_roots(X, Y, C),
+%%     (C < 0
+%%     ->  A=X, B=Y
+%%     ;   (C > 0
+%%         ->  A=Y, B=X 
+%%         ;   false  % A constraint must be between distinct variables
+%%         )
+%%     ).
 
-% Always order constants to the Rhs
-order_constraint(X=Y, X=Y) :- var(X), nonvar(Y).
-order_constraint(X=Y, Y=X) :- var(Y), nonvar(X).
-order_constraint(X\=Y, X\=Y) :- var(X), nonvar(Y).
-order_constraint(X\=Y, Y\=X) :- var(Y), nonvar(X).
+%% % Always order constants to the Rhs
+%% order_constraint(X=Y, X=Y) :- var(X), nonvar(Y).
+%% order_constraint(X=Y, Y=X) :- var(Y), nonvar(X).
+%% order_constraint(X\=Y, X\=Y) :- var(X), nonvar(Y).
+%% order_constraint(X\=Y, Y\=X) :- var(Y), nonvar(X).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 satisfiable(+CF)
