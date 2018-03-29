@@ -586,7 +586,8 @@ get_implicit_constraints(C, CComp) :-
 
 id_var_pairs([], []).
 id_var_pairs([V|R], [Id-V|PR]) :-
-    canonical_label_1(V, Id),
+    %% canonical_label_1(V, Id),
+    canonical_label(V, Id),
     id_var_pairs(R, PR).
 
 graph_to_formula(Assoc, Op, [], C, C).
