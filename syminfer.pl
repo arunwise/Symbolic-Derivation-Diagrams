@@ -507,33 +507,6 @@ constraints_conjunction(C1, C2, C) :-
 complement_atom(X=Y, X\=Y).
 complement_atom(X\=Y, X=Y).
 
-%% % Syntactically reorders constraints
-%% order_constraint(X=Y, A=B) :-
-%%     var(X), var(Y), compare_roots(X, Y, C),
-%%     (C < 0
-%%     ->  A=X, B=Y
-%%     ;   (C > 0
-%%         ->  A=Y, B=X 
-%%         ;   false  % A constraint must be between distinct variables
-%%         )
-%%     ).
-
-%% order_constraint(X\=Y, A\=B) :-
-%%     var(X), var(Y), compare_roots(X, Y, C),
-%%     (C < 0
-%%     ->  A=X, B=Y
-%%     ;   (C > 0
-%%         ->  A=Y, B=X 
-%%         ;   false  % A constraint must be between distinct variables
-%%         )
-%%     ).
-
-%% % Always order constants to the Rhs
-%% order_constraint(X=Y, X=Y) :- var(X), nonvar(Y).
-%% order_constraint(X=Y, Y=X) :- var(Y), nonvar(X).
-%% order_constraint(X\=Y, X\=Y) :- var(X), nonvar(Y).
-%% order_constraint(X\=Y, Y\=X) :- var(Y), nonvar(X).
-
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 satisfiable(+CF)
 Is true if constraint formula CF is satisfiable
