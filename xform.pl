@@ -90,6 +90,8 @@ transform_body(G_in, (G_out, split_if_needed(Arg, Arg_out)), (Arg_in, Arg_out)) 
 
 % Transform predicates. The following predicates don't get transformed
 transform_pred(true, true, (Arg, Arg)) :- !.
+transform_pred(==(_X, _Y), ==(_X, _Y), (Arg, Arg)) :- !.
+transform_pred(\==(_X, _Y), \==(_X, _Y), (Arg, Arg)) :- !.
 transform_pred(=(_X, _Y), =(_X, _Y), (Arg, Arg)) :- !.
 transform_pred(\=(_X, _Y), \=(_X, _Y), (Arg, Arg)) :- !.
 transform_pred(<(_X, _Y), <(_X, _Y), (Arg, Arg)) :- !.
