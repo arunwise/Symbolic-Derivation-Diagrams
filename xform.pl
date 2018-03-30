@@ -63,8 +63,9 @@ transform((:- export(Q)), (Q :- map_domain(Q, _Q), _Q), File) :- !.
 transform((H_in :- B_in), (H_out :- B_out), Handle) :- !,
     functor(H_in, F, N),
     declare(F, N, Handle), % write table directives
+    H_in =.. [Pred | Args],
     transform_pred(H_in, H_out, ExtraArgs),
-    transform_body(B_in, B_out, ExtraArgs).
+    transform_body(B_in, Args, B_out, ExtraArgs).
 
 % Transform facts except values/2 facts. For values/2 facts we define
 % types and write them to file.
@@ -72,40 +73,41 @@ transform(F_in, F_out, Handle) :-
     functor(F_in, F, _N),
     (F = values
     ->  process_domain(F_in, Handle),
-        transform_pred(F_in, F_out, (Arg, Arg)),
+        transform_pred(F_in, F_out, (CtxtIn, OsddIn, CtxtIn, OsddIn)),
         write_domain_intrange(F_out, Handle)
-    ;   transform_pred(F_in, F_out, (Arg, Arg))
+    ;   transform_pred(F_in, F_out, (CtxtIn, OsddIn, CtxtIn, OsddIn))
     ), !.
 
 % Transforms a sequence of goals (G_in, Gs_in) as follows: 
 %     Apply transform_body/3 on the single goal G_in to produce G_out, 
 %     Recurse on Gs_in
-transform_body((G_in, Gs_in), (G_out, Gs_out), (Arg_in, Arg_out)) :- !,
-    transform_pred(G_in, G_out, (Arg_in, Arg)),
-    transform_body(Gs_in, Gs_out, (Arg, Arg_out)).
+transform_body((G_in, Gs_in), FreeVars, (G_out, Gs_out), (CtxtIn, OsddIn, CtxtOut, OsddOut)) :- !,
+    transform_pred(G_in, G_out, (CtxtIn, OsddIn, Ctxt, Osdd)),
+    transform_body(Gs_in, FreeVars, Gs_out, (Ctxt, Osdd, CtxtOut, OsddOut)).
 
 % Transform a single goal
-transform_body(G_in, (G_out, split_if_needed(Arg, Arg_out)), (Arg_in, Arg_out)) :-
-    transform_pred(G_in, G_out, (Arg_in, Arg)).
+transform_body(G_in, FreeVars, (G_out, project_context(Ctxt, FreeVars, CtxtOut), split_if_needed(Osdd, OsddOut)), (CtxtIn, OsddIn, CtxtOut, OsddOut)) :-
+    transform_pred(G_in, G_out, (CtxtIn, OsddIn, Ctxt, Osdd)).
+
 
 % Transform predicates. The following predicates don't get transformed
-transform_pred(true, true, (Arg, Arg)) :- !.
-transform_pred(==(_X, _Y), ==(_X, _Y), (Arg, Arg)) :- !.
-transform_pred(\==(_X, _Y), \==(_X, _Y), (Arg, Arg)) :- !.
-transform_pred(=(_X, _Y), =(_X, _Y), (Arg, Arg)) :- !.
-transform_pred(\=(_X, _Y), \=(_X, _Y), (Arg, Arg)) :- !.
-transform_pred(<(_X, _Y), <(_X, _Y), (Arg, Arg)) :- !.
-transform_pred(>(_X, _Y), >(_X, _Y), (Arg, Arg)) :- !.
-transform_pred(=<(_X, _Y), =<(_X, _Y), (Arg, Arg)) :- !.
-transform_pred(>=(_X, _Y), >=(_X, _Y), (Arg, Arg)) :- !.
-transform_pred(!, !, (Arg, Arg)) :- !.
-transform_pred(.(X, Y), [X | Y], (Arg, Arg)) :- !.
-transform_pred(=..(X, Y), =..(X, Y), (Arg, Arg)) :- !.
-transform_pred(is(X, Y), is(X, Y), (Arg, Arg)) :- !.
+transform_pred(true, true, (Ctxt, Osdd, Ctxt, Osdd)) :- !.
+transform_pred(==(_X, _Y), ==(_X, _Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
+transform_pred(\==(_X, _Y), \==(_X, _Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
+transform_pred(=(_X, _Y), =(_X, _Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
+transform_pred(\=(_X, _Y), \=(_X, _Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
+transform_pred(<(_X, _Y), <(_X, _Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
+transform_pred(>(_X, _Y), >(_X, _Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
+transform_pred(=<(_X, _Y), =<(_X, _Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
+transform_pred(>=(_X, _Y), >=(_X, _Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
+transform_pred(!, !, (Ctxt, Osdd, Ctxt, Osdd)) :- !.
+transform_pred(.(X, Y), [X | Y], (Ctxt, Osdd, Ctxt, Osdd)) :- !.
+transform_pred(=..(X, Y), =..(X, Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
+transform_pred(is(X, Y), is(X, Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
 
 % Transform atomic constraints of the form {C} in constraint language
 % If C has some ground domain element we map this element to the integer domain
-transform_pred('{}'(C), constraint(_C, Arg_in, Arg_out), (Arg_in, Arg_out)) :- 
+transform_pred('{}'(C), constraint(_C, CtxtIn, OsddIn, CtxtOut, OsddOut), (CtxtIn, OsddIn, CtxtOut, OsddOut)) :- 
     C =.. [F, Lhs, Rhs],
     (nonvar(Lhs)
     ->  find_int_mapping(Lhs, I),
@@ -117,8 +119,9 @@ transform_pred('{}'(C), constraint(_C, Arg_in, Arg_out), (Arg_in, Arg_out)) :-
         )
     ), !.
 
+
 % Transform msw/3 by possibly renaming type elements to integer domains
-transform_pred(msw(S,I,X), msw(_S,I,X, Arg_in, Arg_out), (Arg_in, Arg_out)) :- 
+transform_pred(msw(S,I,X), msw(_S,I,X, CtxtIn, OsddIn, CtxtOut, OsddOut), (CtxtIn, OsddIn, CtxtOut, OsddOut)) :- 
     (var(S)
     ->  _S = S
     ;   S =.. [F | Vs],
@@ -127,11 +130,11 @@ transform_pred(msw(S,I,X), msw(_S,I,X, Arg_in, Arg_out), (Arg_in, Arg_out)) :-
     ), !.
 
 % Transforms a values/2 declarations by mapping the domain to integers
-transform_pred(values(S, V), values(S, _V), (Arg, Arg)) :- 
+transform_pred(values(S, V), values(S, _V), (Ctxt, Osdd, Ctxt, Osdd)) :- 
     make_numerical(S, V, _V), !.
 
 % Transforms set_sw(S, V) declarations by possibly renaming terms in S
-transform_pred(set_sw(S, V), set_sw(_S, V), (Arg, Arg)) :-
+transform_pred(set_sw(S, V), set_sw(_S, V), (Ctxt, Osdd, Ctxt, Osdd)) :-
     (S =.. [F | Vs]
     ->  find_int_mappings(Vs, Is),
         _S =.. [F | Is]
@@ -140,10 +143,10 @@ transform_pred(set_sw(S, V), set_sw(_S, V), (Arg, Arg)) :-
 
 % Any other predicate is also transformed by adding two extra
 % arguments for input OSDD and output OSDD
-transform_pred(Pred_in, Pred_out, (Arg_in, Arg_out)) :-
+transform_pred(Pred_in, Pred_out, (CtxtIn, OsddIn, CtxtOut, OsddOut)) :-
     Pred_in =.. [P | Args],
     find_int_mappings(Args, IntArgs),
-    basics:append(IntArgs, [Arg_in, Arg_out], NewArgs),
+    basics:append(IntArgs, [CtxtIn, OsddIn, CtxtOut, OsddOut], NewArgs),
     Pred_out =.. [P | NewArgs], !.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -216,7 +219,7 @@ find_int_mapping(V, V) :- !.
 % Write table declarations for predicate F/N
 :- table declare/3.
 declare(F, N, Handle) :-
-    N1 is N+1,
+    N1 is N+3,
     placeholders('', N1, P),
     str_cat(P,'lattice(or/3)', P1),
     %% open(OutFile, append, Handle),
