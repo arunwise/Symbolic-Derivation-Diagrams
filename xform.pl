@@ -1,31 +1,29 @@
-/*
- * Usage: transform_file('input_file', 'output_file').
- * Transforms a Probabilistic Logic Program into an OSDD processing form.
- * It is assumed that all values/2 declarations appear before all other predicates in 'input_file'.
- */
+:- import length/2, append/3, member/2, ith/3 from basics.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% File processing definitions
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% Read program in File, transform it and write to OutFile
-transform_file(File, OutFile) :- !,
-    seeing(OF), see(File),
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+transform_file(+InFile +OutFile)
+
+Read program in InFile, transform and write it to OutFile
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+transform_file(InFile, OutFile) :-
+    seeing(OF), see(InFile),
     abolish_table_pred(declare/3),
     assert(values_list([])),
     open(OutFile, write, Handle),
-    %% read_and_transform(OutFile),
     read_and_transform(Handle),
     values_list(L),  % Get the final values_list
-    %% open(OutFile, append, Handle),
-    num_vars:numbervars(L),
     write(Handle, 'values_list('), write(Handle, L), writeln(Handle, ').'), 
     close(Handle),
     retract(values_list(L)),
     seen, see(OF).
 
-% Read clauses from current inputstream and write transformed clauses
-% to OutFile
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+read_and_transform(+Handle)
+
+Read clauses from current inputstream and write transformed clauses to
+Handle.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 read_and_transform(Handle) :-
     read(Clause),
     (Clause == end_of_file
@@ -34,172 +32,270 @@ read_and_transform(Handle) :-
         (XClause = none
         ->  read_and_transform(Handle)
         ;   num_vars:numbervars(XClause),
-            writeln(XClause),
             write_clause(XClause, Handle),
             read_and_transform(Handle)
         )
     ).
 
-% Write transformed clause (including facts) to outfile
-% (basically strips off the enclosing parentheses)
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+write_clause(+XClause, +Handle)
+
+Write transformed clause 'XClause' to Handle.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 write_clause(XClause, Handle) :-
-    %% open(OutFile, append, Handle),
     ((H :- B) = XClause
-    ->  write(Handle, H), write(Handle, ' :- '), write(Handle, B), write(Handle, '.\n')
-    ;   write(Handle, XClause), write(Handle, '.\n')
-    ), 
-    %% close(Handle),
-    true.
+    ->
+	write(Handle, H),
+	write(Handle, ' :- '),
+	write(Handle, B),
+	write(Handle, '.\n')
+    ;
+        write(Handle, XClause),
+        write(Handle, '.\n')
+    ).
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Transformation definitions
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% Defines which queries Q may be invoked with native domain constants
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Defines which queries Q may be invoked with native domain constants
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 transform((:- export(Q)), (Q :- map_domain(Q, _Q), _Q), File) :- !.
 
-% Transform clauses and write table directives for transformed
-% predicates in the head
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+transform(+Clause, -XClause, +Handle)
+
+Transform 'Clause' to 'XClause' and write the table directives for
+rule head to Handle.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 transform((H_in :- B_in), (H_out :- B_out), Handle) :- !,
-    functor(H_in, F, N),
-    declare(F, N, Handle), % write table directives
     H_in =.. [Pred | Args],
+    length(Args, N),
+    declare(Pred, N, Handle), % write table directives
     transform_pred(H_in, H_out, ExtraArgs),
     transform_body(B_in, Args, B_out, ExtraArgs).
 
-% Transform facts except values/2 facts. For values/2 facts we define
-% types and write them to file.
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+transform(+Fact, -XFact, +Handle)
+
+Transform 'Fact' to 'XFact'. If the 'Fact' is a values/2 fact, define
+a type and write to Handle.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 transform(F_in, F_out, Handle) :-
     functor(F_in, F, _N),
     (F = values
     ->  process_domain(F_in, Handle),
-        transform_pred(F_in, F_out, (CtxtIn, OsddIn, CtxtIn, OsddIn)),
+        transform_pred(F_in, F_out, (CtxtIn-OsddIn, CtxtIn-OsddIn)),
         write_domain_intrange(F_out, Handle)
-    ;   transform_pred(F_in, F_out, (CtxtIn, OsddIn, CtxtIn, OsddIn))
+    ;   transform_pred(F_in, F_out, (CtxtIn-OsddIn, CtxtIn-OsddIn))
     ), !.
 
-% Transforms a sequence of goals (G_in, Gs_in) as follows: 
-%     Apply transform_body/3 on the single goal G_in to produce G_out, 
-%     Recurse on Gs_in
-transform_body((G_in, Gs_in), FreeVars, (G_out, Gs_out), (CtxtIn, OsddIn, CtxtOut, OsddOut)) :- !,
-    transform_pred(G_in, G_out, (CtxtIn, OsddIn, Ctxt, Osdd)),
-    transform_body(Gs_in, FreeVars, Gs_out, (Ctxt, Osdd, CtxtOut, OsddOut)).
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+transform_body(+Goals, +FreeVars, -XGoals, (+CtxtIn-OsddIn, -CtxtOut-OsddOut))
 
-% Transform a single goal
-transform_body(G_in, FreeVars, (G_out, project_context(Ctxt, FreeVars, CtxtOut), split_if_needed(Osdd, OsddOut)), (CtxtIn, OsddIn, CtxtOut, OsddOut)) :-
-    transform_pred(G_in, G_out, (CtxtIn, OsddIn, Ctxt, Osdd)).
+Transform a sequence of goals 'Goals' to 'XGoals'. After the last goal
+has been transformed, add 'project_context' and 'split_if_needed'
+goals'. 
+
+Chain the 'Ctxt-Osdd' argument so that the output of one goal is the
+input for the next goal in the sequence.
+
+Final 'CtxtOut-OsddOut' is returnd after performing projection and
+splitting.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+transform_body((G_in, Gs_in), FreeVars, (G_out, Gs_out),
+	       (CtxtIn-OsddIn, CtxtOut-OsddOut)) :- !,
+    transform_pred(G_in, G_out, (CtxtIn-OsddIn, Ctxt-Osdd)),
+    transform_body(Gs_in, FreeVars, Gs_out, (Ctxt-Osdd, CtxtOut-OsddOut)).
+
+transform_body(G_in, FreeVars,
+	       (G_out, project_context(Ctxt, FreeVars, CtxtOut),
+		split_if_needed(Osdd, OsddOut)),
+	       (CtxtIn-OsddIn, CtxtOut-OsddOut)) :-
+    transform_pred(G_in, G_out, (CtxtIn-OsddIn, Ctxt-Osdd)).
 
 
-% Transform predicates. The following predicates don't get transformed
-transform_pred(true, true, (Ctxt, Osdd, Ctxt, Osdd)) :- !.
-transform_pred(==(_X, _Y), ==(_X, _Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
-transform_pred(\==(_X, _Y), \==(_X, _Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
-transform_pred(=(_X, _Y), =(_X, _Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
-transform_pred(\=(_X, _Y), \=(_X, _Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
-transform_pred(<(_X, _Y), <(_X, _Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
-transform_pred(>(_X, _Y), >(_X, _Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
-transform_pred(=<(_X, _Y), =<(_X, _Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
-transform_pred(>=(_X, _Y), >=(_X, _Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
-transform_pred(!, !, (Ctxt, Osdd, Ctxt, Osdd)) :- !.
-transform_pred(.(X, Y), [X | Y], (Ctxt, Osdd, Ctxt, Osdd)) :- !.
-transform_pred(=..(X, Y), =..(X, Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
-transform_pred(is(X, Y), is(X, Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+transform_pred(+PredIn, -PredOut, (+CtxtIn-OsddIn, -CtxtOut-OsddOut))
 
-% Transform atomic constraints of the form {C} in constraint language
-% If C has some ground domain element we map this element to the integer domain
-transform_pred('{}'(C), constraint(_C, CtxtIn, OsddIn, CtxtOut, OsddOut), (CtxtIn, OsddIn, CtxtOut, OsddOut)) :- 
+The following predicates don't get transformed.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+transform_pred(true, true, (Ctxt-Osdd, Ctxt-Osdd)) :- !.
+transform_pred(==(X, Y), ==(X, Y), (Ctxt-Osdd, Ctxt-Osdd)) :- !.
+transform_pred(\==(X, Y), \==(X, Y), (Ctxt-Osdd, Ctxt-Osdd)) :- !.
+transform_pred(=(X, Y), =(X, Y), (Ctxt-Osdd, Ctxt-Osdd)) :- !.
+transform_pred(\=(X, Y), \=(X, Y), (Ctxt-Osdd, Ctxt-Osdd)) :- !.
+transform_pred(<(X, Y), <(X, Y), (Ctxt-Osdd, Ctxt-Osdd)) :- !.
+transform_pred(>(X, Y), >(X, Y), (Ctxt-Osdd, Ctxt-Osdd)) :- !.
+transform_pred(=<(X, Y), =<(X, Y), (Ctxt-Osdd, Ctxt-Osdd)) :- !.
+transform_pred(>=(X, Y), >=(X, Y), (Ctxt-Osdd, Ctxt-Osdd)) :- !.
+transform_pred(!, !, (Ctxt-Osdd, Ctxt-Osdd)) :- !.
+transform_pred(.(X, Y), [X | Y], (Ctxt-Osdd, Ctxt-Osdd)) :- !.
+transform_pred(=..(X, Y), =..(X, Y), (Ctxt-Osdd, Ctxt-Osdd)) :- !.
+transform_pred(is(X, Y), is(X, Y), (Ctxt-Osdd, Ctxt-Osdd)) :- !.
+
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+transform_pred(+Constraint, -XConstraint, (+CtxtIn-OsddIn, -CtxtOut-OsddOut))
+
+Given input constraint 'Constraint' (of the form {X=Y} or {X\=Y})
+transform it to 'XConstraint'. If 'Constraint' has some ground domain
+element then we map this element to the integer domain.
+
+For example, if 'Constraint' is {X=Y}, 'XConstraint' would be
+constraint(X=Y, CtxtIn-OsddIn, CtxtOut-OsddOut).
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+transform_pred('{}'(C),
+	       constraint(XC, CtxtIn-OsddIn, CtxtOut-OsddOut),
+	       (CtxtIn-OsddIn, CtxtOut-OsddOut)) :- 
     C =.. [F, Lhs, Rhs],
     (nonvar(Lhs)
-    ->  find_int_mapping(Lhs, I),
-        _C =.. [F, I, Rhs]
-    ;   (nonvar(Rhs)
-        ->  find_int_mapping(Rhs, I),
-            _C =.. [F, Lhs, I]
-        ;   C = _C
+    ->
+	find_int_mapping(Lhs, I),
+        XC =.. [F, I, Rhs]
+    ;
+        (nonvar(Rhs)
+        ->
+	    find_int_mapping(Rhs, I),
+            XC =.. [F, Lhs, I]
+        ;
+	    C = XC
         )
     ), !.
 
 
-% Transform msw/3 by possibly renaming type elements to integer domains
-transform_pred(msw(S,I,X), msw(_S,I,X, CtxtIn, OsddIn, CtxtOut, OsddOut), (CtxtIn, OsddIn, CtxtOut, OsddOut)) :- 
-    (var(S)
-    ->  _S = S
-    ;   S =.. [F | Vs],
-        find_int_mappings(Vs, Is),
-        _S =.. [F | Is]
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+transform_pred(+msw(S,I,X), -msw(XS, I, X, CtxtIn-OsddIn, CtxtOut-OsddOut),
+(+CtxtIn-OsddIn, -CtxtOut-OsddOut))
+
+Transform msw(S, I, X) by adding extra arguments CtxtIn-OsddIn and
+CtxtOut-OsddOut. We also check that 'S' is a ground atom, and fail
+otherwise. If 'S' is ground we change ground domain values to their
+corresponding integer values.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+transform_pred(msw(S, I, X),
+	       msw(XS, I, X, CtxtIn-OsddIn, CtxtOut-OsddOut),
+	       (CtxtIn-OsddIn, CtxtOut-OsddOut)) :-
+    (ground(S)
+    ->
+	S =.. [F | Vs],
+	find_int_mappings(Vs, Is),
+	XS =.. [F | Is]
+    ;
+        write('non-ground switch in the program: '), writeln(S),
+        fail
     ), !.
 
-% Transforms a values/2 declarations by mapping the domain to integers
-transform_pred(values(S, V), values(S, _V), (Ctxt, Osdd, Ctxt, Osdd)) :- 
-    make_numerical(S, V, _V), !.
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+transform_pred(+values(S, V), -values(XS, I), (+Ctxt-Osdd, -Ctxt-Osdd))
 
-% Transforms set_sw(S, V) declarations by possibly renaming terms in S
-transform_pred(set_sw(S, V), set_sw(_S, V), (Ctxt, Osdd, Ctxt, Osdd)) :-
-    (S =.. [F | Vs]
-    ->  find_int_mappings(Vs, Is),
-        _S =.. [F | Is]
-    ;   S = _S
+Transform values/2 facts. Map any arguments of the switch to
+corresponding integers and also map the list of values to their
+corresponding integer values.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+transform_pred(values(S, V), values(XS, I), (Ctxt-Osdd, Ctxt-Osdd)) :-
+    (ground(S)
+    ->
+	S =.. [F | Vs],
+	find_int_mappings(Vs, Is),
+	XS =.. [F | Is]
+    ;
+        write('non-ground switch in the program: '), writeln(S),
+        fail
+    ),
+    make_numerical(V, I), !.
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+transform_pred(+set_sw(S, V), -set_sw(XS, V), (+Ctxt-Osdd, -Ctxt-Osdd))
+
+Transform set_sw directives by transforming switch names if they contain
+domain constants. The domain constants are mapped to integer values.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+transform_pred(set_sw(S, V), set_sw(XS, V), (Ctxt-Osdd, Ctxt-Osdd)) :-
+    (ground(S)
+    ->
+	S =.. [F | Vs],
+	find_int_mappings(Vs, Is),
+	XS =.. [F | Is]
+    ;
+        write('non-ground switch in the program: '), writeln(S),
+        fail
     ), !.
 
-% Any other predicate is also transformed by adding two extra
-% arguments for input OSDD and output OSDD
-transform_pred(Pred_in, Pred_out, (CtxtIn, OsddIn, CtxtOut, OsddOut)) :-
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+transform_pred(+PredIn, -PredOut, (+CtxtIn-OsddIn, -CtxtOut-OsddOut))
+
+Transform any other predicate by adding extra arguments.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+transform_pred(Pred_in, Pred_out, (CtxtIn-OsddIn, CtxtOut-OsddOut)) :-
     Pred_in =.. [P | Args],
     find_int_mappings(Args, IntArgs),
-    basics:append(IntArgs, [CtxtIn, OsddIn, CtxtOut, OsddOut], NewArgs),
+    append(IntArgs, [CtxtIn-OsddIn, CtxtOut-OsddOut], NewArgs),
     Pred_out =.. [P | NewArgs], !.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Domain processing definitions
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+process_domain(+values(S, V), +Handle)
 
-% Processes the domain of a values declaration
-% The integer mapping corresponds to the position of Value in L.
-% If some V in Values is already in L, the type is already mapped
+Update the values_list/1 fact by adding the values 'V' if they are not
+already part of the values_list.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 process_domain(F_in, Handle) :-
     F_in =.. [_ | [_, Values]],
     values_list(L),
-    (basics:member(V, Values), basics:member(V, L) % Values is already in L
+    (member(V, Values), member(V, L) % Values is already in L
     ->  true
-    ;   basics:append(L, Values, L1),
+    ;   append(L, Values, L1),
         assert(values_list(L1)),
         retract(values_list(L))
     ).
 
-% Writes intrange/3 facts to the output file
-:- table write_domain_intrange/4.
+:- table write_domain_intrange/2.
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+write_domain_intrange(+values(S, I), +Handle)
+
+The argument 'I' is a list of contiguous integers. Find the first and
+last values in the list and write intrange/3 fact.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 write_domain_intrange(F_out, Handle) :-
     F_out =.. [_, S, V],
-    basics:length(V, L),
-    basics:ith(1, V, Start),
-    basics:ith(L, V, End),
-    num_vars:numbervars(S),
-    %% open(OutFile, append, Handle),
+    length(V, L),
+    ith(1, V, Start),
+    ith(L, V, End),
     write(Handle, intrange(S, Start, End)), write(Handle, '.\n'),
-    %% close(Handle),
     true.
 
-% For each value V we find its position I in values_list
-%     then we add I to the mapped domain list
-make_numerical(_, [], []).
-make_numerical(S, [V|Vs], [I|_Vs]) :-
-    values_list(L),
-    basics:ith(I, L, V),
-    make_numerical(S, Vs, _Vs).
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+make_numerical(+Values -Indices)
 
-% Returns the list of int mappings Is from a list of values Vs
+'Indices' is the list of indices of elements in 'Values' in the list
+given by values_list/1.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+make_numerical([], []).
+make_numerical([V|Vs], [I|_Vs]) :-
+    values_list(L),
+    ith(I, L, V),
+    make_numerical(Vs, _Vs).
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+find_int_mappings(+List, -Ilist)
+
+Map constants in List to their indices.
+
+Seems to duplicate the functionality of make_numerical/2
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 find_int_mappings([], []).
 
 find_int_mappings([V|Vs], [I|Is]) :-
     find_int_mapping(V, I),
     find_int_mappings(Vs, Is).
 
-% Returns the integer mapping I for V in the values_list
 find_int_mapping(V, I) :-
     nonvar(V),
     values_list(L),
     basics:ith(I, L, V), !.
 
+%% do we really need this ??
 find_int_mapping(V, I) :-
     nonvar(V),
     (V =.. [F|Args], Args \= []
@@ -212,19 +308,21 @@ find_int_mapping(V, I) :-
  % If V is not in the values_list, do not change V
 find_int_mapping(V, V) :- !.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Tabling definitions
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% Write table declarations for predicate F/N
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+declare(+Pred, +Arity, +Handle)
+
+Write table declaration for transformation of Pred/Arity. The transformed
+predicate will have arity Arity+2. This is reflected below. Also use lattice
+answer subsumption for the last argument.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 :- table declare/3.
 declare(F, N, Handle) :-
-    N1 is N+2,
+    N1 is N+1,
     placeholders('', N1, P),
-    str_cat(P,'lattice(or_context/3),lattice(or/3)', P1),
-    %% open(OutFile, append, Handle),
+    str_cat(P, 'lattice(or/3)', P1),
     fmt_write(Handle, ':- table %s(%s).\n', args(F, P1)),
-    %% close(Handle),
     true.
 
 placeholders(S, 0, S).
