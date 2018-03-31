@@ -219,9 +219,9 @@ find_int_mapping(V, V) :- !.
 % Write table declarations for predicate F/N
 :- table declare/3.
 declare(F, N, Handle) :-
-    N1 is N+3,
+    N1 is N+2,
     placeholders('', N1, P),
-    str_cat(P,'lattice(or/3)', P1),
+    str_cat(P,'lattice(or_context/3),lattice(or/3)', P1),
     %% open(OutFile, append, Handle),
     fmt_write(Handle, ':- table %s(%s).\n', args(F, P1)),
     %% close(Handle),
