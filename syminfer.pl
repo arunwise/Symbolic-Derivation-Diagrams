@@ -9,6 +9,7 @@
 :- import list_to_ord_set/2 from ordsets.
 :- import empty_assoc/1, put_assoc/4, get_assoc/3, list_to_assoc/2 from assoc_xsb.
 :- import member/2 from basics.
+:- import memberchk_eq/2 from lists.
 :- import prepare/1, gensym/2 from gensym.
 
 :- import writeDotFile/2 from visualize.
@@ -33,17 +34,15 @@
 %     Then set the ID of X to be the pair (S, I),
 %     Construct the OSDD rooted at X with a single edge labeled with constraints C and a leaf node 1,
 %     AND this OSDD rooted at X with C_in to compute C_out
-msw(S, I, X, C_in, C_out) :- !,
+msw(S, I, X, CtxtIn, OsddIn, CtxtOut, OsddOut) :- !,
     writeln('\nIN MSW...'),
-    (contains(C_in, X)
-    ->  C_out = C_in
+    (contains(OsddIn, X)
+    ->  OsddOut = OsddIn
     ;   values(S, T),
-        set_type(X, T),
-        set_id(X, id(S, I)),
+	basics:append(CtxtIn, [c(X, id(S, I), T)], CtxtOut)
 	make_osdd(X, [edge_subtree([], leaf(1))], Osdd),
-        % make_tree(X, [[]], [leaf(1)], Osdd),   % osdd: X -- C --> 1
-        and(C_in, Osdd, C_out),
-        write('C_in: '), writeln(C_in), write('C_out: '), writeln(C_out)
+        and(OsddIn, Osdd, OsddOut),
+        write('OsddIn: '), writeln(OsddIn), write('OsddOut: '), writeln(OsddOut)
     ).
 
 % Definition of atomic constraint processing for equality constraints.
@@ -53,69 +52,68 @@ msw(S, I, X, C_in, C_out) :- !,
 %     (ie. constraints on X must occur after msw(S, I, X))
 % Update the constraint lists of any variable arguments
 % Finally update the edges for Lhs and Rhs.
-constraint(Lhs=Rhs, C_in, C_out) :-
+constraint(Lhs=Rhs, CtxtIn, OsddIn, CtxtOut, OsddOut) :-
     (var(Lhs); var(Rhs)),  % at most one of Lhs and Rhs can be a ground term
-    %% order_constraint(Lhs=Rhs, Ordered_Constraint),
-
     %% write('=======\n\n= CONSTRAINT: '), writeln(Ordered_Constraint),
     write('=======\n\n= CONSTRAINT: '), writeln(Lhs=Rhs),
     write('\nCin: '), writeln(C_in),
 
     (var(Lhs)
     ->
-	type_check(Lhs, Rhs)
+	type_check(CtxtIn, Lhs, Rhs)
     ;
-        type_check(Rhs, Lhs)
+        type_check(CtxtIn, Rhs, Lhs)
     ),
 
     % Update the edges
-    (var(Lhs), var(Rhs), compare_roots(Lhs, Rhs, C)  /* If both are vars then we need to order them */
+    (var(Lhs), var(Rhs), compare_roots(CtxtIn, Lhs, Rhs, C)  /* If both are vars then we need to order them */
     ->  (C > 0  /* Rhs is smaller */
-        -> update_edges(C_in, Lhs, Lhs=Rhs, [], C_out)
+        -> update_edges(OsddIn, Lhs, Lhs=Rhs, [], OsddOut)
         ;   (C < 0 /* Lhs is smaller */
-            ->  update_edges(C_in, Rhs, Lhs=Rhs, [], C_out)
+            ->  update_edges(OsddIn, Rhs, Lhs=Rhs, [], OsddOut)
             ;   fail
             )
         )
     ;   (var(Lhs)  /* One of Lhs and Rhs is a variable */
-        ->  update_edges(C_in, Lhs, Lhs=Rhs, [], C_out)
-        ;   update_edges(C_in, Rhs, Lhs=Rhs, [], C_out)  
+        ->  update_edges(OsddIn, Lhs, Lhs=Rhs, [], OsddOut)
+        ;   update_edges(OsddIn, Rhs, Lhs=Rhs, [], OsddOut)  
         )
-    ), 
-    write('\nCout: '), writeln(C_out), write('\n=======\n'), !.
+    ),
+    CtxtOut = CtxtIn,
+    write('\nOsddOut: '), writeln(OsddOut), write('\n=======\n'), !.
+
 
 % Definition of atomic constraint processing for inequality constraints.
 % Same logic as in equality constraints.
-constraint(Lhs\=Rhs, C_in, C_out) :-
+constraint(Lhs=Rhs, CtxtIn, OsddIn, CtxtOut, OsddOut) :-
     (var(Lhs); var(Rhs)),  % at most one of Lhs and Rhs can be a ground term
-    %% order_constraint(Lhs\=Rhs, Ordered_Constraint),
-
-    %% write('=======\n\n\= CONSTRAINT: '), writeln(Ordered_Constraint),
-    write('=======\n\n\= CONSTRAINT: '), writeln(Lhs\=Rhs),
+    %% write('=======\n\n= CONSTRAINT: '), writeln(Ordered_Constraint),
+    write('=======\n\n= CONSTRAINT: '), writeln(Lhs\=Rhs),
     write('\nCin: '), writeln(C_in),
 
     (var(Lhs)
     ->
-	type_check(Lhs, Rhs)
+	type_check(CtxtIn, Lhs, Rhs)
     ;
-        type_check(Rhs, Lhs)
+        type_check(CtxtIn, Rhs, Lhs)
     ),
 
     % Update the edges
-    (var(Lhs), var(Rhs), compare_roots(Lhs, Rhs, C)  /* If both are vars then we need to order them */
+    (var(Lhs), var(Rhs), compare_roots(CtxtIn, Lhs, Rhs, C)  /* If both are vars then we need to order them */
     ->  (C > 0  /* Rhs is smaller */
-        -> update_edges(C_in, Lhs, Lhs\=Rhs, [], C_out)
+        -> update_edges(OsddIn, Lhs, Lhs\=Rhs, [], OsddOut)
         ;   (C < 0 /* Lhs is smaller */
-            ->  update_edges(C_in, Rhs, Lhs\=Rhs, [], C_out)
+            ->  update_edges(OsddIn, Rhs, Lhs\=Rhs, [], OsddOut)
             ;   fail
             )
         )
     ;   (var(Lhs)  /* One of Lhs and Rhs is a variable */
-        ->  update_edges(C_in, Lhs, Lhs\=Rhs, [], C_out)
-        ;   update_edges(C_in, Rhs, Lhs\=Rhs, [], C_out)
+        ->  update_edges(OsddIn, Lhs, Lhs\=Rhs, [], OsddOut)
+        ;   update_edges(OsddIn, Rhs, Lhs\=Rhs, [], OsddOut)  
         )
-    ), 
-    write('\nCout: '), writeln(C_out), write('\n=======\n'), !.
+    ),
+    CtxtOut = CtxtIn,
+    write('\nOsddOut: '), writeln(OsddOut), write('\n=======\n'), !.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % OSDD construction definitions
@@ -385,13 +383,13 @@ remove_empty_edge_subtrees([X|Rest], [X|Cleaned]) :-
     remove_empty_edge_subtrees(Rest, Cleaned).
 
 % Compares two root nodes based on switch/instance ID
-compare_roots(R1, R2, 0) :-
-    read_id(R1, id(S, I)),
-    read_id(R2, id(S, I)).
+compare_roots(Ctxt, R1, R2, 0) :-
+    find_id(Ctxt, R1, id(S, I)),
+    find_id(Ctxt, R2, id(S, I)).
 
-compare_roots(R1, R2, -1) :-
-    read_id(R1, id(S1, I1)),
-    read_id(R2, id(S2, I2)),
+compare_roots(Ctxt, R1, R2, -1) :-
+    find_id(Ctxt, R1, id(S1, I1)),
+    find_id(Ctxt, R2, id(S2, I2)),
     (I1 @< I2
     ->  true
     ;   (S1 @< S2
@@ -400,9 +398,9 @@ compare_roots(R1, R2, -1) :-
         )
     ).
 
-compare_roots(R1, R2, 1) :-
-    read_id(R1, id(S1, I1)),
-    read_id(R2, id(S2, I2)),
+compare_roots(Ctxt, R1, R2, 1) :-
+    find_id(Ctxt, R1, id(S1, I1)),
+    find_id(Ctxt, R2, id(S2, I2)),
     (I1 @> I2
     ->  true
     ;   (S1 @> S2
@@ -410,6 +408,12 @@ compare_roots(R1, R2, 1) :-
         ;   false
         )
     ).
+
+find_id([c(X, ID, Type)|Rest], Term, ID) :-
+    X == Term, !.
+find_id([c(X, IDX, Type)|Rest], Term, ID) :-
+    X \== Term,
+    find_id(Rest, Term, ID).
 
 % OSSD contains X if X is the root
 contains(tree(Y, _), X) :- X==Y, !.
@@ -605,18 +609,22 @@ type_check(+Term1, +Term2)
 Is true if both Term1 and Term2 have the same type.
 It is required that Term1 be a variable, Term2 can be a variable or const.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-type_check(Term1, Term2) :-
-    % Ensure that constraint occurs after type has been set. Currently
-    % read_type returns a variable for Type if its not been set
-    read_type(Term1, Type),
-    nonvar(Type), 
+type_check(Ctxt, Term1, Term2) :-
+    % Ensure that constraint occurs after type has been set. 
+    find_type(Ctxt, Term1, Type),
     (var(Term2)
     ->
-	 read_type(Term2, Type)
+	find_type(Ctxt, Term2, Type)
     ;
     member(Term2, Type)
     ).
 
+find_type([c(X, ID, Type)|Rest], Term, Type) :-
+    X == Term, !.
+find_type([c(X, ID, TypeX)|Rest], Term, Type) :-
+    X \== Term,
+    find_type(Rest, Term, Type).
+    
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Query processing definitions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
