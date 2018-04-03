@@ -363,10 +363,9 @@ canonical_form(+EdgeSubTrees, +CanonicalForm)
 
 Convert the list of 'EdgeSubTrees' into a canonical form.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-canonical_form([], []).
 canonical_form(ETIn, ETOut) :-
     canonical_form_1(ETIn, ET),
-    sort(ET, ETF).
+    sort(ET, ETOut).
 
 canonical_form_1([], []).
 canonical_form_1([edge_subtree(E, T) | Rest], [edge_subtree(CE, T) | RestC]) :-
