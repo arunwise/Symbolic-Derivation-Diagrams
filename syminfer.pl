@@ -1,16 +1,9 @@
-/*
- * Code for symbolic inference using OSDDs.
- * Usage: ?- [syminfer, 'path/to/transformed_file'] % Load files and libraries
- * To construct an OSDD for ground query q(v1,...,vn) use ?- q(v1,....,vn,leaf(1),O).
- */
-
 :- import vertices_edges_to_ugraph/3, transitive_closure/2, edges/2,
    neighbors/3, vertices/2 from ugraphs.
 :- import list_to_ord_set/2 from ordsets.
 :- import empty_assoc/1, put_assoc/4, get_assoc/3, list_to_assoc/2 from assoc_xsb.
 :- import member/2 from basics.
 :- import memberchk_eq/2 from lists.
-:- import prepare/1, gensym/2 from gensym.
 
 :- import writeDotFile/2 from visualize.
 
@@ -20,101 +13,119 @@
 
 :- import absmerge/3 from listutil.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Constraint/msw definitions
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% Definition of msw constraint processing.
-% If X is in C_in 
-%     set C_in = C_out
-% Otherwise 
-%     First set the type of X to be the domain of S,
-%     Set bounds_var of X which will have the bounds constraints applied to
-%         set the range of X:bounds_var to be the range of the domain of S,
-%     Then set the ID of X to be the pair (S, I),
-%     Construct the OSDD rooted at X with a single edge labeled with constraints C and a leaf node 1,
-%     AND this OSDD rooted at X with C_in to compute C_out
+%%%%%%%%%
+
+:- import append/3, member/2 from basics.
+:- import prepare/1, gensym/2 from gensym.
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+msw(+S, +I, X, +CtxtIn-OsddIn, -CtxtOut-OsddOut)
+
+Update the +CtxtIn with Id of random variable X.  Compute OsddOut as
+conjunction of OsddIn and trivial OSDD for msw(S,I,X).
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 msw(S, I, X, CtxtIn, OsddIn, CtxtOut, OsddOut) :- !,
-    writeln('\nIN MSW...'),
-    (contains(OsddIn, X)
-    ->  OsddOut = OsddIn
-    ;   values(S, T),
-	basics:append(CtxtIn, [c(X, id(S, I), T)], CtxtOut)
-	make_osdd(X, [edge_subtree([], leaf(1))], Osdd),
-        and(OsddIn, Osdd, OsddOut),
-        write('OsddIn: '), writeln(OsddIn), write('OsddOut: '), writeln(OsddOut)
+    ground(S),
+    ground(I),
+    update_context(CtxtIn, X, S, I, CtxtOut),
+    trivial_osdd(S, I, Osdd),
+    and(OsddIn, Osdd, OsddOut).
+    
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+constraint(+C, +CtxtIn-OsddIn, -CtxtOut-OsddOut)
+
+Perform type checking of atomic constraint C and update the OsddIn to OsddOut
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+constraint(C, CtxtIn-OsddIn, CtxtIn-OsddOut) :-
+    type_check(CtxtIn, C),
+    apply_constraint(OsddIn, C, [], [], OsddOut).
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+apply_constraint(+NodeIn, +Constraint, +OutVars, +PathConstr, -NodeOut)
+
+Given a node 'NodeIn', whose path to root contains output variables
+'OutVars' and the path constraints are 'PathConstr', apply the atomic
+constraint 'Constraint' and return the new node 'NodeOut'.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+apply_constraint(NodeIn, C, OutVars, PathConstr, NodeOut) :-
+    (unique_table(NodeIn, 0)
+    ->
+	NodeOut = NodeIn
+    ;
+        (unique_table(NodeIn, 1)
+	->
+	    NodeOut = NodeIn
+	;
+	    unique_table(NodeIn, tree(Root, EdgeSubTrees)),
+	    append(OutVars, [Root], OutVars1),
+	    (urgency_satisfied(OutVars1, C)
+	    ->
+		apply_constraint_2(EdgeSubTrees, C, PathConstr,
+				   EdgeSubTreesOut1),
+		negat_atomic_constraint(C, CN),
+		add_node(0, Z),
+		append(EdgeSubTreesOut, [edge_subtree([CN], Z)],
+		       EdgeSubTreesOut)
+	    ;
+                apply_constraint_1(EdgeSubTrees, C, OutVars1,
+				 PathConstr, EdgeSubTreesOut)
+	    ),
+	    add_node(tree(Root, EdgeSubTreesOut), NodeOut)
+	)
     ).
 
-% Definition of atomic constraint processing for equality constraints.
-% First check if at least one of the arguments of the constraint is a variable
-% Then get the types of both arguments
-%     If Lhs or Rhs has empty type and is a variable, fail
-%     (ie. constraints on X must occur after msw(S, I, X))
-% Update the constraint lists of any variable arguments
-% Finally update the edges for Lhs and Rhs.
-constraint(Lhs=Rhs, CtxtIn, OsddIn, CtxtOut, OsddOut) :-
-    (var(Lhs); var(Rhs)),  % at most one of Lhs and Rhs can be a ground term
-    %% write('=======\n\n= CONSTRAINT: '), writeln(Ordered_Constraint),
-    write('=======\n\n= CONSTRAINT: '), writeln(Lhs=Rhs),
-    write('\nCin: '), writeln(C_in),
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+apply_constraint_1(+EdgeSubtrees, +Constraint, +OutVars, +PathConstr, 
+                                                         -EdgeSubTreesOut)
 
-    (var(Lhs)
+Given a list of edge/subtree pairs, whose root has 'OutVars' as the
+set of output variables on the path to the root and whose path
+constraints are 'PathConstr', apply the atomic constraint 'Constraint'
+to each of the subtrees and return the new list of edge/subtree pairs.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+apply_constraint_1([], _C, _O, _P, []).
+apply_constraint_1([edge_subtree(E, T)| Rest], C, OutVars,
+		   PathConstr, [edge_subtree(E, TOut)| RestOut]) :-
+    append(PathConstr, E, PathConstr1),
+    apply_constraint(T, C, OutVars, PathConstr1, TOut),
+    apply_constraint_1(Rest, C, OutVars, PathConstr, RestOut).
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+apply_constraint_2(+EdgeSubtrees, +Constraint, +PathConstr,
+                                               -EdgeSubtreesOut)
+
+Given a list of edge/subtree pairs, whose root has 'PathConstr'
+labeling the path to the root, apply 'Constraint' to each of the edges
+and return the new list of edge/subtree pairs.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+apply_constraint_2([], _C, _P, []).
+apply_constraint_2([edge_subtree(E, T)| Rest], C, PathConstr,
+		   [edge_subtree(EOut, TOut)| RestOut]) :-
+    append(PathConstr, E, PathConstr1),
+    append(PathConstr1, [C], PathConstr2),
+    (satisfiable(PathConstr2)
     ->
-	type_check(CtxtIn, Lhs, Rhs)
+	TOut = T
     ;
-        type_check(CtxtIn, Rhs, Lhs)
+        add_node(0, TOut)
     ),
+    append(E, [C], EOut),
+    apply_constraint_2(Rest, C, PathConstr, RestOut).
 
-    % Update the edges
-    (var(Lhs), var(Rhs), compare_roots(CtxtIn, Lhs, Rhs, C)  /* If both are vars then we need to order them */
-    ->  (C > 0  /* Rhs is smaller */
-        -> update_edges(OsddIn, Lhs, Lhs=Rhs, [], OsddOut)
-        ;   (C < 0 /* Lhs is smaller */
-            ->  update_edges(OsddIn, Rhs, Lhs=Rhs, [], OsddOut)
-            ;   fail
-            )
-        )
-    ;   (var(Lhs)  /* One of Lhs and Rhs is a variable */
-        ->  update_edges(OsddIn, Lhs, Lhs=Rhs, [], OsddOut)
-        ;   update_edges(OsddIn, Rhs, Lhs=Rhs, [], OsddOut)  
-        )
-    ),
-    CtxtOut = CtxtIn,
-    write('\nOsddOut: '), writeln(OsddOut), write('\n=======\n'), !.
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+add_node(+Subtree, -Node)
 
-
-% Definition of atomic constraint processing for inequality constraints.
-% Same logic as in equality constraints.
-constraint(Lhs=Rhs, CtxtIn, OsddIn, CtxtOut, OsddOut) :-
-    (var(Lhs); var(Rhs)),  % at most one of Lhs and Rhs can be a ground term
-    %% write('=======\n\n= CONSTRAINT: '), writeln(Ordered_Constraint),
-    write('=======\n\n= CONSTRAINT: '), writeln(Lhs\=Rhs),
-    write('\nCin: '), writeln(C_in),
-
-    (var(Lhs)
-    ->
-	type_check(CtxtIn, Lhs, Rhs)
-    ;
-        type_check(CtxtIn, Rhs, Lhs)
-    ),
-
-    % Update the edges
-    (var(Lhs), var(Rhs), compare_roots(CtxtIn, Lhs, Rhs, C)  /* If both are vars then we need to order them */
-    ->  (C > 0  /* Rhs is smaller */
-        -> update_edges(OsddIn, Lhs, Lhs\=Rhs, [], OsddOut)
-        ;   (C < 0 /* Lhs is smaller */
-            ->  update_edges(OsddIn, Rhs, Lhs\=Rhs, [], OsddOut)
-            ;   fail
-            )
-        )
-    ;   (var(Lhs)  /* One of Lhs and Rhs is a variable */
-        ->  update_edges(OsddIn, Lhs, Lhs\=Rhs, [], OsddOut)
-        ;   update_edges(OsddIn, Rhs, Lhs\=Rhs, [], OsddOut)  
-        )
-    ),
-    CtxtOut = CtxtIn,
-    write('\nOsddOut: '), writeln(OsddOut), write('\n=======\n'), !.
-
+Add an entry to the unique_table for the tree 'SubTree' if it doesn't
+already exist.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+:- table add_node/2.
+add_node(SubTree, Node) :-
+    gensym(node, Node),
+    assert('$unique_table'(Node, SubTree)).
+    
+	    
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % OSDD construction definitions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -605,23 +616,52 @@ graph_to_formula(Assoc, Op, [ID1-ID2|R], Cin, Cout) :-
     ).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-type_check(+Term1, +Term2)
+type_check(+Ctxt, +Constraint)
+
+Is true if Constraint is type consistent with respect to context.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+type_check(Ctxt, Lhs=Rhs) :-
+    (var(Lhs); var(Rhs)), !,
+    (var(Lhs)
+    ->
+	type_check(CtxtIn, Lhs, Rhs)
+    ;
+        type_check(CtxtIn, Rhs, Lhs)
+    ).
+
+type_check(Ctxt, Lhs\=Rhs) :-
+    (var(Lhs); var(Rhs)), !,
+    (var(Lhs)
+    ->
+	type_check(CtxtIn, Lhs, Rhs)
+    ;
+        type_check(CtxtIn, Rhs, Lhs)
+    ).
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+type_check(+Ctxt, +Term1, +Term2)
 Is true if both Term1 and Term2 have the same type.
 It is required that Term1 be a variable, Term2 can be a variable or const.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 type_check(Ctxt, Term1, Term2) :-
-    % Ensure that constraint occurs after type has been set. 
-    find_type(Ctxt, Term1, Type),
+    (var(Term1)
+    ->
+	find_type(Ctxt, Term1, Type)
+    ;
+        writeln('First argument to type_check/3 is not a variable'),
+        fail
+    ),
     (var(Term2)
     ->
 	find_type(Ctxt, Term2, Type)
     ;
-    member(Term2, Type)
+        member(Term2, Type)
     ).
 
-find_type([c(X, ID, Type)|Rest], Term, Type) :-
-    X == Term, !.
-find_type([c(X, ID, TypeX)|Rest], Term, Type) :-
+find_type([X-(S, _I)| Rest], Term, Type) :-
+    X == Term, !,
+    values(S, Type).
+find_type([X-(S, I)|Rest], Term, Type) :-
     X \== Term,
     find_type(Rest, Term, Type).
     
@@ -692,9 +732,28 @@ edge_prob_1(R, V, T, P) :-
 % Misc
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+update_context(CtxtIn, X, S, I, CtxtOut) :-
+    (existing_context(CtxtIn, X, S1, I1)
+    ->
+	S = S1,
+	I = I1
+    ;
+        append(CtxtIn, [X-(S, I)], CtxtOut)
+    ).
+
+existing_context([X1-(S1, I1) | Rest], X, S, I) :-
+    (X == X1
+    ->
+	S = S1,
+	I = I1
+    ;
+        existing_context(Rest, X, S, I)
+    ).
+
 writeDot(OSDD, File) :- writeDotFile(OSDD, File).
 
 :- dynamic '$id_label'/2.
+
 
 initialize :-
     retractall('$id_label'/2),
