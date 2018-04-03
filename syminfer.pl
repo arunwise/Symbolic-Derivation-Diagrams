@@ -18,15 +18,16 @@
 
 :- import append/3, member/2 from basics.
 :- import prepare/1, gensym/2 from gensym.
+:- import concat_atom/2 from string.
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 msw(+S, +I, X, +CtxtIn-OsddIn, -CtxtOut-OsddOut)
 
-Update the +CtxtIn with Id of random variable X.  Compute OsddOut as
+Update the CtxtIn with Id of random variable X. Compute OsddOut as
 conjunction of OsddIn and trivial OSDD for msw(S,I,X).
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-msw(S, I, X, CtxtIn, OsddIn, CtxtOut, OsddOut) :- !,
+msw(S, I, X, CtxtIn-OsddIn, CtxtOut-OsddOut) :-
     ground(S),
     ground(I),
     update_context(CtxtIn, X, S, I, CtxtOut),
@@ -34,48 +35,72 @@ msw(S, I, X, CtxtIn, OsddIn, CtxtOut, OsddOut) :- !,
     and(OsddIn, Osdd, OsddOut).
     
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-constraint(+C, +CtxtIn-OsddIn, -CtxtOut-OsddOut)
+constraint(+C, +CtxtIn-OsddIn, -CtxtIn-OsddOut)
 
 Perform type checking of atomic constraint C and update the OsddIn to OsddOut
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 constraint(C, CtxtIn-OsddIn, CtxtIn-OsddOut) :-
     type_check(CtxtIn, C),
-    apply_constraint(OsddIn, C, [], [], OsddOut).
+    apply_constraint(CtxtIn-OsddIn, C, [], [], CtxtIn-OsddOut).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-apply_constraint(+NodeIn, +Constraint, +OutVars, +PathConstr, -NodeOut)
+apply_constraint(+CtxtIn-NodeIn, +Constraint, +OutVars, +PathConstr, 
+                 -CtxtIn-NodeOut)
 
 Given a node 'NodeIn', whose path to root contains output variables
 'OutVars' and the path constraints are 'PathConstr', apply the atomic
-constraint 'Constraint' and return the new node 'NodeOut'.
+constraint 'Constraint' to the subtree rooted at 'NodeIn' and return
+the new node 'NodeOut'.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 apply_constraint(NodeIn, C, OutVars, PathConstr, NodeOut) :-
-    (unique_table(NodeIn, 0)
+    ('$unique_table'(NodeIn, 0)
     ->
 	NodeOut = NodeIn
     ;
-        (unique_table(NodeIn, 1)
+        ('$unique_table'(NodeIn, 1)
 	->
 	    NodeOut = NodeIn
 	;
-	    unique_table(NodeIn, tree(Root, EdgeSubTrees)),
-	    append(OutVars, [Root], OutVars1),
-	    (urgency_satisfied(OutVars1, C)
+	    '$unique_table'(NodeIn, tree(Root, EdgeSubTrees)),
+	    canonical_label(S, I, Root),
+	    append(OutVars, [(S, I)], OutVars1),
+	    (urgency_satisfied(CtxtIn, OutVars1, C)
 	    ->
 		apply_constraint_2(EdgeSubTrees, C, PathConstr,
 				   EdgeSubTreesOut1),
 		negat_atomic_constraint(C, CN),
-		add_node(0, Z),
+		make_node(0, Z),
 		append(EdgeSubTreesOut, [edge_subtree([CN], Z)],
 		       EdgeSubTreesOut)
 	    ;
                 apply_constraint_1(EdgeSubTrees, C, OutVars1,
 				 PathConstr, EdgeSubTreesOut)
 	    ),
-	    add_node(tree(Root, EdgeSubTreesOut), NodeOut)
+	    make_node(tree(Root, EdgeSubTreesOut), NodeOut)
 	)
     ).
 
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+urgency_satisfied(+Ctxt, +Vars, +Constraint)
+
+Is true when all the variables involved in 'Constraint' are elements
+of 'Vars'.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+urgency_satisfied(Ctxt, Vars, Lhs=Rhs) :-
+    (var(Lhs)
+    ->
+	existing_context(Ctxt, Lhs, S, I),
+	member((S, I), Vars)
+    ;
+        true
+    ),
+    (var(Rhs)
+    ->
+	existing_context(Ctxt, Rhs, S1, I1),
+	member((S1, I1), Vars)
+    ;
+        true
+    ).
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 apply_constraint_1(+EdgeSubtrees, +Constraint, +OutVars, +PathConstr, 
                                                          -EdgeSubTreesOut)
@@ -109,21 +134,133 @@ apply_constraint_2([edge_subtree(E, T)| Rest], C, PathConstr,
     ->
 	TOut = T
     ;
-        add_node(0, TOut)
+        make_node(0, TOut)
     ),
     append(E, [C], EOut),
     apply_constraint_2(Rest, C, PathConstr, RestOut).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-add_node(+Subtree, -Node)
+update_context(+CtxtIn, +X, +S, +I, -CtxtOut)
+
+Check if 'CtxtIn' specifies the switch/instance pair of the variable
+X. If so, it should match the pair (S, I). Otherwise, add the
+switch/instance pair of X as (S, I) to CtxtIn to produce CtxtOut.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+update_context(CtxtIn, X, S, I, CtxtOut) :-
+    (existing_context(CtxtIn, X, S1, I1)
+    ->
+	S = S1,
+	I = I1,
+	CtxtOut = CtxtIn
+    ;
+        append(CtxtIn, [X-(S, I)], CtxtOut)
+    ).
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+existing_context(+CtxtIn, +X, -S, -I)
+
+Check 'CtxtIn' for the switch/instance pair of X.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+existing_context([X1-(S1, I1) | Rest], X, S, I) :-
+    (X == X1
+    ->
+	S = S1,
+	I = I1
+    ;
+        existing_context(Rest, X, S, I)
+    ).
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+trivial_osdd(+S, +I, -Osdd)
+
+Construct the trivial osdd corresponding to msw/3 predicate. The root
+of this OSDD is a canonical label that corresponds to the pair (S,
+I). There is a single edge labeled by empty constraint connected to a
+1 leaf.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+trivial_osdd(S, I, Osdd) :-
+    make_node(1, One),
+    canonical_label(S, I, Label),
+    make_node(tree(Label, [edge_subtree([], One)]), Osdd).
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+make_node(+Subtree, -Node)
 
 Add an entry to the unique_table for the tree 'SubTree' if it doesn't
 already exist.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-:- table add_node/2.
-add_node(SubTree, Node) :-
+:- table make_node/2.
+make_node(SubTree, Node) :-
     gensym(node, Node),
     assert('$unique_table'(Node, SubTree)).
+
+:- dynamic '$unique_table'/2.
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+canonical_label(+S, +I, -L)
+
+Construct a canonical label for switch 'S' and instance 'I' as the atom
+'var_S_I'
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+:- table canonical_label/3.
+canonical_label(S, I, L) :-
+    ground(S), ground(I),
+    concat_atom([var,'_',S,'_',I], L).
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+type_check(+Ctxt, +Constraint)
+
+Is true if Constraint is type consistent with respect to context.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+type_check(Ctxt, Lhs=Rhs) :-
+    (var(Lhs); var(Rhs)), !, % atleast one of Lhs, Rhs should be a variable
+    (var(Lhs)
+    ->
+	type_check(CtxtIn, Lhs, Rhs)
+    ;
+        type_check(CtxtIn, Rhs, Lhs)
+    ).
+
+type_check(Ctxt, Lhs\=Rhs) :-
+    (var(Lhs); var(Rhs)), !, % atleast one of Lhs, Rhs should be a variable
+    (var(Lhs)
+    ->
+	type_check(CtxtIn, Lhs, Rhs)
+    ;
+        type_check(CtxtIn, Rhs, Lhs)
+    ).
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+type_check(+Ctxt, +Term1, +Term2)
+Is true if both Term1 and Term2 have the same type.
+It is required that Term1 be a variable, Term2 can be a variable or const.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+type_check(Ctxt, Term1, Term2) :-
+    (var(Term1)
+    ->
+	find_type(Ctxt, Term1, Type)
+    ;
+        writeln('First argument to type_check/3 is not a variable'),
+        fail
+    ),
+    (var(Term2)
+    ->
+	find_type(Ctxt, Term2, Type)
+    ;
+        member(Term2, Type)
+    ).
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+find_type(+Ctxt, +Var, -Type)
+
+Find the type of 'Var' by using the switch specified by 'Ctxt'
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+find_type([X-(S, _I)| Rest], Term, Type) :-
+    X == Term, !,
+    values(S, Type).
+find_type([X-(S, I)|Rest], Term, Type) :-
+    X \== Term,
+    find_type(Rest, Term, Type).
     
 	    
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -503,6 +640,7 @@ canonical_label(V, L) :-
         L = V
     ).
 
+
 :- table id_label/2.
 %:- index('$id_label'/2, [2,1]).
 id_label(id(S, I), L) :-
@@ -615,56 +753,6 @@ graph_to_formula(Assoc, Op, [ID1-ID2|R], Cin, Cout) :-
         graph_to_formula(Assoc, Op, R, Cin, Cout)
     ).
 
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-type_check(+Ctxt, +Constraint)
-
-Is true if Constraint is type consistent with respect to context.
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-type_check(Ctxt, Lhs=Rhs) :-
-    (var(Lhs); var(Rhs)), !,
-    (var(Lhs)
-    ->
-	type_check(CtxtIn, Lhs, Rhs)
-    ;
-        type_check(CtxtIn, Rhs, Lhs)
-    ).
-
-type_check(Ctxt, Lhs\=Rhs) :-
-    (var(Lhs); var(Rhs)), !,
-    (var(Lhs)
-    ->
-	type_check(CtxtIn, Lhs, Rhs)
-    ;
-        type_check(CtxtIn, Rhs, Lhs)
-    ).
-
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-type_check(+Ctxt, +Term1, +Term2)
-Is true if both Term1 and Term2 have the same type.
-It is required that Term1 be a variable, Term2 can be a variable or const.
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-type_check(Ctxt, Term1, Term2) :-
-    (var(Term1)
-    ->
-	find_type(Ctxt, Term1, Type)
-    ;
-        writeln('First argument to type_check/3 is not a variable'),
-        fail
-    ),
-    (var(Term2)
-    ->
-	find_type(Ctxt, Term2, Type)
-    ;
-        member(Term2, Type)
-    ).
-
-find_type([X-(S, _I)| Rest], Term, Type) :-
-    X == Term, !,
-    values(S, Type).
-find_type([X-(S, I)|Rest], Term, Type) :-
-    X \== Term,
-    find_type(Rest, Term, Type).
-    
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Query processing definitions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -732,23 +820,6 @@ edge_prob_1(R, V, T, P) :-
 % Misc
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-update_context(CtxtIn, X, S, I, CtxtOut) :-
-    (existing_context(CtxtIn, X, S1, I1)
-    ->
-	S = S1,
-	I = I1
-    ;
-        append(CtxtIn, [X-(S, I)], CtxtOut)
-    ).
-
-existing_context([X1-(S1, I1) | Rest], X, S, I) :-
-    (X == X1
-    ->
-	S = S1,
-	I = I1
-    ;
-        existing_context(Rest, X, S, I)
-    ).
 
 writeDot(OSDD, File) :- writeDotFile(OSDD, File).
 
@@ -757,6 +828,7 @@ writeDot(OSDD, File) :- writeDotFile(OSDD, File).
 
 initialize :-
     retractall('$id_label'/2),
+    retractall('$unique_table'/2),
     prepare(0).
 
 ?- initialize.
