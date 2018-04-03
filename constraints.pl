@@ -1,5 +1,5 @@
 :- export satisfiable_constraint_graph/2, solutions/4,
-canonical_form/3.
+canonical_constraint/3.
 
 :- import is_empty/1, delete/3 from lists.
 
@@ -76,7 +76,7 @@ enforce_domain_constraints([Key-Value|Rest]) :-
 	enforce_domain_constraints(Rest)
     ;
         % get the id corresponding to the variable, then its domain
-        usermod:'$id_label'(id(S, _I), Key),
+        usermod:canonical_label(S, _I, Key),
 	usermod:intrange(S, Lower, Upper),
 	Value in Lower..Upper,
 	enforce_domain_constraints(Rest)
@@ -131,7 +131,8 @@ solutions(Label, EQ, NEQ, Solutions) :-
     ((is_empty(EQ), is_empty(NEQ))
     ->
 	% Variable corresponding to label is unconstrained
-	usermod:'$id_label'(id(S, _I), Label),
+	%usermod:'$id_label'(id(S, _I), Label),
+	usermod:canonical_label(S, _I, Label),
 	usermod:intrange(S, Lower, Upper),
 	var(X),
 	X in Lower..Upper,
@@ -154,14 +155,14 @@ solutions(Label, EQ, NEQ, Solutions) :-
     ).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-canonical_form(+EQ, +NEQ, cg(-EQ1, -NEQ1))
+canonical_constraint(+EQ, +NEQ, cg(-EQ1, -NEQ1))
 
 Given vertices edges representation of constraint graph in EQ and NEQ,
 complete the equality and disequality constraints, change them to
 S-representation, sort them to get EQ1 and NEQ1. Return cg(EQ1, NEQ1)
 as the canonical representation of the constraint graph.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-canonical_form(EQ, NEQ, cg(G11, G33)) :-
+canonical_constraint(EQ, NEQ, cg(G11, G33)) :-
     % G1 = transitive_closure(EQ)
     vertices_edges_to_ugraph([], EQ, EQS),
     transitive_closure(EQS, G1),

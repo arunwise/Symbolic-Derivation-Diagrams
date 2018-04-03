@@ -52,81 +52,104 @@ Given a node 'NodeIn', whose path to root contains output variables
 constraint 'Constraint' to the subtree rooted at 'NodeIn' and return
 the new node 'NodeOut'.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-apply_constraint(NodeIn, C, OutVars, PathConstr, NodeOut) :-
+apply_constraint(CtxtIn-NodeIn, C, OutVars, PathConstr, CtxtIn-NodeOut) :-
     ('$unique_table'(NodeIn, 0)
     ->
+	% NodeIn represents a 0 leaf, nothing to apply.
 	NodeOut = NodeIn
     ;
         ('$unique_table'(NodeIn, 1)
 	->
+	    % NodeIn represents a 1 leaf, nothing to apply.
 	    NodeOut = NodeIn
 	;
 	    '$unique_table'(NodeIn, tree(Root, EdgeSubTrees)),
-	    canonical_label(S, I, Root),
-	    append(OutVars, [(S, I)], OutVars1),
-	    (urgency_satisfied(CtxtIn, OutVars1, C)
+	    append(OutVars, [Root], OutVars1),
+	    labeled_form(CtxtIn, C, LC),
+	    (urgency_satisfied(OutVars1, LC)
 	    ->
-		apply_constraint_2(EdgeSubTrees, C, PathConstr,
-				   EdgeSubTreesOut1),
-		negat_atomic_constraint(C, CN),
+		% apply constraints here
+		apply_constraint_urg(EdgeSubTrees, LC, PathConstr,
+				     EdgeSubTrees1),
+		negate(LC, LCN),
 		make_node(0, Z),
-		append(EdgeSubTreesOut, [edge_subtree([CN], Z)],
+		append(EdgeSubTrees1, [edge_subtree([LCN], Z)],
 		       EdgeSubTreesOut)
 	    ;
-                apply_constraint_1(EdgeSubTrees, C, OutVars1,
+                apply_constraint_no_urg(CtxtIn, EdgeSubTrees, LC, OutVars1,
 				 PathConstr, EdgeSubTreesOut)
 	    ),
-	    make_node(tree(Root, EdgeSubTreesOut), NodeOut)
+	    canonical_form(EdgeSubTreesOut, CF),
+	    make_node(tree(Root, CF), NodeOut)
 	)
     ).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-urgency_satisfied(+Ctxt, +Vars, +Constraint)
+urgency_satisfied(+Vars, +Constraint)
 
 Is true when all the variables involved in 'Constraint' are elements
-of 'Vars'.
+of 'Vars' ('Vars' contains the labels instead of actual variable,
+similarly 'Constraint' is also represented in terms of canonical
+labels).
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-urgency_satisfied(Ctxt, Vars, Lhs=Rhs) :-
-    (var(Lhs)
+urgency_satisfied(Vars, Lhs=Rhs) :-
+    (integer(Lhs)
     ->
-	existing_context(Ctxt, Lhs, S, I),
-	member((S, I), Vars)
+	% Lhs is a constant
+	true
     ;
-        true
+	member(Lhs, Vars)
     ),
-    (var(Rhs)
+    (integer(Rhs)
     ->
-	existing_context(Ctxt, Rhs, S1, I1),
-	member((S1, I1), Vars)
+	% Rhs is a constant
+	true
     ;
-        true
+        member(Rhs, Vars)
     ).
+
+urgency_satisfied(Vars, Lhs\=Rhs) :-
+    (integer(Lhs)
+    ->
+	% Lhs is a constant
+	true
+    ;
+	member(Lhs, Vars)
+    ),
+    (integer(Rhs)
+    ->
+	% Rhs is a constant
+	true
+    ;
+        member(Rhs, Vars)
+    ).
+
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-apply_constraint_1(+EdgeSubtrees, +Constraint, +OutVars, +PathConstr, 
-                                                         -EdgeSubTreesOut)
+apply_constraint_no_urg(+CtxtIn, +EdgeSubtrees, +Constraint, +OutVars, 
+                                          +PathConstr, -EdgeSubTreesOut)
 
 Given a list of edge/subtree pairs, whose root has 'OutVars' as the
 set of output variables on the path to the root and whose path
 constraints are 'PathConstr', apply the atomic constraint 'Constraint'
 to each of the subtrees and return the new list of edge/subtree pairs.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-apply_constraint_1([], _C, _O, _P, []).
-apply_constraint_1([edge_subtree(E, T)| Rest], C, OutVars,
+apply_constraint_no_urg(_Ctxt, [], _C, _O, _P, []).
+apply_constraint_no_urg(Ctxt, [edge_subtree(E, T)| Rest], C, OutVars,
 		   PathConstr, [edge_subtree(E, TOut)| RestOut]) :-
     append(PathConstr, E, PathConstr1),
-    apply_constraint(T, C, OutVars, PathConstr1, TOut),
-    apply_constraint_1(Rest, C, OutVars, PathConstr, RestOut).
+    apply_constraint(Ctxt-T, C, OutVars, PathConstr1, Ctxt-TOut),
+    apply_constraint_no_urg(Ctxt, Rest, C, OutVars, PathConstr, RestOut).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-apply_constraint_2(+EdgeSubtrees, +Constraint, +PathConstr,
+apply_constraint_urg(+EdgeSubtrees, +Constraint, +PathConstr,
                                                -EdgeSubtreesOut)
 
 Given a list of edge/subtree pairs, whose root has 'PathConstr'
 labeling the path to the root, apply 'Constraint' to each of the edges
 and return the new list of edge/subtree pairs.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-apply_constraint_2([], _C, _P, []).
-apply_constraint_2([edge_subtree(E, T)| Rest], C, PathConstr,
+apply_constraint_urg([], _C, _P, []).
+apply_constraint_urg([edge_subtree(E, T)| Rest], C, PathConstr,
 		   [edge_subtree(EOut, TOut)| RestOut]) :-
     append(PathConstr, E, PathConstr1),
     append(PathConstr1, [C], PathConstr2),
@@ -137,7 +160,7 @@ apply_constraint_2([edge_subtree(E, T)| Rest], C, PathConstr,
         make_node(0, TOut)
     ),
     append(E, [C], EOut),
-    apply_constraint_2(Rest, C, PathConstr, RestOut).
+    apply_constraint_urg(Rest, C, PathConstr, RestOut).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 update_context(+CtxtIn, +X, +S, +I, -CtxtOut)
@@ -261,8 +284,98 @@ find_type([X-(S, _I)| Rest], Term, Type) :-
 find_type([X-(S, I)|Rest], Term, Type) :-
     X \== Term,
     find_type(Rest, Term, Type).
-    
-	    
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+labeled_form(+Ctxt, +Atomic_Constraint, -Labeled_Atomic_Constraint)
+
+Given an atomic constraint in terms of logical variables, return its 
+representation in terms of canonical labels.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+labeled_form(Ctxt, Lhs=Rhs, LLhs=LRhs) :-
+    (var(Lhs)
+    ->
+	existing_context(Ctxt, Lhs, SL, IL),
+	canonical_label(SL, IL, LLhs)
+    ;
+        LLhs=Lhs
+    ),
+    (var(Rhs)
+    ->
+	existing_context(Ctxt, Rhs, SR, IR),
+	canonical_label(SR, IR, LRhs)
+    ;
+        LRhs = Rhs
+    ).
+labeled_form(Ctxt, Lhs\=Rhs, LLhs\=LRhs) :-
+    (var(Lhs)
+    ->
+	existing_context(Ctxt, Lhs, SL, IL),
+	canonical_label(SL, IL, LLhs)
+    ;
+        LLhs = Lhs
+    ),
+    (var(Rhs)
+    ->
+	existing_context(Ctxt, Rhs, SR, IR),
+	canonical_label(SR, IR, LRhs)
+    ;
+        LRhs = Rhs
+    ).
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+negate(+C, -N)
+
+N is the negation of the atomic constraint C
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+negate(X=Y, X\=Y).
+negate(X\=Y, X=Y).
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+satisfiable(+CF)
+
+Is true if constraint formula CF is satisfiable. CF is represented in
+terms of canonical labels.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+satisfiable(CF) :-
+    ve_representation(CF, EQ, NEQ),
+    satisfiable_constraint_graph(EQ, NEQ).
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ve_representation(+Constraint_Formula, -EQ_List, -NEQ_List)
+
+Constraint_Formula: Constraint_Formula represented using canonical
+labels
+
+EQ_List: Vertices/Edges representation of equality constraints using
+canonical labels
+
+NEQ_List: Vertices/Edges representation of disequality constraints
+using canonical labels
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ve_representation([], [], []).
+ve_representation([X=Y|R], [X-Y, Y-X| EQR], NE) :-
+    ve_representation(R, EQR, NE).
+ve_representation([X\=Y|R], EQ, [X-Y, Y-X | NER]) :-
+    ve_representation(R, EQ, NER).
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+canonical_form(+EdgeSubTrees, +CanonicalForm)
+
+Convert the list of 'EdgeSubTrees' into a canonical form.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+canonical_form([], []).
+canonical_form(ETIn, ETOut) :-
+    canonical_form_1(ETIn, ET),
+    sort(ET, ETF).
+
+canonical_form_1([], []).
+canonical_form_1([edge_subtree(E, T) | Rest], [edge_subtree(CE, T) | RestC]) :-
+    ve_representation(E, EQ, NEQ),
+    canonical_constraint(EQ, NEQ, cg(EQ1, NEQ1)),
+    append(EQ1, NEQ1, CE1),
+    sort(CE1, CE),
+    canonical_form_1(Rest, RestC).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % OSDD construction definitions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -606,25 +719,6 @@ contains(or(_T1, T2), X) :-
 %% two graphs for each constraint formula: one for equality atomic
 %% constraints and the other for disequality atomic constraints.
 
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-ve_representation(+Constraint_Formula, -EQ_List, -NEQ_List)
-Constraint_Formula: Prolog term representing constraint formula
-
-EQ_List: Vertices/Edges representation of equality constraints using
-canonical labels
-
-NEQ_List: Vertices/Edges representation of disequality constraints
-using canonical labels
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-ve_representation([], [], []).
-ve_representation([X=Y|R], [S-D, D-S| EQR], NE) :-
-    canonical_label(X, S),
-    canonical_label(Y, D),
-    ve_representation(R, EQR, NE).
-ve_representation([X\=Y|R], EQ, [S-D, D-S | NER]) :-
-    canonical_label(X, S),
-    canonical_label(Y, D),
-    ve_representation(R, EQ, NER).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 canonical_label(+Var/Const, -Canonical_Label)
@@ -660,13 +754,6 @@ constraints_conjunction(C1, C2, C) :-
 complement_atom(X=Y, X\=Y).
 complement_atom(X\=Y, X=Y).
 
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-satisfiable(+CF)
-Is true if constraint formula CF is satisfiable
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-satisfiable(CF) :-
-    ve_representation(CF, EQ, NEQ),
-    satisfiable_constraint_graph(EQ, NEQ).
 
 % Gets the unique variables of a constraint list
 getvars([], L, L).
