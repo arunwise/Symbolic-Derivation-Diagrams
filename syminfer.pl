@@ -44,6 +44,24 @@ constraint(C, CtxtIn-OsddIn, CtxtIn-OsddOut) :-
     apply_constraint(CtxtIn-OsddIn, C, [], [], CtxtIn-OsddOut).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+project_context(+CtxtIn, +FreeVars, -CtxtOut)
+
+Project 'CtxtIn' on to FreeVars to get 'CtxtOut'
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+project_context(CtxtIn, FreeVars, CtxtOut) :-
+    project_context_1(CtxtIn, FreeVars, [], CtxtOut).
+
+project_context_1(_Ctxt, [], CtxtOut, CtxtOut).
+project_context_1(Ctxt, [H| T], CtxtIn, CtxtOut) :-
+    (existing_context(Ctxt, H, S, I)
+    ->
+	append(CtxtIn, [H-(S, I)], CtxtTmp)
+    ;
+        CtxtTmp = CtxtIn
+    ),
+    project_context_1(Ctxt, T, CtxtTmp, CtxtOut).
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 apply_constraint(+CtxtIn-NodeIn, +Constraint, +OutVars, +PathConstr, 
                  -CtxtIn-NodeOut)
 
