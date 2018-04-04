@@ -1088,7 +1088,7 @@ initialize :-
 compute_osdd(Query, CO) :-
     Query =.. [Pred | Args],
     make_node(1, One),
-    append(Args, [[]-One, CO], Args1),
+    append(Args, [[], One, CtxtOut, CO], Args1),
     Query1 =.. [Pred | Args1],
     Query1.
 
