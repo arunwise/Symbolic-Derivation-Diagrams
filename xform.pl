@@ -88,17 +88,18 @@ transform(F_in, F_out, Handle) :-
     ), !.
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-transform_body(+Goals, +FreeVars, -XGoals, (+CtxtIn, OsddIn, -CtxtOut, OsddOut))
+transform_body(+Goals, +FreeVars, -XGoals, (+CtxtIn, +OsddIn, 
+                                            -CtxtOut, -OsddOut))
 
 Transform a sequence of goals 'Goals' to 'XGoals'. After the last goal
 has been transformed, add 'project_context' and 'split_if_needed'
 goals'. 
 
-Chain the 'Ctxt-Osdd' argument so that the output of one goal is the
-input for the next goal in the sequence.
+Chain the 'Ctxt' and 'Osdd' arguments so that the output of one goal
+is the input for the next goal in the sequence.
 
-Final 'CtxtOut-OsddOut' is returnd after performing projection and
-splitting.
+Final 'CtxtOut' and 'OsddOut' is returned after performing projection
+and splitting.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 transform_body((G_in, Gs_in), FreeVars, (G_out, Gs_out),
 	       (CtxtIn, OsddIn, CtxtOut, OsddOut)) :- !,
@@ -113,7 +114,7 @@ transform_body(G_in, FreeVars,
 
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-transform_pred(+PredIn, -PredOut, (+CtxtIn, OsddIn, CtxtOut, OsddOut))
+transform_pred(+PredIn, -PredOut, (+CtxtIn, +OsddIn, -CtxtOut, -OsddOut))
 
 The following predicates don't get transformed.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -133,7 +134,8 @@ transform_pred(is(X, Y), is(X, Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
 
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-transform_pred(+Constraint, -XConstraint, (+CtxtIn, OsddIn, -CtxtOut, OsddOut))
+transform_pred(+Constraint, -XConstraint, (+CtxtIn, +OsddIn, 
+                                           -CtxtOut, -OsddOut))
 
 Given input constraint 'Constraint' (of the form {X=Y} or {X\=Y})
 transform it to 'XConstraint'. If 'Constraint' has some ground domain
@@ -164,7 +166,7 @@ transform_pred('{}'(C),
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 transform_pred(+msw(S,I,X), -msw(XS, I, X, CtxtIn, OsddIn, CtxtOut, OsddOut),
-(+CtxtIn, OsddIn, -CtxtOut, OsddOut))
+(+CtxtIn, OsddIn, -CtxtOut, -OsddOut))
 
 Transform msw(S, I, X) by adding extra arguments CtxtIn, OsddIn and
 CtxtOut, OsddOut. We also check that 'S' is a ground atom, and fail
@@ -185,7 +187,7 @@ transform_pred(msw(S, I, X),
     ), !.
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-transform_pred(+values(S, V), -values(XS, I), (+Ctxt, Osdd, -Ctxt, Osdd))
+transform_pred(+values(S, V), -values(XS, I), (+Ctxt, +Osdd, -Ctxt, -Osdd))
 
 Transform values/2 facts. Map any arguments of the switch to
 corresponding integers and also map the list of values to their
@@ -204,7 +206,7 @@ transform_pred(values(S, V), values(XS, I), (Ctxt, Osdd, Ctxt, Osdd)) :-
     make_numerical(V, I), !.
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-transform_pred(+set_sw(S, V), -set_sw(XS, V), (+Ctxt, Osdd, -Ctxt, Osdd))
+transform_pred(+set_sw(S, V), -set_sw(XS, V), (+Ctxt, +Osdd, -Ctxt, -Osdd))
 
 Transform set_sw directives by transforming switch names if they contain
 domain constants. The domain constants are mapped to integer values.
@@ -221,7 +223,7 @@ transform_pred(set_sw(S, V), set_sw(XS, V), (Ctxt, Osdd, Ctxt, Osdd)) :-
     ), !.
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-transform_pred(+PredIn, -PredOut, (+CtxtIn, OsddIn, -CtxtOut, OsddOut))
+transform_pred(+PredIn, -PredOut, (+CtxtIn, +OsddIn, -CtxtOut, -OsddOut))
 
 Transform any other predicate by adding extra arguments.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -313,7 +315,7 @@ find_int_mapping(V, V) :- !.
 declare(+Pred, +Arity, +Handle)
 
 Write table declaration for transformation of Pred/Arity. The transformed
-predicate will have arity Arity+2. This is reflected below. Also use lattice
+predicate will have arity Arity+4. This is reflected below. Also use lattice
 answer subsumption for the last argument.
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
