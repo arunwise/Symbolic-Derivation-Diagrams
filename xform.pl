@@ -82,13 +82,13 @@ transform(F_in, F_out, Handle) :-
     functor(F_in, F, _N),
     (F = values
     ->  process_domain(F_in, Handle),
-        transform_pred(F_in, F_out, (CtxtIn-OsddIn, CtxtIn-OsddIn)),
+        transform_pred(F_in, F_out, (CtxtIn, OsddIn, CtxtIn, OsddIn)),
         write_domain_intrange(F_out, Handle)
-    ;   transform_pred(F_in, F_out, (CtxtIn-OsddIn, CtxtIn-OsddIn))
+    ;   transform_pred(F_in, F_out, (CtxtIn, OsddIn, CtxtIn, OsddIn))
     ), !.
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-transform_body(+Goals, +FreeVars, -XGoals, (+CtxtIn-OsddIn, -CtxtOut-OsddOut))
+transform_body(+Goals, +FreeVars, -XGoals, (+CtxtIn, OsddIn, -CtxtOut, OsddOut))
 
 Transform a sequence of goals 'Goals' to 'XGoals'. After the last goal
 has been transformed, add 'project_context' and 'split_if_needed'
@@ -101,51 +101,51 @@ Final 'CtxtOut-OsddOut' is returnd after performing projection and
 splitting.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 transform_body((G_in, Gs_in), FreeVars, (G_out, Gs_out),
-	       (CtxtIn-OsddIn, CtxtOut-OsddOut)) :- !,
-    transform_pred(G_in, G_out, (CtxtIn-OsddIn, Ctxt-Osdd)),
-    transform_body(Gs_in, FreeVars, Gs_out, (Ctxt-Osdd, CtxtOut-OsddOut)).
+	       (CtxtIn, OsddIn, CtxtOut, OsddOut)) :- !,
+    transform_pred(G_in, G_out, (CtxtIn, OsddIn, Ctxt, Osdd)),
+    transform_body(Gs_in, FreeVars, Gs_out, (Ctxt, Osdd, CtxtOut, OsddOut)).
 
 transform_body(G_in, FreeVars,
 	       (G_out, project_context(Ctxt, FreeVars, CtxtOut),
 		split_if_needed(Osdd, OsddOut)),
-	       (CtxtIn-OsddIn, CtxtOut-OsddOut)) :-
-    transform_pred(G_in, G_out, (CtxtIn-OsddIn, Ctxt-Osdd)).
+	       (CtxtIn, OsddIn, CtxtOut, OsddOut)) :, 
+    transform_pred(G_in, G_out, (CtxtIn, OsddIn, Ctxt, Osdd)).
 
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-transform_pred(+PredIn, -PredOut, (+CtxtIn-OsddIn, -CtxtOut-OsddOut))
+transform_pred(+PredIn, -PredOut, (+CtxtIn, OsddIn, CtxtOut, OsddOut))
 
 The following predicates don't get transformed.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-transform_pred(true, true, (Ctxt-Osdd, Ctxt-Osdd)) :- !.
-transform_pred(==(X, Y), ==(X, Y), (Ctxt-Osdd, Ctxt-Osdd)) :- !.
-transform_pred(\==(X, Y), \==(X, Y), (Ctxt-Osdd, Ctxt-Osdd)) :- !.
-transform_pred(=(X, Y), =(X, Y), (Ctxt-Osdd, Ctxt-Osdd)) :- !.
-transform_pred(\=(X, Y), \=(X, Y), (Ctxt-Osdd, Ctxt-Osdd)) :- !.
-transform_pred(<(X, Y), <(X, Y), (Ctxt-Osdd, Ctxt-Osdd)) :- !.
-transform_pred(>(X, Y), >(X, Y), (Ctxt-Osdd, Ctxt-Osdd)) :- !.
-transform_pred(=<(X, Y), =<(X, Y), (Ctxt-Osdd, Ctxt-Osdd)) :- !.
-transform_pred(>=(X, Y), >=(X, Y), (Ctxt-Osdd, Ctxt-Osdd)) :- !.
-transform_pred(!, !, (Ctxt-Osdd, Ctxt-Osdd)) :- !.
-transform_pred(.(X, Y), [X | Y], (Ctxt-Osdd, Ctxt-Osdd)) :- !.
-transform_pred(=..(X, Y), =..(X, Y), (Ctxt-Osdd, Ctxt-Osdd)) :- !.
-transform_pred(is(X, Y), is(X, Y), (Ctxt-Osdd, Ctxt-Osdd)) :- !.
+transform_pred(true, true, (Ctxt, Osdd, Ctxt, Osdd)) :- !.
+transform_pred(==(X, Y), ==(X, Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
+transform_pred(\==(X, Y), \==(X, Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
+transform_pred(=(X, Y), =(X, Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
+transform_pred(\=(X, Y), \=(X, Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
+transform_pred(<(X, Y), <(X, Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
+transform_pred(>(X, Y), >(X, Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
+transform_pred(=<(X, Y), =<(X, Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
+transform_pred(>=(X, Y), >=(X, Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
+transform_pred(!, !, (Ctxt, Osdd, Ctxt, Osdd)) :- !.
+transform_pred(.(X, Y), [X | Y], (Ctxt, Osdd, Ctxt, Osdd)) :- !.
+transform_pred(=..(X, Y), =..(X, Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
+transform_pred(is(X, Y), is(X, Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
 
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-transform_pred(+Constraint, -XConstraint, (+CtxtIn-OsddIn, -CtxtOut-OsddOut))
+transform_pred(+Constraint, -XConstraint, (+CtxtIn, OsddIn, -CtxtOut, OsddOut))
 
 Given input constraint 'Constraint' (of the form {X=Y} or {X\=Y})
 transform it to 'XConstraint'. If 'Constraint' has some ground domain
 element then we map this element to the integer domain.
 
 For example, if 'Constraint' is {X=Y}, 'XConstraint' would be
-constraint(X=Y, CtxtIn-OsddIn, CtxtOut-OsddOut).
+constraint(X=Y, CtxtIn, OsddIn, CtxtOut, OsddOut).
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 transform_pred('{}'(C),
-	       constraint(XC, CtxtIn-OsddIn, CtxtOut-OsddOut),
-	       (CtxtIn-OsddIn, CtxtOut-OsddOut)) :- 
+	       constraint(XC, CtxtIn, OsddIn, CtxtOut, OsddOut),
+	       (CtxtIn, OsddIn, CtxtOut, OsddOut)) :- 
     C =.. [F, Lhs, Rhs],
     (nonvar(Lhs)
     ->
@@ -163,17 +163,17 @@ transform_pred('{}'(C),
 
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-transform_pred(+msw(S,I,X), -msw(XS, I, X, CtxtIn-OsddIn, CtxtOut-OsddOut),
-(+CtxtIn-OsddIn, -CtxtOut-OsddOut))
+transform_pred(+msw(S,I,X), -msw(XS, I, X, CtxtIn, OsddIn, CtxtOut, OsddOut),
+(+CtxtIn, OsddIn, -CtxtOut, OsddOut))
 
-Transform msw(S, I, X) by adding extra arguments CtxtIn-OsddIn and
-CtxtOut-OsddOut. We also check that 'S' is a ground atom, and fail
+Transform msw(S, I, X) by adding extra arguments CtxtIn, OsddIn and
+CtxtOut, OsddOut. We also check that 'S' is a ground atom, and fail
 otherwise. If 'S' is ground we change ground domain values to their
 corresponding integer values.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 transform_pred(msw(S, I, X),
-	       msw(XS, I, X, CtxtIn-OsddIn, CtxtOut-OsddOut),
-	       (CtxtIn-OsddIn, CtxtOut-OsddOut)) :-
+	       msw(XS, I, X, CtxtIn, OsddIn, CtxtOut, OsddOut),
+	       (CtxtIn, OsddIn, CtxtOut, OsddOut)) :-
     (ground(S)
     ->
 	S =.. [F | Vs],
@@ -185,13 +185,13 @@ transform_pred(msw(S, I, X),
     ), !.
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-transform_pred(+values(S, V), -values(XS, I), (+Ctxt-Osdd, -Ctxt-Osdd))
+transform_pred(+values(S, V), -values(XS, I), (+Ctxt, Osdd, -Ctxt, Osdd))
 
 Transform values/2 facts. Map any arguments of the switch to
 corresponding integers and also map the list of values to their
 corresponding integer values.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-transform_pred(values(S, V), values(XS, I), (Ctxt-Osdd, Ctxt-Osdd)) :-
+transform_pred(values(S, V), values(XS, I), (Ctxt, Osdd, Ctxt, Osdd)) :-
     (ground(S)
     ->
 	S =.. [F | Vs],
@@ -204,12 +204,12 @@ transform_pred(values(S, V), values(XS, I), (Ctxt-Osdd, Ctxt-Osdd)) :-
     make_numerical(V, I), !.
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-transform_pred(+set_sw(S, V), -set_sw(XS, V), (+Ctxt-Osdd, -Ctxt-Osdd))
+transform_pred(+set_sw(S, V), -set_sw(XS, V), (+Ctxt, Osdd, -Ctxt, Osdd))
 
 Transform set_sw directives by transforming switch names if they contain
 domain constants. The domain constants are mapped to integer values.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-transform_pred(set_sw(S, V), set_sw(XS, V), (Ctxt-Osdd, Ctxt-Osdd)) :-
+transform_pred(set_sw(S, V), set_sw(XS, V), (Ctxt, Osdd, Ctxt, Osdd)) :-
     (ground(S)
     ->
 	S =.. [F | Vs],
@@ -221,14 +221,14 @@ transform_pred(set_sw(S, V), set_sw(XS, V), (Ctxt-Osdd, Ctxt-Osdd)) :-
     ), !.
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-transform_pred(+PredIn, -PredOut, (+CtxtIn-OsddIn, -CtxtOut-OsddOut))
+transform_pred(+PredIn, -PredOut, (+CtxtIn, OsddIn, -CtxtOut, OsddOut))
 
 Transform any other predicate by adding extra arguments.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-transform_pred(Pred_in, Pred_out, (CtxtIn-OsddIn, CtxtOut-OsddOut)) :-
+transform_pred(Pred_in, Pred_out, (CtxtIn, OsddIn, CtxtOut, OsddOut)) :-
     Pred_in =.. [P | Args],
     find_int_mappings(Args, IntArgs),
-    append(IntArgs, [CtxtIn-OsddIn, CtxtOut-OsddOut], NewArgs),
+    append(IntArgs, [CtxtIn, OsddIn, CtxtOut, OsddOut], NewArgs),
     Pred_out =.. [P | NewArgs], !.
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -319,7 +319,7 @@ answer subsumption for the last argument.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 :- table declare/3.
 declare(F, N, Handle) :-
-    N1 is N+1,
+    N1 is N+3,
     placeholders('', N1, P),
     str_cat(P, 'lattice(or/3)', P1),
     fmt_write(Handle, ':- table %s(%s).\n', args(F, P1)),

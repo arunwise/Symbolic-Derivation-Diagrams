@@ -8,13 +8,13 @@
    canonical_constraint/3 from constraints.
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-msw(+S, +I, X, +CtxtIn-OsddIn, -CtxtOut-OsddOut)
+msw(+S, +I, X, +CtxtIn, OsddIn, -CtxtOut, OsddOut)
 
 Update the CtxtIn with Id of random variable X. Compute OsddOut as
 conjunction of OsddIn and trivial OSDD for msw(S,I,X).
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-msw(S, I, X, CtxtIn-OsddIn, CtxtOut-OsddOut) :-
+msw(S, I, X, CtxtIn, OsddIn, CtxtOut, OsddOut) :-
     ground(S),
     ground(I),
     update_context(CtxtIn, X, S, I, CtxtOut),
@@ -22,13 +22,13 @@ msw(S, I, X, CtxtIn-OsddIn, CtxtOut-OsddOut) :-
     and(OsddIn, Osdd, OsddOut).
     
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-constraint(+C, +CtxtIn-OsddIn, -CtxtIn-OsddOut)
+constraint(+C, +CtxtIn, OsddIn, -CtxtIn, OsddOut)
 
 Perform type checking of atomic constraint C and update the OsddIn to OsddOut
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-constraint(C, CtxtIn-OsddIn, CtxtIn-OsddOut) :-
+constraint(C, CtxtIn, OsddIn, CtxtIn, OsddOut) :-
     type_check(CtxtIn, C),
-    apply_constraint(CtxtIn-OsddIn, C, [], [], CtxtIn-OsddOut).
+    apply_constraint(CtxtIn, OsddIn, C, [], [], CtxtIn, OsddOut).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 project_context(+CtxtIn, +FreeVars, -CtxtOut)
@@ -49,15 +49,15 @@ project_context_1(Ctxt, [H| T], CtxtIn, CtxtOut) :-
     project_context_1(Ctxt, T, CtxtTmp, CtxtOut).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-apply_constraint(+CtxtIn-NodeIn, +Constraint, +OutVars, +PathConstr, 
-                 -CtxtIn-NodeOut)
+apply_constraint(+CtxtIn, NodeIn, +Constraint, +OutVars, +PathConstr, 
+                 -CtxtIn, NodeOut)
 
 Given a node 'NodeIn', whose path to root contains output variables
 'OutVars' and the path constraints are 'PathConstr', apply the atomic
 constraint 'Constraint' to the subtree rooted at 'NodeIn' and return
 the new node 'NodeOut'.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-apply_constraint(CtxtIn-NodeIn, C, OutVars, PathConstr, CtxtIn-NodeOut) :-
+apply_constraint(CtxtIn, NodeIn, C, OutVars, PathConstr, CtxtIn, NodeOut) :-
     ('$unique_table'(NodeIn, 0)
     ->
 	% NodeIn represents a 0 leaf, nothing to apply.
@@ -400,6 +400,15 @@ and(+Osdd1, +Osdd2, -Osdd)
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 and(Osdd1, Osdd2, Osdd) :-
     binop(and, Osdd1, Osdd2, [], Osdd).
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+or_ctxt_osdd(+Ctxt1-Osdd1, +Ctxt2-Osdd2, -Ctxt1-Osdd)
+
+Combine context-osdd pairs, by taking one of the contexts (since they
+are supposed to be identical) and disjunction of Osdd1 and Osdd2.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+or_ctxt_osdd(Ctxt1-Osdd1, Ctxt2-Osdd2, Ctxt1-Osdd) :-
+    or(Osdd1, Osdd2, Osdd).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 or(+Osdd1, +Osdd2, -Osdd)
@@ -1074,11 +1083,11 @@ initialize :-
     retractall('$unique_table'/2),
     prepare(0).
 
-compute_osdd(Query, Ctxt-Osdd) :-
+compute_osdd(Query, CO) :-
     Query =.. [Pred | Args],
     make_node(1, One),
-    Args1 = append(Args, [[]-One, Ctxt-Osdd]),
+    append(Args, [[]-One, CO], Args1),
     Query1 =.. [Pred | Args1],
-    call(Query1).
+    Query1.
 
 ?- initialize.
