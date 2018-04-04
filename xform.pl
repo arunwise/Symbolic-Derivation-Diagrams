@@ -109,7 +109,7 @@ transform_body((G_in, Gs_in), FreeVars, (G_out, Gs_out),
 transform_body(G_in, FreeVars,
 	       (G_out, project_context(Ctxt, FreeVars, CtxtOut),
 		split_if_needed(Osdd, OsddOut)),
-	       (CtxtIn, OsddIn, CtxtOut, OsddOut)) :, 
+	       (CtxtIn, OsddIn, CtxtOut, OsddOut)) :-
     transform_pred(G_in, G_out, (CtxtIn, OsddIn, Ctxt, Osdd)).
 
 
