@@ -1,24 +1,11 @@
-:- import vertices_edges_to_ugraph/3, transitive_closure/2, edges/2,
-   neighbors/3, vertices/2 from ugraphs.
-:- import list_to_ord_set/2 from ordsets.
-:- import empty_assoc/1, put_assoc/4, get_assoc/3, list_to_assoc/2 from assoc_xsb.
-:- import member/2 from basics.
-:- import memberchk_eq/2 from lists.
-
-:- import writeDotFile/2 from visualize.
-
-:- import set_type/2, set_id/2, read_type/2, read_id/2 from attribs.
-
-:- import satisfiable_constraint_graph/2, solutions/4, canonical_form/3 from constraints.
-
-:- import absmerge/3 from listutil.
-
-
-%%%%%%%%%
-
 :- import append/3, member/2 from basics.
 :- import prepare/1, gensym/2 from gensym.
 :- import concat_atom/2 from string.
+:- import is_empty/1 from lists.
+
+:- import writeDotFile/2 from visualize.
+:- import satisfiable_constraint_graph/2, solutions/4,
+   canonical_constraint/3 from constraints.
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 msw(+S, +I, X, +CtxtIn-OsddIn, -CtxtOut-OsddOut)
@@ -258,18 +245,18 @@ type_check(Ctxt, Lhs=Rhs) :-
     (var(Lhs); var(Rhs)), !, % atleast one of Lhs, Rhs should be a variable
     (var(Lhs)
     ->
-	type_check(CtxtIn, Lhs, Rhs)
+	type_check(Ctxt, Lhs, Rhs)
     ;
-        type_check(CtxtIn, Rhs, Lhs)
+        type_check(Ctxt, Rhs, Lhs)
     ).
 
 type_check(Ctxt, Lhs\=Rhs) :-
     (var(Lhs); var(Rhs)), !, % atleast one of Lhs, Rhs should be a variable
     (var(Lhs)
     ->
-	type_check(CtxtIn, Lhs, Rhs)
+	type_check(Ctxt, Lhs, Rhs)
     ;
-        type_check(CtxtIn, Rhs, Lhs)
+        type_check(Ctxt, Rhs, Lhs)
     ).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -297,10 +284,10 @@ find_type(+Ctxt, +Var, -Type)
 
 Find the type of 'Var' by using the switch specified by 'Ctxt'
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-find_type([X-(S, _I)| Rest], Term, Type) :-
+find_type([X-(S, _I)| _Rest], Term, Type) :-
     X == Term, !,
     values(S, Type).
-find_type([X-(S, I)|Rest], Term, Type) :-
+find_type([X-(_S, _I)|Rest], Term, Type) :-
     X \== Term,
     find_type(Rest, Term, Type).
 
@@ -446,7 +433,7 @@ binop(Op, Osdd1, Osdd2, PathConstr, Osdd) :-
     ->
 	binop_pairwise(Op, ET1, ET2, PathConstr, [], ET),
 	canonical_form_et(ET, CF),
-	canonical_form(tree(Root, CF), CT),
+	canonical_form(tree(Root1, CF), CT),
 	make_node(CT, Osdd)
     ;
         (Root1 @< Root2
@@ -464,22 +451,22 @@ binop(Op, Osdd1, Osdd2, PathConstr, Osdd) :-
     ).
 
 % assume that PathConstr are satisfiable
-binop_0(and, Osdd1, _, Osdd) :-
+binop_0(and, _Osdd1, _PathConstr, Osdd) :-
     make_node(0, Osdd).
 binop_1(and, Osdd1, PathConstr, Osdd) :-
     check_constraints(PathConstr, Osdd1, Osdd).
 binop_0(or, Osdd1, PathConstr, Osdd) :-
     check_constraints(PathConstr, Osdd1, Osdd).
-binop_1(or, Osdd1, PathConstr, Osdd) :-
+binop_1(or, _Osdd1, _PathConstr, Osdd) :-
     make_node(1, Osdd).
 
-binop_pairiwse(Op, [], _ET2, _P, ETin, ETin).
+binop_pairiwse(_Op, [], _ET2, _P, ETin, ETin).
 binop_pairwise(Op, [edge_subtree(E1, T1)|Rest1],
 	       ET2, PathConstr, ETin, ETout) :-
     binop_pairwise_1(Op, E1, T1, ET2, PathConstr, ETin, ETtmp),
     binop_pairwise(Op, Rest1, ET2, PathConstr, ETtmp, ETout).
 
-binop_pairwise_1(Op, E1, T1, [], PathConstr, ETin, ETin).
+binop_pairwise_1(_Op, _E1, _T1, [], _PathConstr, ETin, ETin).
 binop_pairwise_1(Op, E1, T1, [edge_subtree(E2, T2)|Rest],
 		 PathConstr, ETin, ETout) :-
     append(PathConstr, E1, PathConstr1),
@@ -501,7 +488,7 @@ binop_edges(Op, [edge_subtree(E, T)|Rest], Osdd, PathConstr,
     append(PathConstr, E, PathConstr1),
     (satisfiable(PathConstr1)
     ->
-	binop(Op, T, Osdd, PathConstr1, T1),
+	binop(Op, T, Osdd, PathConstr1, T1)
     ;
         make_node(0, T1)
     ),
@@ -514,10 +501,10 @@ check_constraints(+PathConstr, +OsddIn, -OsddOut)
 Prunes any edges which are not satisfiable under 'PathConstr'.
 We assume that 'PathConstr' itself is satisfiable.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-check_constraints(PathConstr, OsddIn, OsddOut) :-
+check_constraints(_PathConstr, OsddIn, OsddOut) :-
     '$unique_table'(OsddIn, 1), !,
     OsddOut = OsddIn.
-check_constraints(PathConstr, OsddIn, OsddOut) :-
+check_constraints(_PathConstr, OsddIn, OsddOut) :-
     '$unique_table'(OsddIn, 0), !,
     OsddOut = OsddIn.
 check_constraints(PathConstr, OsddIn, OsddOut) :-
@@ -1037,41 +1024,41 @@ map_args([Arg|Args], [_Arg|_Args], L) :-
 % Probability Computation for Tree OSDDs
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-mytreeprob(leaf(X), X).
+%% mytreeprob(leaf(X), X).
 
-mytreeprob(tree(R, ETs), P) :-
-    mytreeprob_1(R, ETs, 0, P).
+%% mytreeprob(tree(R, ETs), P) :-
+%%     mytreeprob_1(R, ETs, 0, P).
 
-mytreeprob_1(R, [], Pin, Pin).
-mytreeprob_1(R, [edge_subtree(E, T)|Rest], Pin, Pout) :-
-    ve_representation(E, EQ, NEQ),
-    canonical_label(R, Label),
-    solutions(Label, EQ, NEQ, S),
-    copy_term(var_tree(R, T), Copy),
-    Copy =.. [var_tree| [R1, T1]],
-    edge_prob(var(R1, T1), S, 0, Pedge),
-    Ptmp is Pin + Pedge,
-    mytreeprob_1(R, Rest, Ptmp, Pout),
-    true.
+%% mytreeprob_1(R, [], Pin, Pin).
+%% mytreeprob_1(R, [edge_subtree(E, T)|Rest], Pin, Pout) :-
+%%     ve_representation(E, EQ, NEQ),
+%%     canonical_label(R, Label),
+%%     solutions(Label, EQ, NEQ, S),
+%%     copy_term(var_tree(R, T), Copy),
+%%     Copy =.. [var_tree| [R1, T1]],
+%%     edge_prob(var(R1, T1), S, 0, Pedge),
+%%     Ptmp is Pin + Pedge,
+%%     mytreeprob_1(R, Rest, Ptmp, Pout),
+%%     true.
 
-edge_prob(var(R, T), [], Pin, Pin).
-edge_prob(var(R, T), [V|VR], Pin, Pout) :-
-    copy_term(var_tree(R, T), Copy),
-    Copy =.. [var_tree| [R1, T1]],
-    edge_prob_1(R1, V, T1, P),
-    Ptmp is Pin + P,
-    edge_prob(var(R, T), VR, Ptmp, Pout).
+%% edge_prob(var(R, T), [], Pin, Pin).
+%% edge_prob(var(R, T), [V|VR], Pin, Pout) :-
+%%     copy_term(var_tree(R, T), Copy),
+%%     Copy =.. [var_tree| [R1, T1]],
+%%     edge_prob_1(R1, V, T1, P),
+%%     Ptmp is Pin + P,
+%%     edge_prob(var(R, T), VR, Ptmp, Pout).
 
-% edge probability under a particular value for output variable
-edge_prob_1(R, V, T, P) :-
-    read_id(R, id(S, _)),
-    intrange(S, Lower, Upper),
-    Index is V - Lower + 1,
-    set_sw(S, Dist),
-    lists:nth(Index, Dist, Pv),
-    R = V,
-    mytreeprob(T, Pt),
-    P is Pv * Pt.
+%% % edge probability under a particular value for output variable
+%% edge_prob_1(R, V, T, P) :-
+%%     read_id(R, id(S, _)),
+%%     intrange(S, Lower, Upper),
+%%     Index is V - Lower + 1,
+%%     set_sw(S, Dist),
+%%     lists:nth(Index, Dist, Pv),
+%%     R = V,
+%%     mytreeprob(T, Pt),
+%%     P is Pv * Pt.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Misc
@@ -1086,5 +1073,12 @@ initialize :-
     %% retractall('$id_label'/2),
     retractall('$unique_table'/2),
     prepare(0).
+
+compute_osdd(Query, Ctxt-Osdd) :-
+    Query =.. [Pred | Args],
+    make_node(1, One),
+    Args1 = append(Args, [[]-One, Ctxt-Osdd]),
+    Query1 =.. [Pred | Args1],
+    call(Query1).
 
 ?- initialize.
