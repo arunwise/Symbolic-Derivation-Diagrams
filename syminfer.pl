@@ -89,7 +89,7 @@ apply_constraint(CtxtIn-NodeIn, C, OutVars, PathConstr, CtxtIn-NodeOut) :-
 		% apply constraints here
 		apply_constraint_urg(EdgeSubTrees, LC, PathConstr,
 				     EdgeSubTrees1),
-		negate(LC, LCN),
+		negate_atomic(LC, LCN),
 		make_node(0, Z),
 		append(EdgeSubTrees1, [edge_subtree([LCN], Z)],
 		       EdgeSubTreesOut)
@@ -342,12 +342,12 @@ labeled_form(Ctxt, Lhs\=Rhs, LLhs\=LRhs) :-
     ).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-negate(+C, -N)
+negate_atomic(+C, -N)
 
 N is the negation of the atomic constraint C
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-negate(X=Y, X\=Y).
-negate(X\=Y, X=Y).
+negate_atomic(X=Y, X\=Y).
+negate_atomic(X\=Y, X=Y).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 satisfiable(+CF)
