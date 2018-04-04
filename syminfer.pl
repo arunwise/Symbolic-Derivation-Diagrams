@@ -97,8 +97,9 @@ apply_constraint(CtxtIn-NodeIn, C, OutVars, PathConstr, CtxtIn-NodeOut) :-
                 apply_constraint_no_urg(CtxtIn, EdgeSubTrees, LC, OutVars1,
 				 PathConstr, EdgeSubTreesOut)
 	    ),
-	    canonical_form(EdgeSubTreesOut, CF),
-	    make_node(tree(Root, CF), NodeOut)
+	    canonical_form_et(EdgeSubTreesOut, CF),
+	    canonical_form(tree(Root, CF), CT),
+	    make_node(CT, NodeOut)
 	)
     ).
 
@@ -377,23 +378,24 @@ ve_representation([X\=Y|R], EQ, [X-Y, Y-X | NER]) :-
     ve_representation(R, EQ, NER).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-canonical_form(+EdgeSubTrees, +CanonicalForm)
+canonical_form(+Tree, +CanonicalForm)
 
-Convert the list of 'EdgeSubTrees' into a canonical form.
+Convert OSDD tree nodes into a canonical form. We assume that
+edge/subtree pairs are already in canonical form.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 canonical_form(0, 0).
 canonical_form(1, 1).
 canonical_form(tree(Root, ET), T) :-
+    % assume that ET is already in canonical form
     (is_empty(ET)
     ->
 	T = 0
     ;
-        canonical_form_et(ET, CF),
-        T = tree(Root, CF)
+        T = tree(Root, ET)
     ).
 
 canonical_form_et(ETIn, ETOut) :-
-    is_list(ETIn), !,
+    is_list(ETIn),
     canonical_form_et_1(ETIn, ET),
     sort(ET, ETOut).
 
@@ -443,18 +445,21 @@ binop(Op, Osdd1, Osdd2, PathConstr, Osdd) :-
     (Root1 == Root2
     ->
 	binop_pairwise(Op, ET1, ET2, PathConstr, [], ET),
-	canonical_form(ET, CF),
-	make_node(tree(Root1, CF), Osdd)
+	canonical_form_et(ET, CF),
+	canonical_form(tree(Root, CF), CT),
+	make_node(CT, Osdd)
     ;
         (Root1 @< Root2
 	->
 	    binop_edges(Op, ET1, Osdd2, PathConstr, ET),
-	    canonical_form(ET, CF),
-	    make_node(tree(Root1, CF), Osdd)
+	    canonical_form_et(ET, CF),
+	    canonical_form(tree(Root1, CF), CT),
+	    make_node(CT, Osdd)
 	;
 	    binop_edges(Op, ET2, Osdd1, PathConstr, ET),
-	    canonical_form(ET, CF),
-	    make_node(tree(Root2, CF), Osdd)
+	    canonical_form_et(ET, CF),
+	    canonical_form(tree(Root2, CF), CT),
+	    make_node(CT, Osdd)
 	)
     ).
 
@@ -518,8 +523,9 @@ check_constraints(PathConstr, OsddIn, OsddOut) :-
 check_constraints(PathConstr, OsddIn, OsddOut) :-
     '$unique_table'(OsddIn, tree(Root, ET)), !,
     check_constraints_1(PathConstr, ET, [], ET1),
-    canonical_form(ET1, CF),
-    make_node(tree(Root, CF), OsddOut).
+    canonical_form_et(ET1, CF),
+    canonical_form(tree(Root, CF), CT),
+    make_node(CT, OsddOut).
 
 check_constraints_1(_P, [], ETin, ETin).
 check_constraints_1(PathConstr, [edge_subtree(E, T)|Rest], ETin, ETout) :-
@@ -533,331 +539,338 @@ check_constraints_1(PathConstr, [edge_subtree(E, T)|Rest], ETin, ETout) :-
     ),
     check_constraints_1(PathConstr, Rest, ETtmp, ETout).
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% OSDD construction definitions
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-one(leaf(1)).
-zero(leaf(0)).
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+split_if_needed(+OsddIn, -OsddOut)
 
-% Returns a consistent OSDD
-make_osdd(R, Eis, Oh) :-
-    (Eis = []
-    ->  Oh = leaf(0)
-    ;   order_edges(Eis, Eos),
-        Oh = tree(R, Eos)
-    ).
-
-% and_osdd(+OSDD_handle1, +OSDD_handle2, -OSDD_handle):
-and(Oh1, Oh2, Oh) :-
-    bin_op(and, Oh1, Oh2, [], Oh).
-
-% or_osdd(+OSDD_handle1, +OSDD_handle2, -OSDD_handle):
-or(Oh1, Oh2, Oh) :- writeln('OR'),
-    bin_op(or, Oh1, Oh2, [], Oh).
-
-% bin_op(+Operation, +OSDD1, +OSDD2, -OSDD_Out):
-bin_op(Op, leaf(1), Oh2, Ctxt, Oh) :- !, bin_op1(Op, Oh2, Ctxt, Oh).
-bin_op(Op, leaf(0), Oh2, Ctxt, Oh) :- !, bin_op0(Op, Oh2, Ctxt, Oh).
-bin_op(Op, Oh1, leaf(1), Ctxt, Oh) :- !, bin_op1(Op, Oh1, Ctxt, Oh).
-bin_op(Op, Oh1, leaf(0), Ctxt, Oh) :- !, bin_op0(Op, Oh1, Ctxt, Oh).
-
-bin_op(Op, Oh1, Oh2, Ctxt, Oh) :-
-    Oh1 = tree(R1, E1s), Oh2 = tree(R2, E2s),
-    compare_roots(R1, R2, C),
-    write('    OSDD1: '), writeln(Oh1), write('    OSDD2: '), writeln(Oh2),
-    (C < 0  /* R1 is smaller */
-    -> apply_binop(Op, E1s, Oh2, Ctxt, Es), make_osdd(R1, Es, Oh)
-    ;   (C > 0 /* R2 is smaller */
-        ->  apply_binop(Op, E2s, Oh1, Ctxt, Es), make_osdd(R2, Es, Oh)
-        ;   /* R1=R2 */ R1 = R2, apply_all_binop(Op, E1s, E2s, Ctxt, Es), make_osdd(R1, Es, Oh)
-        )
-    ),
-    write('    RESULT: '), writeln(Oh).
-
-bin_op1(and, Oh1, Ctxt, Oh) :- apply_context(Oh1, Ctxt, Oh).
-bin_op1(or, _, _Ctxt, leaf(1)).
-bin_op0(or, Oh1, Ctxt, Oh) :- apply_context(Oh1, Ctxt, Oh).
-bin_op0(and, _, _Ctxt, leaf(0)).
-
-% Do binop with all trees in list (arg 2) and the other given tree (arg 3)
-:- index apply_binop/5-2.
-apply_binop(_Op, [], _Oh2, _Ctxt, []).
-apply_binop(Op, [edge_subtree(C,Oh1)|E1s], Oh2, Ctxt, Edges) :-
-    (constraints_conjunction(C, Ctxt, Ctxt1)
-    ->  bin_op(Op, Oh1, Oh2, Ctxt1, Oh),
-        Edges = [edge_subtree(C,Oh)|Es],
-        apply_binop(Op, E1s, Oh2, Ctxt, Es)
-    ;   % inconsistent, drop this edge:
-        apply_binop(Op, E1s, Oh2, Ctxt, Edges)
-    ).
-
-% Do binop, pairwise, for all trees in the two lists (arg 2, and arg 3)
-apply_all_binop(Op, E1s, E2s, Ctxt, Es) :- apply_all_binop(Op, E1s, E2s, Ctxt, [], Es).
-
-:- index apply_all_binop/6-3.
-apply_all_binop(_Op, _E1s, [], _Ctxt, Es, Es).
-apply_all_binop(Op, E1s, [edge_subtree(C2,Oh2)|E2s], Ctxt, Eis, Eos) :-
-    (constraints_conjunction(C2, Ctxt, Ctxt1)
-    ->  apply_1_binop(Op, E1s, C2, Oh2, Ctxt1, Eis, Ets)
-    ;   Eis = Ets  % C2's constraint is inconsistent wrt Ctxt, so drop these edges
-    ),
-    apply_all_binop(Op, E1s, E2s, Ctxt, Ets, Eos).
-
-apply_1_binop(_Op, [], _C2, _Oh2, _Ctxt, Es, Es).
-apply_1_binop(Op, [edge_subtree(C1,Oh1)|E1s], C2, Oh2, Ctxt, Eis, Eos) :-
-    (constraints_conjunction(C1, C2, C), constraints_conjunction(C, Ctxt, Ctxt1)
-    ->  bin_op(Op, Oh1, Oh2, Ctxt1, Oh),
-        Eos = [edge_subtree(C, Oh)|Ets]
-    ;   Eos = Ets
-    ),
-    apply_1_binop(Op, E1s, C2, Oh2, Ctxt, Eis, Ets).
-
-% Apply context constraints to prune inconsistent edges
-apply_context(leaf(X), _, leaf(X)).
-apply_context(tree(R, E1s), Ctxt, Oh2) :-
-    writeln('...Applying context...'),
-    apply_context_edges(E1s, Ctxt, E2s),
-    (E2s = []
-    ->  Oh2 = leaf(0)
-    ;   Oh2 = tree(R, E2s)
-    ).
-
-apply_context_edges([], _Ctxt, []).
-apply_context_edges([edge_subtree(C,T)|E1s], Ctxt, E2s) :-
-    writeln('...Applying context to edges...'),
-    (constraints_conjunction(C, Ctxt, Ctxt1)
-    ->  apply_context(T, Ctxt1, T1),
-        E2s = [edge_subtree(C,T1)|Eos]
-    ;   E2s = Eos
-    ),
-    apply_context_edges(E1s, Ctxt, Eos). 
-
-% Splits OSDDs which have late constraints
-/*split_if_needed(Oh1, Oh2) :-
-    writeln('...Split if needed...'),
-    (identify_late_constraint(Oh1, C)
-    ->  writeln('-----------LATE-----------\n'),
-        split(Oh1, C, Oh3),
-        split_if_needed(Oh3, Oh2)
-    ;   Oh2 = Oh1
-    ).*/
-
+To be implemented.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 split_if_needed(X,X).
 
-split(Oh1, C, Oh2) :-
-    split(Oh1, C, [], Oh2).
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% % OSDD construction definitions
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% one(leaf(1)).
+%% zero(leaf(0)).
 
-split(leaf(X), _C, _Ctxt, leaf(X)).
+%% % Returns a consistent OSDD
+%% make_osdd(R, Eis, Oh) :-
+%%     (Eis = []
+%%     ->  Oh = leaf(0)
+%%     ;   order_edges(Eis, Eos),
+%%         Oh = tree(R, Eos)
+%%     ).
 
-/*split(tree(R, E1s), C, Ctxt, tree(R, E2s)) :-
-    (testable_at(R, C)
-    ->  
-    write('---\nConstraint: '), writeln(C),
-    write('\nTree: '), writeln(tree(R, E1s)), write('---\n'),
-        complement_atom(C, NC),
-        (constraints_conjunction([C], Ctxt, Ctxt1)
-        ->  apply_context_edges(E1s, Ctxt1, E11s)
-        ;   E11s = []
-        ),
-        (constraints_conjunction([NC], Ctxt, Ctxt2)
-        ->  apply_context_edges(E1s, Ctxt2, E12s)
-        ;   E12s = []
-        ),
-        write('\n~~~~~~~~~~\nE11s IS: '), writeln(E11s), write('\n~~~~~~~~~~~\n'),
-        write('\n~~~~~~~~~~\nE12s IS: '), writeln(E12s), write('\n~~~~~~~~~~~\n'),
-        basics:append(E11s, E12s, E2m),
-        write('\n~~~~~~~~~~\nE2M IS: '), writeln(E2m), write('\n~~~~~~~~~~~\n'),
-        order_edges(E2m, E2s)
-    ;   split_all(E1s, C, Ctxt, E2s)
-    ).*/
+%% % and_osdd(+OSDD_handle1, +OSDD_handle2, -OSDD_handle):
+%% and(Oh1, Oh2, Oh) :-
+%%     bin_op(and, Oh1, Oh2, [], Oh).
 
-split(tree(R, E1s), C, Ctxt, tree(R, Es_out)) :-
-    (testable_at(R, C)
-    ->  update_edges(tree(R, E1s), R, C, [], tree(R, E2s)),
-        order_edges(E2s, Es_out)
-    ;   split_all(E1s, C, Ctxt, Es_out)
-    ).
+%% % or_osdd(+OSDD_handle1, +OSDD_handle2, -OSDD_handle):
+%% or(Oh1, Oh2, Oh) :- writeln('OR'),
+%%     bin_op(or, Oh1, Oh2, [], Oh).
 
-split_all([], _, _, []).
-split_all([edge_subtree(C1,T1)|Es], C, Ctxt, E2s) :-
-    (constraints_conjunction(C1, Ctxt, Ctxt1)
-    ->  split(T1, C, Ctxt1, T2),
-        E2s = [edge_subtree(C1, T2)|Eos]
-    ;   E2s = Eos
-    ),
-    split_all(Es, C, Ctxt, Eos).
+%% % bin_op(+Operation, +OSDD1, +OSDD2, -OSDD_Out):
+%% bin_op(Op, leaf(1), Oh2, Ctxt, Oh) :- !, bin_op1(Op, Oh2, Ctxt, Oh).
+%% bin_op(Op, leaf(0), Oh2, Ctxt, Oh) :- !, bin_op0(Op, Oh2, Ctxt, Oh).
+%% bin_op(Op, Oh1, leaf(1), Ctxt, Oh) :- !, bin_op1(Op, Oh1, Ctxt, Oh).
+%% bin_op(Op, Oh1, leaf(0), Ctxt, Oh) :- !, bin_op0(Op, Oh1, Ctxt, Oh).
 
-% Uses context and implicit constraints to determine if there is a
-% "late constraint" which is an implicit constraint which violates urgency
-identify_late_constraint(Oh, C) :- identify_late_constraint(Oh, [], C).
-identify_late_constraint(tree(R, Es), Ctxt, C) :-
-    identify_late_constraint(Es, R, Ctxt, C).
-identify_late_constraint([edge_subtree(C1,_T1)|_Es], R, Ctxt, C) :-
-    absmerge(C1, Ctxt, Total_Constraints),
-    get_implicit_constraints(C1, C2),
-    member(C, C2),  % iterate through all constraints in C1
-    not listutil:absmember(C, Total_Constraints),
-    not_at(R, C), !.
-identify_late_constraint([edge_subtree(C1,T1)|_Es], _R, Ctxt, C) :-
-    constraints_conjunction(C1, Ctxt, Ctxt1),
-    identify_late_constraint(T1, Ctxt1, C), !.
-identify_late_constraint([_|Es], R, Ctxt, C) :-
-    identify_late_constraint(Es, R, Ctxt, C).
+%% bin_op(Op, Oh1, Oh2, Ctxt, Oh) :-
+%%     Oh1 = tree(R1, E1s), Oh2 = tree(R2, E2s),
+%%     compare_roots(R1, R2, C),
+%%     write('    OSDD1: '), writeln(Oh1), write('    OSDD2: '), writeln(Oh2),
+%%     (C < 0  /* R1 is smaller */
+%%     -> apply_binop(Op, E1s, Oh2, Ctxt, Es), make_osdd(R1, Es, Oh)
+%%     ;   (C > 0 /* R2 is smaller */
+%%         ->  apply_binop(Op, E2s, Oh1, Ctxt, Es), make_osdd(R2, Es, Oh)
+%%         ;   /* R1=R2 */ R1 = R2, apply_all_binop(Op, E1s, E2s, Ctxt, Es), make_osdd(R1, Es, Oh)
+%%         )
+%%     ),
+%%     write('    RESULT: '), writeln(Oh).
 
-not_at(R, C) :- not testable_at(R, C).
+%% bin_op1(and, Oh1, Ctxt, Oh) :- apply_context(Oh1, Ctxt, Oh).
+%% bin_op1(or, _, _Ctxt, leaf(1)).
+%% bin_op0(or, Oh1, Ctxt, Oh) :- apply_context(Oh1, Ctxt, Oh).
+%% bin_op0(and, _, _Ctxt, leaf(0)).
 
-testable_at(R, _X=Y) :- R == Y.
-testable_at(R, _X\=Y) :- R == Y.
+%% % Do binop with all trees in list (arg 2) and the other given tree (arg 3)
+%% :- index apply_binop/5-2.
+%% apply_binop(_Op, [], _Oh2, _Ctxt, []).
+%% apply_binop(Op, [edge_subtree(C,Oh1)|E1s], Oh2, Ctxt, Edges) :-
+%%     (constraints_conjunction(C, Ctxt, Ctxt1)
+%%     ->  bin_op(Op, Oh1, Oh2, Ctxt1, Oh),
+%%         Edges = [edge_subtree(C,Oh)|Es],
+%%         apply_binop(Op, E1s, Oh2, Ctxt, Es)
+%%     ;   % inconsistent, drop this edge:
+%%         apply_binop(Op, E1s, Oh2, Ctxt, Edges)
+%%     ).
 
-% order_edges(E1s, E2s): E2s contains all edges in E1s, but ordered in
-% a canonical way
-order_edges(ETin, ETout) :-
-    empty_assoc(Ain),
-    % create a list containing canonical constraints and also insert
-    % them into association list
-    fill_assoc(ETin, Ain, [], Aout, Lout),
-    % sort the canonical constraints
-    sort(Lout, Lsort),
-    % return the edge_subtrees in the corresponding order
-    sorted_edgesubtrees(Lsort, Aout, ETout),
-    true.
+%% % Do binop, pairwise, for all trees in the two lists (arg 2, and arg 3)
+%% apply_all_binop(Op, E1s, E2s, Ctxt, Es) :- apply_all_binop(Op, E1s, E2s, Ctxt, [], Es).
 
-% fill_assoc(EdgeTreeList, AssocIn, ListIn, AssocOut, ListOut)
-% Iterate over 'EdgeTreeList', add canonical form of constraint to
-% ListIn, also add key-value pair of canonical constraint and
-% Edge-Subtree term in AssocIn
-fill_assoc([], A, L, A, L).
-fill_assoc([edge_subtree(E, T)|R], Ain, Lin, Aout, Lout) :-
-    %% canonical_form(E, C),
-    %% edge_list_form(E, EQ, NEQ),
-    ve_representation(E, EQ, NEQ),
-    canonical_form(EQ, NEQ, C),
-    put_assoc(C, Ain, edge_subtree(E, T), Atmp),
-    basics:append(Lin, [C], Ltmp),
-    fill_assoc(R, Atmp, Ltmp, Aout, Lout).
+%% :- index apply_all_binop/6-3.
+%% apply_all_binop(_Op, _E1s, [], _Ctxt, Es, Es).
+%% apply_all_binop(Op, E1s, [edge_subtree(C2,Oh2)|E2s], Ctxt, Eis, Eos) :-
+%%     (constraints_conjunction(C2, Ctxt, Ctxt1)
+%%     ->  apply_1_binop(Op, E1s, C2, Oh2, Ctxt1, Eis, Ets)
+%%     ;   Eis = Ets  % C2's constraint is inconsistent wrt Ctxt, so drop these edges
+%%     ),
+%%     apply_all_binop(Op, E1s, E2s, Ctxt, Ets, Eos).
 
-sorted_edgesubtrees([], _, []).
-sorted_edgesubtrees([CC|CCR], A, [ET|ETR]) :-
-    get_assoc(CC, A, ET),
-    sorted_edgesubtrees(CCR, A, ETR).
+%% apply_1_binop(_Op, [], _C2, _Oh2, _Ctxt, Es, Es).
+%% apply_1_binop(Op, [edge_subtree(C1,Oh1)|E1s], C2, Oh2, Ctxt, Eis, Eos) :-
+%%     (constraints_conjunction(C1, C2, C), constraints_conjunction(C, Ctxt, Ctxt1)
+%%     ->  bin_op(Op, Oh1, Oh2, Ctxt1, Oh),
+%%         Eos = [edge_subtree(C, Oh)|Ets]
+%%     ;   Eos = Ets
+%%     ),
+%%     apply_1_binop(Op, E1s, C2, Oh2, Ctxt, Eis, Ets).
 
-% If X is a constant, leave T_in unchanged
-update_edges(T_in, X, _C, _Ctxt, T_in) :- nonvar(X).
+%% % Apply context constraints to prune inconsistent edges
+%% apply_context(leaf(X), _, leaf(X)).
+%% apply_context(tree(R, E1s), Ctxt, Oh2) :-
+%%     writeln('...Applying context...'),
+%%     apply_context_edges(E1s, Ctxt, E2s),
+%%     (E2s = []
+%%     ->  Oh2 = leaf(0)
+%%     ;   Oh2 = tree(R, E2s)
+%%     ).
 
-% Base case for edge recursion
-update_edges([], _Y, _C, _Ctxt, []).
+%% apply_context_edges([], _Ctxt, []).
+%% apply_context_edges([edge_subtree(C,T)|E1s], Ctxt, E2s) :-
+%%     writeln('...Applying context to edges...'),
+%%     (constraints_conjunction(C, Ctxt, Ctxt1)
+%%     ->  apply_context(T, Ctxt1, T1),
+%%         E2s = [edge_subtree(C,T1)|Eos]
+%%     ;   E2s = Eos
+%%     ),
+%%     apply_context_edges(E1s, Ctxt, Eos). 
 
-% If X is not the root, recurse on the edges of the tree
-update_edges(tree(X, S1), Y, C, Ctxt, tree(X, S2)) :-
-    X \== Y,
-    update_edges(S1, Y, C, Ctxt, S2).
+%% % Splits OSDDs which have late constraints
+%% /*split_if_needed(Oh1, Oh2) :-
+%%     writeln('...Split if needed...'),
+%%     (identify_late_constraint(Oh1, C)
+%%     ->  writeln('-----------LATE-----------\n'),
+%%         split(Oh1, C, Oh3),
+%%         split_if_needed(Oh3, Oh2)
+%%     ;   Oh2 = Oh1
+%%     ).*/
 
-% Updates the subtrees in the edge list one at a time
-update_edges([edge_subtree(Constraints, T) | R], X, C, Ctxt, [edge_subtree(Constraints, T1)| R1]) :-
-    absmerge(Constraints, Ctxt, Ctxt1),
-    update_edges(T, X, C, Ctxt1, T1),
-    update_edges(R, X, C, Ctxt, R1).
+%% split_if_needed(X,X).
 
-% Handles logic for when X is the root of the tree
-update_edges(tree(X, Edges), Y, C, Ctxt, tree(X, _UpdatedSubtrees)) :-
-    X == Y,
-    update_subtrees(Edges, C, [], Ctxt, UpdatedSubtrees),
-    remove_empty_edge_subtrees(UpdatedSubtrees, _UpdatedSubtrees).
+%% split(Oh1, C, Oh2) :-
+%%     split(Oh1, C, [], Oh2).
 
-% Leaf nodes are left unchanged
-update_edges(leaf(_X), Y, _C, _Ctxt, leaf(_X)) :- var(Y).
+%% split(leaf(X), _C, _Ctxt, leaf(X)).
 
-% Implements completeness by adding the complement of C to the previous constraints
-update_subtrees([], C, Prev, Ctxt, [edge_subtree(Complement, leaf(0))]) :-
-    complement_atom(C, _C),
-    basics:append(Prev, [_C], Complement).
+%% /*split(tree(R, E1s), C, Ctxt, tree(R, E2s)) :-
+%%     (testable_at(R, C)
+%%     ->  
+%%     write('---\nConstraint: '), writeln(C),
+%%     write('\nTree: '), writeln(tree(R, E1s)), write('---\n'),
+%%         complement_atom(C, NC),
+%%         (constraints_conjunction([C], Ctxt, Ctxt1)
+%%         ->  apply_context_edges(E1s, Ctxt1, E11s)
+%%         ;   E11s = []
+%%         ),
+%%         (constraints_conjunction([NC], Ctxt, Ctxt2)
+%%         ->  apply_context_edges(E1s, Ctxt2, E12s)
+%%         ;   E12s = []
+%%         ),
+%%         write('\n~~~~~~~~~~\nE11s IS: '), writeln(E11s), write('\n~~~~~~~~~~~\n'),
+%%         write('\n~~~~~~~~~~\nE12s IS: '), writeln(E12s), write('\n~~~~~~~~~~~\n'),
+%%         basics:append(E11s, E12s, E2m),
+%%         write('\n~~~~~~~~~~\nE2M IS: '), writeln(E2m), write('\n~~~~~~~~~~~\n'),
+%%         order_edges(E2m, E2s)
+%%     ;   split_all(E1s, C, Ctxt, E2s)
+%%     ).*/
 
-% Add C to the constraint list on an edge which does not have 0 child
-update_subtrees([edge_subtree(C1, T)|Edges], C, Prev, Ctxt, [UpdatedSubtree | UpdatedEdges]) :-
-    (T \== leaf(0)
-    ->  basics:append(C1, [C], C2),
-        % Check if the tree is satisfiable
-        (absmerge(C2, Ctxt, Total_Constraints), 
-            write('total constraints'), writeln(Total_Constraints), satisfiable(Total_Constraints)
-        ->  true
-        ;   fail
-        ),
-	    (satisfiable(C2)
-        ->  basics:append(Prev, C1, Next),
-            UpdatedSubtree = edge_subtree(C2, T)
-        ;   UpdatedSubtree = []
-        )
-    ;   Next = Prev, C2 = C1, UpdatedSubtree = edge_subtree(C2, T)
-    ),
-    update_subtrees(Edges, C, Next, Ctxt, UpdatedEdges).
+%% split(tree(R, E1s), C, Ctxt, tree(R, Es_out)) :-
+%%     (testable_at(R, C)
+%%     ->  update_edges(tree(R, E1s), R, C, [], tree(R, E2s)),
+%%         order_edges(E2s, Es_out)
+%%     ;   split_all(E1s, C, Ctxt, Es_out)
+%%     ).
 
-% Removes empty lists generated when an added constraint makes the total formula unsatisfiable
-remove_empty_edge_subtrees([], []).
-remove_empty_edge_subtrees([[]|Rest], Cleaned) :-
-    remove_empty_edge_subtrees(Rest, Cleaned).
+%% split_all([], _, _, []).
+%% split_all([edge_subtree(C1,T1)|Es], C, Ctxt, E2s) :-
+%%     (constraints_conjunction(C1, Ctxt, Ctxt1)
+%%     ->  split(T1, C, Ctxt1, T2),
+%%         E2s = [edge_subtree(C1, T2)|Eos]
+%%     ;   E2s = Eos
+%%     ),
+%%     split_all(Es, C, Ctxt, Eos).
 
-remove_empty_edge_subtrees([X|Rest], [X|Cleaned]) :-
-    X \== [],
-    remove_empty_edge_subtrees(Rest, Cleaned).
+%% % Uses context and implicit constraints to determine if there is a
+%% % "late constraint" which is an implicit constraint which violates urgency
+%% identify_late_constraint(Oh, C) :- identify_late_constraint(Oh, [], C).
+%% identify_late_constraint(tree(R, Es), Ctxt, C) :-
+%%     identify_late_constraint(Es, R, Ctxt, C).
+%% identify_late_constraint([edge_subtree(C1,_T1)|_Es], R, Ctxt, C) :-
+%%     absmerge(C1, Ctxt, Total_Constraints),
+%%     get_implicit_constraints(C1, C2),
+%%     member(C, C2),  % iterate through all constraints in C1
+%%     not listutil:absmember(C, Total_Constraints),
+%%     not_at(R, C), !.
+%% identify_late_constraint([edge_subtree(C1,T1)|_Es], _R, Ctxt, C) :-
+%%     constraints_conjunction(C1, Ctxt, Ctxt1),
+%%     identify_late_constraint(T1, Ctxt1, C), !.
+%% identify_late_constraint([_|Es], R, Ctxt, C) :-
+%%     identify_late_constraint(Es, R, Ctxt, C).
 
-% Compares two root nodes based on switch/instance ID
-compare_roots(Ctxt, R1, R2, 0) :-
-    find_id(Ctxt, R1, id(S, I)),
-    find_id(Ctxt, R2, id(S, I)).
+%% not_at(R, C) :- not testable_at(R, C).
 
-compare_roots(Ctxt, R1, R2, -1) :-
-    find_id(Ctxt, R1, id(S1, I1)),
-    find_id(Ctxt, R2, id(S2, I2)),
-    (I1 @< I2
-    ->  true
-    ;   (S1 @< S2
-        ->  true
-        ;   false
-        )
-    ).
+%% testable_at(R, _X=Y) :- R == Y.
+%% testable_at(R, _X\=Y) :- R == Y.
 
-compare_roots(Ctxt, R1, R2, 1) :-
-    find_id(Ctxt, R1, id(S1, I1)),
-    find_id(Ctxt, R2, id(S2, I2)),
-    (I1 @> I2
-    ->  true
-    ;   (S1 @> S2
-        ->  true
-        ;   false
-        )
-    ).
+%% % order_edges(E1s, E2s): E2s contains all edges in E1s, but ordered in
+%% % a canonical way
+%% order_edges(ETin, ETout) :-
+%%     empty_assoc(Ain),
+%%     % create a list containing canonical constraints and also insert
+%%     % them into association list
+%%     fill_assoc(ETin, Ain, [], Aout, Lout),
+%%     % sort the canonical constraints
+%%     sort(Lout, Lsort),
+%%     % return the edge_subtrees in the corresponding order
+%%     sorted_edgesubtrees(Lsort, Aout, ETout),
+%%     true.
 
-find_id([c(X, ID, Type)|Rest], Term, ID) :-
-    X == Term, !.
-find_id([c(X, IDX, Type)|Rest], Term, ID) :-
-    X \== Term,
-    find_id(Rest, Term, ID).
+%% % fill_assoc(EdgeTreeList, AssocIn, ListIn, AssocOut, ListOut)
+%% % Iterate over 'EdgeTreeList', add canonical form of constraint to
+%% % ListIn, also add key-value pair of canonical constraint and
+%% % Edge-Subtree term in AssocIn
+%% fill_assoc([], A, L, A, L).
+%% fill_assoc([edge_subtree(E, T)|R], Ain, Lin, Aout, Lout) :-
+%%     %% canonical_form(E, C),
+%%     %% edge_list_form(E, EQ, NEQ),
+%%     ve_representation(E, EQ, NEQ),
+%%     canonical_form(EQ, NEQ, C),
+%%     put_assoc(C, Ain, edge_subtree(E, T), Atmp),
+%%     basics:append(Lin, [C], Ltmp),
+%%     fill_assoc(R, Atmp, Ltmp, Aout, Lout).
 
-% OSSD contains X if X is the root
-contains(tree(Y, _), X) :- X==Y, !.
+%% sorted_edgesubtrees([], _, []).
+%% sorted_edgesubtrees([CC|CCR], A, [ET|ETR]) :-
+%%     get_assoc(CC, A, ET),
+%%     sorted_edgesubtrees(CCR, A, ETR).
 
-% OSDD contains X if X is in the children lists
-contains(tree(Y, L), X) :-
-    X \== Y,
-    contains(L, X).
+%% % If X is a constant, leave T_in unchanged
+%% update_edges(T_in, X, _C, _Ctxt, T_in) :- nonvar(X).
 
-% OSDD constaints X if X is in the current sub-OSDD
-% or if X is in a later sub-OSDD
-contains([edge_subtree(_C,T)|R], X) :-
-    (contains(T, X) 
-    -> true
-    ;  contains(R, X)
-    ).
+%% % Base case for edge recursion
+%% update_edges([], _Y, _C, _Ctxt, []).
 
-% For and/or OSDD pairs, X is in the left or right OSDD
-contains(and(T1, _T2), X) :-
-    contains(T1, X), !.
-contains(and(_T1, T2), X) :-
-    contains(T2, X), !.
-contains(or(T1, _T2), X) :-
-    contains(T1, X), !.
-contains(or(_T1, T2), X) :-
-    contains(T2, X), !.
+%% % If X is not the root, recurse on the edges of the tree
+%% update_edges(tree(X, S1), Y, C, Ctxt, tree(X, S2)) :-
+%%     X \== Y,
+%%     update_edges(S1, Y, C, Ctxt, S2).
+
+%% % Updates the subtrees in the edge list one at a time
+%% update_edges([edge_subtree(Constraints, T) | R], X, C, Ctxt, [edge_subtree(Constraints, T1)| R1]) :-
+%%     absmerge(Constraints, Ctxt, Ctxt1),
+%%     update_edges(T, X, C, Ctxt1, T1),
+%%     update_edges(R, X, C, Ctxt, R1).
+
+%% % Handles logic for when X is the root of the tree
+%% update_edges(tree(X, Edges), Y, C, Ctxt, tree(X, _UpdatedSubtrees)) :-
+%%     X == Y,
+%%     update_subtrees(Edges, C, [], Ctxt, UpdatedSubtrees),
+%%     remove_empty_edge_subtrees(UpdatedSubtrees, _UpdatedSubtrees).
+
+%% % Leaf nodes are left unchanged
+%% update_edges(leaf(_X), Y, _C, _Ctxt, leaf(_X)) :- var(Y).
+
+%% % Implements completeness by adding the complement of C to the previous constraints
+%% update_subtrees([], C, Prev, Ctxt, [edge_subtree(Complement, leaf(0))]) :-
+%%     complement_atom(C, _C),
+%%     basics:append(Prev, [_C], Complement).
+
+%% % Add C to the constraint list on an edge which does not have 0 child
+%% update_subtrees([edge_subtree(C1, T)|Edges], C, Prev, Ctxt, [UpdatedSubtree | UpdatedEdges]) :-
+%%     (T \== leaf(0)
+%%     ->  basics:append(C1, [C], C2),
+%%         % Check if the tree is satisfiable
+%%         (absmerge(C2, Ctxt, Total_Constraints), 
+%%             write('total constraints'), writeln(Total_Constraints), satisfiable(Total_Constraints)
+%%         ->  true
+%%         ;   fail
+%%         ),
+%% 	    (satisfiable(C2)
+%%         ->  basics:append(Prev, C1, Next),
+%%             UpdatedSubtree = edge_subtree(C2, T)
+%%         ;   UpdatedSubtree = []
+%%         )
+%%     ;   Next = Prev, C2 = C1, UpdatedSubtree = edge_subtree(C2, T)
+%%     ),
+%%     update_subtrees(Edges, C, Next, Ctxt, UpdatedEdges).
+
+%% % Removes empty lists generated when an added constraint makes the total formula unsatisfiable
+%% remove_empty_edge_subtrees([], []).
+%% remove_empty_edge_subtrees([[]|Rest], Cleaned) :-
+%%     remove_empty_edge_subtrees(Rest, Cleaned).
+
+%% remove_empty_edge_subtrees([X|Rest], [X|Cleaned]) :-
+%%     X \== [],
+%%     remove_empty_edge_subtrees(Rest, Cleaned).
+
+%% % Compares two root nodes based on switch/instance ID
+%% compare_roots(Ctxt, R1, R2, 0) :-
+%%     find_id(Ctxt, R1, id(S, I)),
+%%     find_id(Ctxt, R2, id(S, I)).
+
+%% compare_roots(Ctxt, R1, R2, -1) :-
+%%     find_id(Ctxt, R1, id(S1, I1)),
+%%     find_id(Ctxt, R2, id(S2, I2)),
+%%     (I1 @< I2
+%%     ->  true
+%%     ;   (S1 @< S2
+%%         ->  true
+%%         ;   false
+%%         )
+%%     ).
+
+%% compare_roots(Ctxt, R1, R2, 1) :-
+%%     find_id(Ctxt, R1, id(S1, I1)),
+%%     find_id(Ctxt, R2, id(S2, I2)),
+%%     (I1 @> I2
+%%     ->  true
+%%     ;   (S1 @> S2
+%%         ->  true
+%%         ;   false
+%%         )
+%%     ).
+
+%% find_id([c(X, ID, Type)|Rest], Term, ID) :-
+%%     X == Term, !.
+%% find_id([c(X, IDX, Type)|Rest], Term, ID) :-
+%%     X \== Term,
+%%     find_id(Rest, Term, ID).
+
+%% % OSSD contains X if X is the root
+%% contains(tree(Y, _), X) :- X==Y, !.
+
+%% % OSDD contains X if X is in the children lists
+%% contains(tree(Y, L), X) :-
+%%     X \== Y,
+%%     contains(L, X).
+
+%% % OSDD constaints X if X is in the current sub-OSDD
+%% % or if X is in a later sub-OSDD
+%% contains([edge_subtree(_C,T)|R], X) :-
+%%     (contains(T, X) 
+%%     -> true
+%%     ;  contains(R, X)
+%%     ).
+
+%% % For and/or OSDD pairs, X is in the left or right OSDD
+%% contains(and(T1, _T2), X) :-
+%%     contains(T1, X), !.
+%% contains(and(_T1, T2), X) :-
+%%     contains(T2, X), !.
+%% contains(or(T1, _T2), X) :-
+%%     contains(T1, X), !.
+%% contains(or(_T1, T2), X) :-
+%%     contains(T2, X), !.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Change constraint formula representation
@@ -877,125 +890,125 @@ contains(or(_T1, T2), X) :-
 %% constraints and the other for disequality atomic constraints.
 
 
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-canonical_label(+Var/Const, -Canonical_Label)
-Var/Const: Attributed variable or a "type" constant
-Canonical_Label: Unique label for Var/Const
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-canonical_label(V, L) :-
-    (var(V)
-    ->
-	read_id(V, id(S, I)),
-	id_label(id(S, I), L)
-    ;
-        L = V
-    ).
+%% /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+%% canonical_label(+Var/Const, -Canonical_Label)
+%% Var/Const: Attributed variable or a "type" constant
+%% Canonical_Label: Unique label for Var/Const
+%% - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+%% canonical_label(V, L) :-
+%%     (var(V)
+%%     ->
+%% 	read_id(V, id(S, I)),
+%% 	id_label(id(S, I), L)
+%%     ;
+%%         L = V
+%%     ).
 
 
-:- table id_label/2.
-%:- index('$id_label'/2, [2,1]).
-id_label(id(S, I), L) :-
-    gensym(var, L),
-    assert('$id_label'(id(S, I), L)).
+%% :- table id_label/2.
+%% %:- index('$id_label'/2, [2,1]).
+%% id_label(id(S, I), L) :-
+%%     gensym(var, L),
+%%     assert('$id_label'(id(S, I), L)).
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Constraint processing definitions
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% % Constraint processing definitions
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% Combines two constraint lists by conjunction
-constraints_conjunction(C1, C2, C) :-
-    absmerge(C1, C2, C), 
-    satisfiable(C).
+%% % Combines two constraint lists by conjunction
+%% constraints_conjunction(C1, C2, C) :-
+%%     absmerge(C1, C2, C), 
+%%     satisfiable(C).
 
-% Complements a atomic constraint
-complement_atom(X=Y, X\=Y).
-complement_atom(X\=Y, X=Y).
+%% % Complements a atomic constraint
+%% complement_atom(X=Y, X\=Y).
+%% complement_atom(X\=Y, X=Y).
 
 
-% Gets the unique variables of a constraint list
-getvars([], L, L).
-getvars([X=Y|R], L, Lout) :-
-    (var(X), \+ lists:memberchk_eq(X, L)
-    ->
-	    basics:append(L, [X], Ltmp)
-    ;
-        Ltmp = L
-    ),
-    (var(Y), \+ lists:memberchk_eq(Y, L)
-    ->
-	    basics:append(Ltmp, [Y], Ltmp1)
-    ;
-        Ltmp1 = Ltmp
-    ),
-    getvars(R, Ltmp1, Lout).
+%% % Gets the unique variables of a constraint list
+%% getvars([], L, L).
+%% getvars([X=Y|R], L, Lout) :-
+%%     (var(X), \+ lists:memberchk_eq(X, L)
+%%     ->
+%% 	    basics:append(L, [X], Ltmp)
+%%     ;
+%%         Ltmp = L
+%%     ),
+%%     (var(Y), \+ lists:memberchk_eq(Y, L)
+%%     ->
+%% 	    basics:append(Ltmp, [Y], Ltmp1)
+%%     ;
+%%         Ltmp1 = Ltmp
+%%     ),
+%%     getvars(R, Ltmp1, Lout).
 
-getvars([X\=Y|R], L, Lout) :-
-    (var(X), \+ lists:memberchk_eq(X, L)
-    ->
-        basics:append(L, [X], Ltmp)
-    ;
-        Ltmp = L
-    ),
-    (var(Y), \+ lists:memberchk_eq(Y, L)
-    ->
-        basics:append(Ltmp, [Y], Ltmp1)
-    ;
-        Ltmp1 = Ltmp
-    ),
-    getvars(R, Ltmp1, Lout).
+%% getvars([X\=Y|R], L, Lout) :-
+%%     (var(X), \+ lists:memberchk_eq(X, L)
+%%     ->
+%%         basics:append(L, [X], Ltmp)
+%%     ;
+%%         Ltmp = L
+%%     ),
+%%     (var(Y), \+ lists:memberchk_eq(Y, L)
+%%     ->
+%%         basics:append(Ltmp, [Y], Ltmp1)
+%%     ;
+%%         Ltmp1 = Ltmp
+%%     ),
+%%     getvars(R, Ltmp1, Lout).
 
-%% complete a constraint formula with implicit constraints
-%% CComp is the union of C and implicit constraints
-get_implicit_constraints(C, CComp) :-
-    getvars(C, [], Vars),
-    id_var_pairs(Vars, Pairs),
-    list_to_assoc(Pairs, A),
-    %% canonical_form(C, cg(EQ, NEQ)),
-    %% edge_list_form(C, E, N),
-    ve_representation(C, E, N),
-    canonical_form(E, N, cg(EQ, NEQ)),
-    graph_to_formula(A, eq, EQ, [], C1),
-    graph_to_formula(A, neq, NEQ, C1, CComp),
-    true.
+%% %% complete a constraint formula with implicit constraints
+%% %% CComp is the union of C and implicit constraints
+%% get_implicit_constraints(C, CComp) :-
+%%     getvars(C, [], Vars),
+%%     id_var_pairs(Vars, Pairs),
+%%     list_to_assoc(Pairs, A),
+%%     %% canonical_form(C, cg(EQ, NEQ)),
+%%     %% edge_list_form(C, E, N),
+%%     ve_representation(C, E, N),
+%%     canonical_form(E, N, cg(EQ, NEQ)),
+%%     graph_to_formula(A, eq, EQ, [], C1),
+%%     graph_to_formula(A, neq, NEQ, C1, CComp),
+%%     true.
 
-id_var_pairs([], []).
-id_var_pairs([V|R], [Id-V|PR]) :-
-    %% canonical_label_1(V, Id),
-    canonical_label(V, Id),
-    id_var_pairs(R, PR).
+%% id_var_pairs([], []).
+%% id_var_pairs([V|R], [Id-V|PR]) :-
+%%     %% canonical_label_1(V, Id),
+%%     canonical_label(V, Id),
+%%     id_var_pairs(R, PR).
 
-graph_to_formula(Assoc, Op, [], C, C).
-graph_to_formula(Assoc, Op, [ID1-ID2|R], Cin, Cout) :-
-    % use only one of the edges in the constraint graph
-    (ID1 @< ID2
-    ->
-        (functor(ID1, id, 2)
-        ->
-            get_assoc(ID1, Assoc, X)
-        ;
-            X = ID1
-        ),
-        (functor(ID2, id, 2)
-        ->
-            get_assoc(ID2, Assoc, Y)
-        ;
-            Y = ID2
-        ),
-        (Op = eq
-        ->
-            basics:append(Cin, [X=Y], Ctmp)
-        ;   
-            (Op = neq
-            ->
-                basics:append(Cin, [X\=Y], Ctmp)
-            ;
-                fail
-            )
-        ),
-        graph_to_formula(Assoc, Op, R, Ctmp, Cout)
-    ;
-        graph_to_formula(Assoc, Op, R, Cin, Cout)
-    ).
+%% graph_to_formula(Assoc, Op, [], C, C).
+%% graph_to_formula(Assoc, Op, [ID1-ID2|R], Cin, Cout) :-
+%%     % use only one of the edges in the constraint graph
+%%     (ID1 @< ID2
+%%     ->
+%%         (functor(ID1, id, 2)
+%%         ->
+%%             get_assoc(ID1, Assoc, X)
+%%         ;
+%%             X = ID1
+%%         ),
+%%         (functor(ID2, id, 2)
+%%         ->
+%%             get_assoc(ID2, Assoc, Y)
+%%         ;
+%%             Y = ID2
+%%         ),
+%%         (Op = eq
+%%         ->
+%%             basics:append(Cin, [X=Y], Ctmp)
+%%         ;   
+%%             (Op = neq
+%%             ->
+%%                 basics:append(Cin, [X\=Y], Ctmp)
+%%             ;
+%%                 fail
+%%             )
+%%         ),
+%%         graph_to_formula(Assoc, Op, R, Ctmp, Cout)
+%%     ;
+%%         graph_to_formula(Assoc, Op, R, Cin, Cout)
+%%     ).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Query processing definitions
@@ -1067,11 +1080,10 @@ edge_prob_1(R, V, T, P) :-
 
 writeDot(OSDD, File) :- writeDotFile(OSDD, File).
 
-:- dynamic '$id_label'/2.
-
+%% :- dynamic '$id_label'/2.
 
 initialize :-
-    retractall('$id_label'/2),
+    %% retractall('$id_label'/2),
     retractall('$unique_table'/2),
     prepare(0).
 
