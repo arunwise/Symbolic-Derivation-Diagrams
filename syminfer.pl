@@ -375,6 +375,123 @@ canonical_form_1([edge_subtree(E, T) | Rest], [edge_subtree(CE, T) | RestC]) :-
     sort(CE1, CE),
     canonical_form_1(Rest, RestC).
 
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+and(+Osdd1, +Osdd2, -Osdd)
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+and(Osdd1, Osdd2, Osdd) :-
+    binop(and, Osdd1, Osdd2, [], Osdd).
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+or(+Osdd1, +Osdd2, -Osdd)
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+or(Osdd1, Osdd2, Osdd) :-
+    binop(or, Osdd1, Osdd2, [], Osdd).
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+binop(+OP, +Osdd1, +Osdd2, +PathConstr, -Osdd)
+
+Apply binary operation 'OP' on Osdd1 and Osdd2 under the path
+constraint 'PathConstr' to produce Osdd.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+binop(Op, Osdd1, Osdd2, PathConstr, Osdd) :-
+    '$unique_table'(Osdd1, 0), !,
+    binop_0(Op, Osdd2, PathConstr, Osdd).
+binop(Op, Osdd1, Osdd2, PathConstr, Osdd) :-
+    '$unique_table'(Osdd2, 0), !,
+    binop_0(Op, Osdd1, PathConstr, Osdd).
+binop(Op, Osdd1, Osdd2, PathConstr, Osdd) :-
+    '$unique_table'(Osdd1, 1), !,
+    binop_1(Op, Osdd2, PathConstr, Osdd).
+binop(Op, Osdd1, Osdd2, PathConstr, Osdd) :-
+    '$unique_table'(Osdd2, 1), !,
+    binop_1(Op, Osdd1, PathConstr, Osdd).
+
+binop(Op, Osdd1, Osdd2, PathConstr, Osdd) :-
+    '$unique_table'(Osdd1, tree(Root1, ET1)),
+    '$unique_table'(Osdd2, tree(Root2, ET2)),
+    (Root1 == Root2
+    ->
+	binop_pairwise(Op, ET1, ET2, PathConstr, [], ET),
+	canonical_form(ET, CF),
+	make_node(tree(Root1, CF), Osdd)
+    ;
+        (Root1 @< Root2
+	->
+	    binop_edges(Op, ET1, Osdd2, PathConstr, ET),
+	    canonical_form(ET, CF),
+	    make_node(tree(Root1, CF), Osdd)
+	;
+	    binop_edges(Op, ET2, Osdd1, PathConstr, ET),
+	    canonical_form(ET, CF),
+	    make_node(tree(Root2, CF), Osdd)
+	)
+    ).
+
+binop_0(and, Osdd1, _, Osdd) :-
+    make_node(0, Osdd).
+binop_1(and, Osdd1, PathConstr, Osdd) :-
+    check_constraints(PathConstr, Osdd1, Osdd).
+binop_0(or, Osdd1, PathConstr, Osdd) :-
+    check_constraints(PathConstr, Osdd1, Osdd).
+binop_1(or, Osdd1, PathConstr, Osdd) :-
+    check_constraints(PathConstr, Osdd1, Osdd).
+
+binop_edges(_Op, [], _Osdd, _P, []).
+binop_edges(Op, [edge_subtree(E, T)|Rest], Osdd, PathConstr,
+	    [edge_subtree(E, T1)|Rest1]) :-
+    append(PathConstr, E, PathConstr1),
+    binop(Op, T, Osdd, PathConstr1, T1),
+    binop_edges(Op, Rest, Osdd, PathConstr, Rest1).
+
+binop_pairiwse(Op, [], _ET2, _P, ETin, ETin).
+binop_pairwise(Op, [edge_subtree(E1, T1)|Rest1],
+	       ET2, PathConstr, ETin, ETout) :-
+    binop_pairwise_1(Op, E1, T1, ET2, PathConstr, ETtmp),
+    binop_pairwise(Op, Rest1, ET2, PathConstr, ETtmp, Etout).
+
+binop_pairwise_1(Op, E1, T1, ET2, PathConstr, ETin, ETout) :-
+    append(PathConstr, E1, PathConstr1),
+    (satisfiable(PathConstr1)
+    ->
+	binop_edges(Op, ET2, T1, PathConstr1, ETout)
+    ;
+        ETout = ETin
+    ).
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+check_constraints(+PathConstr, +OsddIn, -OsddOut)
+
+Prunes any edges which are not satisfiable under 'PathConstr'
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+check_constraints(PathConstr, OsddIn, OsddOut) :-
+    '$unique_table'(OsddIn, 1), !,
+    (satisfiable(PathConstr)
+    ->
+	OsddOut = OsddIn
+    ;
+        make_node(0, OsddOut)
+    ).
+check_constraints(PathConstr, OsddIn, OsddOut) :-
+    '$unique_table'(OsddIn, 0), !,
+    OsddOut = OsddIn.
+check_constraints(PathConstr, OsddIn, OsddOut) :-
+    '$unique_table'(OsddIn, tree(Root, ET)), !,
+    check_constraints_1(PathConstr, ET, ET1),
+    canonical_form(ET1, CF),
+    make_node(tree(Root, CF), OsddOut).
+
+check_constraints_1(_P, [], []).
+check_constraints_1(PathConstr, [edge_subtree(E, T)|Rest],
+		    [edge_subtree(E, T1) | Rest1]) :-
+    append(PathConstr, E, PathConstr1),
+    (satisfiable(PathConstr1)
+    ->
+	check_constraints(PathConstr1, T, T1)
+    ;
+        make_node(0, T1)
+    ),
+    check_constraints_1(PathConstr, Rest, Rest1).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % OSDD construction definitions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
