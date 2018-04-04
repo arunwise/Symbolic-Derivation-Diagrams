@@ -151,7 +151,7 @@ apply_constraint_no_urg(_Ctxt, [], _C, _O, _P, []).
 apply_constraint_no_urg(Ctxt, [edge_subtree(E, T)| Rest], C, OutVars,
 		   PathConstr, [edge_subtree(E, TOut)| RestOut]) :-
     append(PathConstr, E, PathConstr1),
-    apply_constraint(Ctxt-T, C, OutVars, PathConstr1, Ctxt-TOut),
+    apply_constraint(Ctxt, T, C, OutVars, PathConstr1, Ctxt, TOut),
     apply_constraint_no_urg(Ctxt, Rest, C, OutVars, PathConstr, RestOut).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -411,15 +411,6 @@ and(+Osdd1, +Osdd2, -Osdd)
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 and(Osdd1, Osdd2, Osdd) :-
     binop(and, Osdd1, Osdd2, [], Osdd).
-
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-or_ctxt_osdd(+Ctxt1-Osdd1, +Ctxt2-Osdd2, -Ctxt1-Osdd)
-
-Combine context-osdd pairs, by taking one of the contexts (since they
-are supposed to be identical) and disjunction of Osdd1 and Osdd2.
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-or_ctxt_osdd(Ctxt1-Osdd1, Ctxt2-Osdd2, Ctxt1-Osdd) :-
-    or(Osdd1, Osdd2, Osdd).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 or(+Osdd1, +Osdd2, -Osdd)
