@@ -8,7 +8,7 @@
    canonical_constraint/3 from constraints.
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-msw(+S, +I, X, +CtxtIn, OsddIn, -CtxtOut, OsddOut)
+msw(+S, +I, X, +CtxtIn, +OsddIn, -CtxtOut, -OsddOut)
 
 Update the CtxtIn with Id of random variable X. Compute OsddOut as
 conjunction of OsddIn and trivial OSDD for msw(S,I,X).
@@ -22,7 +22,7 @@ msw(S, I, X, CtxtIn, OsddIn, CtxtOut, OsddOut) :-
     and(OsddIn, Osdd, OsddOut).
     
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-constraint(+C, +CtxtIn, OsddIn, -CtxtIn, OsddOut)
+constraint(+C, +CtxtIn, +OsddIn, -CtxtIn, -OsddOut)
 
 Perform type checking of atomic constraint C and update the OsddIn to OsddOut
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -36,17 +36,25 @@ project_context(+CtxtIn, +FreeVars, -CtxtOut)
 Project 'CtxtIn' on to FreeVars to get 'CtxtOut'
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 project_context(CtxtIn, FreeVars, CtxtOut) :-
-    project_context_1(CtxtIn, FreeVars, [], CtxtOut).
+    project_context_1(CtxtIn, FreeVars, [], Ctxt),
+    sort(Ctxt, CtxtOut).
 
 project_context_1(_Ctxt, [], CtxtOut, CtxtOut).
 project_context_1(Ctxt, [H| T], CtxtIn, CtxtOut) :-
-    (existing_context(Ctxt, H, S, I)
+    (existing_context(CtxtIn, H, _S, _I)
     ->
-	append(CtxtIn, [H-(S, I)], CtxtTmp)
+	project_context_1(Ctxt, T, CtxtIn, CtxtOut)
     ;
-        CtxtTmp = CtxtIn
-    ),
-    project_context_1(Ctxt, T, CtxtTmp, CtxtOut).
+        (existing_context(Ctxt, H, S, I)
+	->
+	    append(CtxtIn, [H-(S, I)], CtxtTmp)
+	;
+	    write('Error in project_context_1. Failed to find id of variable '),
+	    writeln(H),
+	    fail
+	),
+	project_context_1(Ctxt, T, CtxtTmp, CtxtOut)
+    ).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 apply_constraint(+CtxtIn, NodeIn, +Constraint, +OutVars, +PathConstr, 
@@ -178,11 +186,14 @@ switch/instance pair of X as (S, I) to CtxtIn to produce CtxtOut.
 update_context(CtxtIn, X, S, I, CtxtOut) :-
     (existing_context(CtxtIn, X, S1, I1)
     ->
+	% we avoid duplicates and check that same context doesn't give
+	% two ids
 	S = S1,
 	I = I1,
 	CtxtOut = CtxtIn
     ;
-        append(CtxtIn, [X-(S, I)], CtxtOut)
+        append(CtxtIn, [X-(S, I)], Ctxt),
+        sort(Ctxt, CtxtOut)
     ).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
