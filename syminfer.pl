@@ -83,7 +83,7 @@ apply_constraint(CtxtIn, NodeIn, C, OutVars, PathConstr, CtxtIn, NodeOut) :-
 	    ->
 		% apply constraints here
 		apply_constraint_urg(EdgeSubTrees, LC, PathConstr,
-				     EdgeSubTrees1),
+				     [], EdgeSubTrees1),
 		negate_atomic(LC, LCN),
 		make_node(0, Z),
 		append(EdgeSubTrees1, [edge_subtree([LCN], Z)],
@@ -155,26 +155,25 @@ apply_constraint_no_urg(Ctxt, [edge_subtree(E, T)| Rest], C, OutVars,
     apply_constraint_no_urg(Ctxt, Rest, C, OutVars, PathConstr, RestOut).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-apply_constraint_urg(+EdgeSubtrees, +Constraint, +PathConstr,
-                                               -EdgeSubtreesOut)
+apply_constraint_urg(+EdgeSubtrees, +Constraint, +PathConstr, +ETin, -ETout)
 
 Given a list of edge/subtree pairs, whose root has 'PathConstr'
 labeling the path to the root, apply 'Constraint' to each of the edges
 and return the new list of edge/subtree pairs.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-apply_constraint_urg([], _C, _P, []).
-apply_constraint_urg([edge_subtree(E, T)| Rest], C, PathConstr,
-		   [edge_subtree(EOut, TOut)| RestOut]) :-
+apply_constraint_urg([], _C, _P, ETin, ETin).
+apply_constraint_urg([edge_subtree(E, T)| Rest], C, PathConstr, ETin,
+		     ETout) :-
     append(PathConstr, E, PathConstr1),
     append(PathConstr1, [C], PathConstr2),
     (satisfiable(PathConstr2)
     ->
-	TOut = T
+	append(E, [C], EOut),
+	append(ETin, [edge_subtree(EOut, T)], ET)
     ;
-        make_node(0, TOut)
+        ET = ETin
     ),
-    append(E, [C], EOut),
-    apply_constraint_urg(Rest, C, PathConstr, RestOut).
+    apply_constraint_urg(Rest, C, PathConstr, ET, ETout).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 update_context(+CtxtIn, +X, +S, +I, -CtxtOut)
@@ -459,6 +458,7 @@ and(Osdd1, Osdd2, Osdd) :-
 or(+Osdd1, +Osdd2, -Osdd)
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 or(Osdd1, Osdd2, Osdd) :-
+    write('OR :'), write(Osdd1), write(' '), writeln(Osdd2),
     binop(or, Osdd1, Osdd2, [], Osdd).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -492,12 +492,12 @@ binop(Op, Osdd1, Osdd2, PathConstr, Osdd) :-
     ;
         (Root1 @< Root2
 	->
-	    binop_edges(Op, ET1, Osdd2, PathConstr, ET),
+	    binop_edges(Op, ET1, Osdd2, PathConstr, [], ET),
 	    canonical_form_et(ET, CF),
 	    canonical_form(tree(Root1, CF), CT),
 	    make_node(CT, Osdd)
 	;
-	    binop_edges(Op, ET2, Osdd1, PathConstr, ET),
+	    binop_edges(Op, ET2, Osdd1, PathConstr, [], ET),
 	    canonical_form_et(ET, CF),
 	    canonical_form(tree(Root2, CF), CT),
 	    make_node(CT, Osdd)
@@ -531,22 +531,22 @@ binop_pairwise_1(Op, E1, T1, [edge_subtree(E2, T2)|Rest],
 	binop(Op, T1, T2, PathConstr2, T),
 	append(ETin, [edge_subtree(E, T)], ETtmp)
     ;
-        make_node(0, T),
-        append(ETin, [edge_subtree(E, T)], ETtmp)
+        ETtmp = ETin
     ),
     binop_pairwise_1(Op, E1, T1, Rest, PathConstr, ETtmp, ETout).
 
-binop_edges(_Op, [], _Osdd, _P, []).
+binop_edges(_Op, [], _Osdd, _P, ETin, ETin).
 binop_edges(Op, [edge_subtree(E, T)|Rest], Osdd, PathConstr,
-	    [edge_subtree(E, T1)|Rest1]) :-
+	    ETin, ETout) :-
     append(PathConstr, E, PathConstr1),
     (satisfiable(PathConstr1)
     ->
-	binop(Op, T, Osdd, PathConstr1, T1)
+	binop(Op, T, Osdd, PathConstr1, T1),
+        append(ETin, [edge_subtree(E, T1)], ET)
     ;
-        make_node(0, T1)
+        ET = ETin
     ),
-    binop_edges(Op, Rest, Osdd, PathConstr, Rest1).
+    binop_edges(Op, Rest, Osdd, PathConstr, ET, ETout).
 
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
