@@ -514,7 +514,8 @@ binop_0(or, Osdd1, PathConstr, Osdd) :-
 binop_1(or, _Osdd1, _PathConstr, Osdd) :-
     make_node(1, Osdd).
 
-binop_pairiwse(_Op, [], _ET2, _P, ETin, ETin).
+binop_pairwise(_Op, [], _ET2, _P, ETin, ETin).
+
 binop_pairwise(Op, [edge_subtree(E1, T1)|Rest1],
 	       ET2, PathConstr, ETin, ETout) :-
     binop_pairwise_1(Op, E1, T1, ET2, PathConstr, ETin, ETtmp),
@@ -1131,7 +1132,7 @@ initialize :-
 compute_osdd(Query, CO) :-
     Query =.. [Pred | Args],
     make_node(1, One),
-    append(Args, [[], One, CtxtOut, CO], Args1),
+    append(Args, [[], One, _CtxtOut, CO], Args1),
     Query1 =.. [Pred | Args1],
     Query1.
 
