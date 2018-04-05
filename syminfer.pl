@@ -447,7 +447,13 @@ neq_graph_to_formula([A-B|Rest], Fin, Fout) :-
 	->
 	    Ftmp = Fin
 	;
-	    append(Fin, [A\=B], Ftmp)
+	    ((integer(A), integer(B))
+	    ->
+		% redundant disequality constraint between constants
+		Ftmp = Fin
+	    ;
+	        append(Fin, [A\=B], Ftmp)
+	    )
 	)
     ),
     neq_graph_to_formula(Rest, Ftmp, Fout).
