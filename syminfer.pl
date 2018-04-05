@@ -402,12 +402,52 @@ canonical_form_et(ETIn, ETOut) :-
 
 canonical_form_et_1([], []).
 canonical_form_et_1([edge_subtree(E, T) | Rest],
-		    [edge_subtree(CE, T) | RestC]) :-
+		    [edge_subtree(CF, T) | RestC]) :-
     ve_representation(E, EQ, NEQ),
     canonical_constraint(EQ, NEQ, cg(EQ1, NEQ1)),
-    append(EQ1, NEQ1, CE1),
-    sort(CE1, CE),
+    eq_graph_to_formula(EQ1, [], EQF),
+    neq_graph_to_formula(NEQ1, EQF, F), 
+    %append(EQ1, NEQ1, CE1),
+    %sort(CE1, CE),
+    sort(F, CF),
     canonical_form_et_1(Rest, RestC).
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+eq_graph_to_formula(+EQedges, +FormulaIn, -FormulaOut)
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+eq_graph_to_formula([], F, F).
+eq_graph_to_formula([A-B|Rest], Fin, Fout) :-
+    (member(A=B, Fin)
+    ->
+	Ftmp = Fin
+    ;
+        (member(B=A, Fin)
+	->
+	    Ftmp = Fin
+	;
+	    append(Fin, [A=B], Ftmp)
+	)
+    ),
+    eq_graph_to_formula(Rest, Ftmp, Fout).
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+neq_graph_to_formula(+NEQedges, +FormulaIn, -FormulaOut)
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+neq_graph_to_formula([], F, F).
+neq_graph_to_formula([A-B|Rest], Fin, Fout) :-
+    (member(A\=B, Fin)
+    ->
+	Ftmp = Fin
+    ;
+        (member(B\=A, Fin)
+	->
+	    Ftmp = Fin
+	;
+	    append(Fin, [A\=B], Ftmp)
+	)
+    ),
+    neq_graph_to_formula(Rest, Ftmp, Fout).
+
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 and(+Osdd1, +Osdd2, -Osdd)
