@@ -41,19 +41,24 @@ project_context(CtxtIn, FreeVars, CtxtOut) :-
 
 project_context_1(_Ctxt, [], CtxtOut, CtxtOut).
 project_context_1(Ctxt, [H| T], CtxtIn, CtxtOut) :-
-    (existing_context(CtxtIn, H, _S, _I)
+    (var(H)
     ->
-	project_context_1(Ctxt, T, CtxtIn, CtxtOut)
-    ;
-        (existing_context(Ctxt, H, S, I)
+	(existing_context(CtxtIn, H, _S, _I)
 	->
-	    append(CtxtIn, [H-(S, I)], CtxtTmp)
+	    project_context_1(Ctxt, T, CtxtIn, CtxtOut)
 	;
-	    write('Error in project_context_1. Failed to find id of variable '),
-	    writeln(H),
-	    fail
-	),
-	project_context_1(Ctxt, T, CtxtTmp, CtxtOut)
+            (existing_context(Ctxt, H, S, I)
+	    ->
+	        append(CtxtIn, [H-(S, I)], CtxtTmp)
+	    ;
+	        write('Error in project_context_1. Failed to find id of variable '),
+		writeln(H),
+		fail
+	    ),
+	    project_context_1(Ctxt, T, CtxtTmp, CtxtOut)
+	)
+    ;
+        project_context_1(Ctxt, T, CtxtIn, CtxtOut)
     ).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
