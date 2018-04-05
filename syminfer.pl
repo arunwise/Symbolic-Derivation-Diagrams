@@ -245,7 +245,10 @@ Construct a canonical label for switch 'S' and instance 'I' as the atom
 :- table canonical_label/3.
 canonical_label(S, I, L) :-
     ground(S), ground(I),
-    concat_atom([var,'_',S,'_',I], L).
+    concat_atom([var,'_',S,'_',I], L),
+    assert('$canonical_label'(S, I, L)).
+
+:- dynamic '$canonical_label'/3.
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 type_check(+Ctxt, +Constraint)
