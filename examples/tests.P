@@ -49,3 +49,11 @@ test17_1(X) :- msw(alpha, 2, X).
 
 test18 :- msw(alpha, 1, X), test18_1(X).
 test18_1(X) :- {X = a}.
+
+test19 :- msw(alpha, 1, X), msw(alpha, 2, Y), test19_1(X, Y).
+test19_1(X, Y) :- {X=a}, {Y=b}.
+test19_1(X, Y) :- {X=b}, {Y=a}.
+
+test20 :- test20_1(X).
+test20_1(X) :- msw(alpha, 1, X), {X=a}.
+test20_1(X) :- msw(num, 1, X), {X=2}.

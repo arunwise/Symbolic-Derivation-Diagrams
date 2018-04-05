@@ -4,7 +4,7 @@ canonical_constraint/3.
 :- import is_empty/1, delete/3 from lists.
 
 :- import vertices_edges_to_ugraph/3, transitive_closure/2, edges/2,
-add_edges/3, del_edges/3, vertices/2 from ugraphs.
+add_edges/3, del_edges/3, vertices/2, neighbors/3 from ugraphs.
 
 :- import empty_assoc/1, put_assoc/4, gen_assoc/3, assoc_to_list/2
 from assoc_xsb.
