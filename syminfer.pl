@@ -1,4 +1,4 @@
-:- import append/3, member/2 from basics.
+:- import append/3, member/2, ith/3 from basics.
 :- import prepare/1, gensym/2 from gensym.
 :- import concat_atom/2 from string.
 :- import is_empty/1 from lists.
@@ -636,9 +636,27 @@ initialize :-
 
 compute_osdd(Query, CO) :-
     Query =.. [Pred | Args],
+    map_to_constants(Args, Args1),
     make_node(1, One),
-    append(Args, [[], One, _CtxtOut, CO], Args1),
-    Query1 =.. [Pred | Args1],
+    append(Args1, [[], One, _CtxtOut, CO], Args2),
+    Query1 =.. [Pred | Args2],
     Query1.
 
+map_to_constants([], []).
+map_to_constants([Arg | Args], [Arg1 | Args1]) :-
+    (var(Arg)
+    ->
+	Arg1 = Arg
+    ;
+        values_list(L),
+	(ith(I, L, Arg)
+	->
+	    Arg1 = I
+	;
+	    write('failed to map '), write(Arg), writeln(' to integer'),
+	    fail
+	)
+    ),
+    map_to_constants(Args, Args1).
+        
 ?- initialize.
