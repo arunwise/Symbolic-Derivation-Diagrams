@@ -69,8 +69,12 @@ transform((H_in :- B_in), (H_out :- B_out), Handle) :- !,
     H_in =.. [Pred | Args],
     length(Args, N),
     declare(Pred, N, Handle), % write table directives
-    transform_pred(H_in, H_out, ExtraArgs),
-    transform_body(B_in, Args, B_out, ExtraArgs).
+    transform_pred(H_in, H_out, (CtxtIn, OsddIn, CtxtOut, OsddOut)),
+    transform_body(B_in, CtxtIn, Args, B_out,
+		   (CtxtIn, OsddIn, CtxtOut, OsddOut)).
+    
+    %% transform_pred(H_in, H_out, ExtraArgs),
+    %% transform_body(B_in, Args, B_out, ExtraArgs).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 transform(+Fact, -XFact, +Handle)
@@ -88,8 +92,8 @@ transform(F_in, F_out, Handle) :-
     ), !.
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-transform_body(+Goals, +FreeVars, -XGoals, (+CtxtIn, +OsddIn, 
-                                            -CtxtOut, -OsddOut))
+transform_body(+Goals, +CtxtHead, +FreeVars, -XGoals, 
+                                 (+CtxtIn, +OsddIn, -CtxtOut, -OsddOut))
 
 Transform a sequence of goals 'Goals' to 'XGoals'. After the last goal
 has been transformed, add 'project_context' and 'split_if_needed'
@@ -101,13 +105,14 @@ is the input for the next goal in the sequence.
 Final 'CtxtOut' and 'OsddOut' is returned after performing projection
 and splitting.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-transform_body((G_in, Gs_in), FreeVars, (G_out, Gs_out),
+transform_body((G_in, Gs_in), CtxtHead, FreeVars, (G_out, Gs_out),
 	       (CtxtIn, OsddIn, CtxtOut, OsddOut)) :- !,
     transform_pred(G_in, G_out, (CtxtIn, OsddIn, Ctxt, Osdd)),
-    transform_body(Gs_in, FreeVars, Gs_out, (Ctxt, Osdd, CtxtOut, OsddOut)).
+    transform_body(Gs_in, CtxtHead, FreeVars, Gs_out,
+		   (Ctxt, Osdd, CtxtOut, OsddOut)).
 
-transform_body(G_in, FreeVars,
-	       (G_out, project_context(Ctxt, FreeVars, CtxtOut),
+transform_body(G_in, CtxtHead, FreeVars,
+	       (G_out, project_context(CtxtHead, Ctxt, FreeVars, CtxtOut),
 		split_if_needed(Osdd, OsddOut)),
 	       (CtxtIn, OsddIn, CtxtOut, OsddOut)) :-
     transform_pred(G_in, G_out, (CtxtIn, OsddIn, Ctxt, Osdd)).

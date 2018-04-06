@@ -31,35 +31,50 @@ constraint(C, CtxtIn, OsddIn, CtxtIn, OsddOut) :-
     apply_constraint(CtxtIn, OsddIn, C, [], [], CtxtIn, OsddOut).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-project_context(+CtxtIn, +FreeVars, -CtxtOut)
+project_context(+CtxHead, +CtxtCur, +FreeVars, -CtxtOut)
 
-Project 'CtxtIn' on to FreeVars to get 'CtxtOut'
+From 'CtxtCur' remove bound variables to get CtxtOut. A bound variable is
+the one which doesn't occur in CtxtHead and is not part of 'FreeVars'
+list.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-project_context(CtxtIn, FreeVars, CtxtOut) :-
-    project_context_1(CtxtIn, FreeVars, [], Ctxt),
-    sort(Ctxt, CtxtOut).
+project_context(CtxtHead, CtxtCur, FreeVars, CtxtOut) :-
+    term_variables(FreeVars, FV),
+    project_context_1(CtxtHead, CtxtCur, FV, [], Cout),
+    sort(Cout, CtxtOut).
 
-project_context_1(_Ctxt, [], CtxtOut, CtxtOut).
-project_context_1(Ctxt, [H| T], CtxtIn, CtxtOut) :-
-    (var(H)
+project_context_1(_CtxtHead, [], _FV, Cin, Cin).
+project_context_1(CtxtHead, [V - (S, I) | T], FV, Cin, Cout) :-
+    (member(V, FV)
     ->
-	(existing_context(CtxtIn, H, _S, _I)
-	->
-	    project_context_1(Ctxt, T, CtxtIn, CtxtOut)
-	;
-            (existing_context(Ctxt, H, S, I)
-	    ->
-	        append(CtxtIn, [H-(S, I)], CtxtTmp)
-	    ;
-	        write('Error in project_context_1. Failed to find id of variable '),
-		writeln(H),
-		fail
-	    ),
-	    project_context_1(Ctxt, T, CtxtTmp, CtxtOut)
-	)
+	append(Cin, [V - (S, I)], Ctmp)
     ;
-        project_context_1(Ctxt, T, CtxtIn, CtxtOut)
-    ).
+        (existing_context(CtxtHead, V, S, I)
+	->
+	    append(Cin, [V - (S, I)], Ctmp)
+	;
+	    Ctmp = Cin
+	)
+    ),
+    project_context_1(CtxtHead, T, FV, Ctmp, Cout).
+    %% (var(H)
+    %% ->
+    %% 	(existing_context(CtxtIn, H, _S, _I)
+    %% 	->
+    %% 	    project_context_1(Ctxt, T, CtxtIn, CtxtOut)
+    %% 	;
+    %%         (existing_context(Ctxt, H, S, I)
+    %% 	    ->
+    %% 	        append(CtxtIn, [H-(S, I)], CtxtTmp)
+    %% 	    ;
+    %% 	        write('Error in project_context_1. Failed to find id of variable '),
+    %% 		writeln(H),
+    %% 		fail
+    %% 	    ),
+    %% 	    project_context_1(Ctxt, T, CtxtTmp, CtxtOut)
+    %% 	)
+    %% ;
+    %%     project_context_1(Ctxt, T, CtxtIn, CtxtOut)
+    %% ).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 apply_constraint(+CtxtIn, NodeIn, +Constraint, +OutVars, +PathConstr, 
