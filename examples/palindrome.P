@@ -39,26 +39,14 @@ reverse1([], L, L).
 reverse1([H|T], L, L1) :-
 	reverse1(T, L, [H|L1]).
 
-evidence :-
-    genlist(20, L),
+evidence(N) :-
+    genlist(N, L),
     palindrome(L).
 
-query :-
-    genlist(20, L),
-    numoccurs(L, a, 4).
+query(N, A) :-
+    genlist(N, L),
+    numoccurs(L, a, A).
 
-qe :-
-    query,
-    evidence.
-
-evidence1 :-
-    genlist(4, L),
-    palindrome(L).
-
-query1 :-
-    genlist(4, L),
-    numoccurs(L, a, 2).
-
-qe1 :-
-    query1,
-    evidence1.
+qe(N, A) :-
+    query(N, A),
+    evidence(N).
