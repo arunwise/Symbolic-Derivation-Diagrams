@@ -1,0 +1,44 @@
+values(a, [t, f]).
+values(bt, [t, f]).
+values(bf, [t, f]).
+set_sw(a, [0.5, 0.5]).
+set_sw(bt, [0.9, 0.1]).
+set_sw(bf, [0.1, 0.9]).
+
+% V1 and V2 are variables on the edge F
+factor(F, V1, V2) :-
+    msw(a, F, V1),
+    {V1 = t},
+    msw(bt, F, V2).
+factor(F, V1, V2) :-
+    msw(a, F, V1),
+    {V1 = f},
+    msw(bf, F, V2).
+
+world(F1V1, F1V2, F2V1, F2V2, F3V1, F3V2, F4V1, F4V2) :-
+    factor(1, F1V1, F1V2),
+    factor(2, F2V1, F2V2),
+    factor(3, F3V1, F3V2),
+    factor(4, F4V1, F4V2).
+
+evidence :-
+    world(F1V1, F1V2, F2V1, F2V2, F3V1, F3V2, F4V1, F4V2),
+    {F1V2=F2V1},
+    {F2V2=F3V1},
+    {F3V2=F4V1},
+    {F4V2=F1V1}.
+    
+query :-
+    world(F1V1, F1V2, F2V1, F2V2, F3V1, F3V2, F4V1, F4V2),
+    {F1V1 = t},
+    {F1V2 = t},
+    {F2V1 = t},
+    {F2V2 = t},
+    {F3V1 = t},
+    {F3V2 = t},
+    {F4V1 = t},
+    {F4V2 = t}.
+
+qe :-
+    evidence,
+    query.
