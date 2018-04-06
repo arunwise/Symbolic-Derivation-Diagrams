@@ -1,7 +1,9 @@
 :- import append/3, member/2, ith/3 from basics.
 :- import prepare/1, gensym/2 from gensym.
 :- import concat_atom/2 from string.
-:- import is_empty/1, memberchk_eq/2 from lists.
+:- import is_empty/1, memberchk_eq/2, sum_list/2 from lists.
+:- import empty_assoc/1, put_assoc/4, get_assoc/3 from assoc_xsb.
+:- import ord_subtract/3, ord_add_element/3, ord_union/3 from ordsets.
 
 :- import writeDotFile/2 from visualize.
 :- import satisfiable_constraint_graph/2, solutions/4,
@@ -637,6 +639,176 @@ map_args([Arg|Args], [_Arg|_Args], L) :-
     ),
     map_args(Args, _Args, L).    
 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Probability Computation
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+probability(+Osdd, +Prob)
+
+It is necessary that Osdd be the root.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+probability(Osdd, P) :-
+    % osdd has to be the root node
+    empty_assoc(A),
+    pi(Osdd, A, P).
+
+:- table pi/3.
+pi(Node, Sigma, 0) :- '$unique_table'(Node, 0), !.
+pi(Node, Sigma, 1) :- '$unique_table'(Node, 1), !.
+pi(Node, Sigma, P) :-
+    '$unique_table'(Node, tree(Root, ET)),
+    pi_1(Root, ET, Sigma, ProbList),
+    sum_list(ProbList, P).
+
+pi_1(_Root, [], _Sigma, []).
+pi_1(Root, [edge_subtree(Edge, Tree) | Rest], Sigma, [Prob | ProbRest]) :-
+    apply_substitution(Sigma, Edge, E1),
+    ve_representation(E1, EQ, NEQ),
+    solutions(Root, EQ, NEQ, Sols),
+    pi_2(Root, Sols, Sigma, Tree, 0, Prob),
+    pi_1(Root, Rest, Sigma, ProbRest).
+
+pi_2(_R, [], _Sigma, _Tree, Pin, Pin).
+pi_2(Root, [Val | Rest], Sigma, Tree, Pin, Pout) :-
+    put_assoc(Root, Sigma, Val, Sigma1),
+    pi_extra(Tree, Sigma1, Psubtree),
+    
+    '$canonical_label'(Switch, _Instance, Root),
+    set_sw(Switch, Dist),
+    ith(Val, Dist, Pval),
+
+    Pedge is Pval * Psubtree,
+    Ptmp is Pin + Pedge,
+    pi_2(Root, Rest, Sigma, Tree, Ptmp, Pout).
+
+pi_extra(Node, Sigma, P) :-
+    free_vars(Node, FV),
+    empty_assoc(A),
+    project_substitution(Sigma, FV, A, Sigma1),
+    pi(Node, Sigma1, P).
+    
+:- table free_vars/2.
+free_vars(Node, F) :-
+    edge_vars(Node, E),
+    output_vars(Node, O),
+    ord_subtract(E, O, F).
+
+:- table output_vars/2.
+output_vars(Node, O) :-
+    ('$unique_table'(Node, 0)
+    ->
+	O = []
+    ;
+        ('$unique_table'(Node, 1)
+	->
+	    O = []
+	;
+	    '$unique_table'(Node, tree(Root, ET)),
+	    output_vars_1(ET, [], Ovars),
+	    ord_add_element(Ovars, Root, O)
+	)
+    ).
+
+output_vars_1([], Oin, Oin).
+output_vars_1([edge_subtree(_E, T) | Rest], Oin, Out) :-
+    output_vars(T, O),
+    ord_union(Oin, O, Otmp),
+    output_vars_1(Rest, Otmp, Out).
+
+:- table edge_vars/2.
+edge_vars(Node, E) :-
+    ('$unique_table'(Node, 0)
+    ->
+	E = []
+    ;
+        ('$unique_table'(Node, 1)
+	->
+	    E = []
+	;
+	    '$unique_table'(Node, tree(_Root, ET)),
+	    edge_vars_1(ET, [], E)
+	)
+    ).
+
+edge_vars_1([], Ein, Ein).
+edge_vars_1([edge_subtree(E, T) | Rest], Ein, Eout) :-
+    edge_vars(T, Esubtree),
+    edge_vars_2(E, [], Eedge),
+    ord_union(Ein, Esubtree, Ein1),
+    ord_union(Ein1, Eedge, Etmp),
+    edge_vars_1(Rest, Etmp, Eout).
+
+edge_vars_2([], Ein, Ein).
+edge_vars_2([X=Y|Rest], Ein, Eout) :-
+    (integer(X)
+    ->
+	Etmp = Ein
+    ;
+        ord_add_element(Ein, X, Etmp)
+    ),
+    (integer(Y)
+    ->
+	Etmp1 = Etmp
+    ;
+        ord_add_element(Etmp, Y, Etmp1)
+    ),
+    edge_vars_2(Rest, Etmp1, Eout).
+edge_vars_2([X\=Y|Rest], Ein, Eout) :-
+    (integer(X)
+    ->
+	Etmp = Ein
+    ;
+        ord_add_element(Ein, X, Etmp)
+    ),
+    (integer(Y)
+    ->
+	Etmp1 = Etmp
+    ;
+        ord_add_element(Etmp, Y, Etmp1)
+    ),
+    edge_vars_2(Rest, Etmp1, Eout).
+
+apply_substitution(_Sigma, [], []).
+apply_substitution(Sigma, [X=Y|Rest], [X1=Y1|RestSub]) :-
+    (get_assoc(X, Sigma, ValX)
+    ->
+	X1 = ValX
+    ;
+        X1 = X
+    ),
+    (get_assoc(Y, Sigma, ValY)
+    ->
+	Y1 = ValY
+    ;
+        Y1 = Y
+    ),
+    apply_substitution(Sigma, Rest, RestSub).
+apply_substitution(Sigma, [X\=Y|Rest], [X1\=Y1|RestSub]) :-
+    (get_assoc(X, Sigma, ValX)
+    ->
+	X1 = ValX
+    ;
+        X1 = X
+    ),
+    (get_assoc(Y, Sigma, ValY)
+    ->
+	Y1 = ValY
+    ;
+        Y1 = Y
+    ),
+    apply_substitution(Sigma, Rest, RestSub).
+
+project_substitution(_Sigma, [], Sin, Sin).
+project_substitution(Sigma, [H| T], Sin, Sout) :-
+    (get_assoc(H, Sigma, Val)
+    ->
+	put_assoc(H, Sin, Val, Stmp)
+    ;
+        Stmp = Sin
+    ),
+    project_substitution(Sigma, T, Stmp, Sout).
+    
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Misc
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

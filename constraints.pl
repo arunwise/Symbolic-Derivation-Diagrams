@@ -207,7 +207,7 @@ pairwise_1([N1| Rest1], Neib2, PairsIn, PairsOut) :-
     append(PairsIn, Pairs, PairsTmp),
     pairwise_1(Rest1, Neib2, PairsTmp, PairsOut).
 
-pairwise_2(N, [], []).
+pairwise_2(_N, [], []).
 pairwise_2(N, [N2 | Rest2], [N-N2, N2-N | Rest]) :-
     pairwise_2(N, Rest2, Rest).
 
