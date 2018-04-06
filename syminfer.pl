@@ -1,7 +1,7 @@
 :- import append/3, member/2, ith/3 from basics.
 :- import prepare/1, gensym/2 from gensym.
 :- import concat_atom/2 from string.
-:- import is_empty/1 from lists.
+:- import is_empty/1, memberchk_eq/2 from lists.
 
 :- import writeDotFile/2 from visualize.
 :- import satisfiable_constraint_graph/2, solutions/4,
@@ -44,7 +44,7 @@ project_context(CtxtHead, CtxtCur, FreeVars, CtxtOut) :-
 
 project_context_1(_CtxtHead, [], _FV, Cin, Cin).
 project_context_1(CtxtHead, [V - (S, I) | T], FV, Cin, Cout) :-
-    (member(V, FV)
+    (memberchk_eq(V, FV)
     ->
 	append(Cin, [V - (S, I)], Ctmp)
     ;
