@@ -18,9 +18,17 @@ palindrome([H|R]) :-
     palindrome(R1).
     
 
-query :-
-    genlist(6, L),
-    palindrome(L).
+numoccurs(L, X, N) :-
+    numoccurs(L, X, 0, N).
+
+numoccurs([], _, N, N).
+numoccurs([H|T], X, Nin, Nout) :-
+    {X = H},
+    N1 is Nin + 1,
+    numoccurs(T, X, N1, Nout).
+numoccurs([H|T], X, Nin, Nout) :-
+    {X \= H},
+    numoccurs(T, X, Nin, Nout).
 
 %% copied from lists package
 reverse([], []).
@@ -30,3 +38,27 @@ reverse([H|T], L) :-
 reverse1([], L, L).
 reverse1([H|T], L, L1) :-
 	reverse1(T, L, [H|L1]).
+
+evidence :-
+    genlist(20, L),
+    palindrome(L).
+
+query :-
+    genlist(20, L),
+    numoccurs(L, a, 4).
+
+qe :-
+    query,
+    evidence.
+
+evidence1 :-
+    genlist(4, L),
+    palindrome(L).
+
+query1 :-
+    genlist(4, L),
+    numoccurs(L, a, 2).
+
+qe1 :-
+    query1,
+    evidence1.
