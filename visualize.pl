@@ -4,7 +4,7 @@
 
 :- export writeDotFile/2.
 
-:- importh ith/3 from basics.
+:- import ith/3 from basics.
 
 writeDotFile(OSDD, DotFile) :-
     open(DotFile, write, Handle),
