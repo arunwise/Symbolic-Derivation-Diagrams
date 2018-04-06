@@ -4,6 +4,8 @@
 
 :- export writeDotFile/2.
 
+:- importh ith/3 from basics.
+
 writeDotFile(OSDD, DotFile) :-
     open(DotFile, write, Handle),
     write(Handle, ' digraph osdd {\n'),
@@ -51,12 +53,63 @@ traverse_edges([edge_subtree(C,T)|Es], ParentID, Handle) :-
 writeDotConstraint(Handle, []) :-
     write(Handle, '').
 writeDotConstraint(Handle, [C]) :-
-    write1(Handle, C).
+    map_to_domain(C, C1),
+    write1(Handle, C1).
 writeDotConstraint(Handle, [C|R]) :-
     R \= [],
-    write1(Handle, C), write(Handle, ','),
+    map_to_domain(C, C1),
+    write1(Handle, C1), write(Handle, ','),
     writeDotConstraint(Handle, R).
 
+map_to_domain(X = Y, X1 = Y1) :-
+    (integer(X)
+    ->
+	usermod:values_list(L),
+	ith(X, L, X1)
+    ;
+        X = X1
+    ),
+    (integer(Y)
+    ->
+	usermod:values_list(L),
+	ith(Y, L, Y1)
+    ;
+        Y = Y1
+    ).
+
+map_to_domain(X \= Y, X1 \= Y1) :-
+    (integer(X)
+    ->
+	usermod:values_list(L),
+	ith(X, L, X1)
+    ;
+        X = X1
+    ),
+    (integer(Y)
+    ->
+	usermod:values_list(L),
+	ith(Y, L, Y1)
+    ;
+        Y = Y1
+    ).
+
+map_to_domain(X < Y, X1 < Y1) :-
+    (integer(X)
+    ->
+	usermod:values_list(L),
+	ith(X, L, X1)
+    ;
+        X = X1
+    ),
+    (integer(Y)
+    ->
+	usermod:values_list(L),
+	ith(Y, L, Y1)
+    ;
+        Y = Y1
+    ).
+
+       
 write1(Handle, X=Y) :-
     write(Handle, X=Y).
 write1(Handle, X\=Y) :-
