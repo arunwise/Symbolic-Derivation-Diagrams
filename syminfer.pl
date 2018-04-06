@@ -668,8 +668,7 @@ map_to_constants([Arg | Args], [Arg1 | Args1]) :-
 	->
 	    Arg1 = I
 	;
-	    write('failed to map '), write(Arg), writeln(' to integer'),
-	    fail
+	    Arg1 = Arg
 	)
     ),
     map_to_constants(Args, Args1).
