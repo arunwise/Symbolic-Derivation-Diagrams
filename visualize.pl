@@ -113,6 +113,9 @@ map_to_domain(X < Y, X1 < Y1) :-
 write1(Handle, X=Y) :-
     write(Handle, X=Y).
 write1(Handle, X\=Y) :-
-    write(Handle, X), write(Handle, '\\\='), write(Handle, Y).
+    write(Handle, X),
+    %write(Handle, '\\\='),
+    write(Handle, '\u2260\'),
+    write(Handle, Y).
 write1(Handle, X<Y) :-
     write(Handle, X<Y).
