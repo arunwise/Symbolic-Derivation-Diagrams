@@ -1,0 +1,69 @@
+values(e, [t, f]).
+set_sw(e, [0.98, 0.02]).
+values(v, [0,1]).
+set_sw(v, [0.5, 0.5]).
+
+
+
+world(V11, V12, V13, V14,
+      V21, V22, V23, V24,
+      V31, V32, V33, V34,
+      V41, V42, V43, V44) :-
+	msw(v, 11, V11),
+	msw(v, 12, V12),
+	msw(v, 13, V13),
+	msw(v, 14, V14),
+	msw(v, 21, V21),
+	msw(v, 22, V22),
+	msw(v, 23, V23),
+	msw(v, 24, V24),
+	msw(v, 31, V31),
+	msw(v, 32, V32),
+	msw(v, 33, V33),
+	msw(v, 34, V34),
+	msw(v, 41, V41),
+	msw(v, 42, V42),
+	msw(v, 43, V43),
+	msw(v, 44, V44),
+	
+	edge(V11, V12, er1c12),
+	edge(V12, V13, er1c23),
+	edge(V13, V14, er1c34),
+	edge(V21, V22, er2c12),
+	edge(V22, V23, er2c23),
+	edge(V23, V24, er2c34),
+	edge(V31, V32, er3c12),
+	edge(V32, V33, er3c23),
+	edge(V33, V34, er3c34),
+	edge(V41, V42, er4c12),
+	edge(V42, V43, er4c23),
+	edge(V43, V44, er4c34),
+
+	
+	edge(V11, V21, ec1r12),
+	edge(V21, V31, ec1r23),
+	edge(V31, V41, ec1r34),
+	edge(V12, V22, ec2r12),
+	edge(V22, V32, ec2r23),
+	edge(V32, V42, ec2r34),
+	edge(V13, V23, ec3r12),
+	edge(V23, V33, ec3r23),
+	edge(V33, V43, ec3r34),
+	edge(V14, V24, ec4r12),
+	edge(V24, V34, ec4r23),
+	edge(V34, V44, ec4r34).
+	
+edge(X,Y,ID) :- {X=Y}, msw(e, ID, Agree), {Agree = t}.
+edge(X,Y,ID) :- {X\=Y}, msw(e, ID, Agree), {Agree = f}.
+
+evidence :- world(_,_,_,_,
+		  _,_,_,_,
+		  _,_,_,_,
+		  _,_,_,_
+		 ).
+q :- world(1,1,1,1,
+	   1,1,1,1,
+	   1,1,1,1,
+	   1,1,1,1).
+
+qe :- q, evidence.
