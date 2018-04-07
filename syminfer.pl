@@ -1,4 +1,4 @@
-:- import append/3, member/2, ith/3 from basics.
+:- import append/3, member/2, ith/3, length/2 from basics.
 :- import prepare/1, gensym/2 from gensym.
 :- import concat_atom/2 from string.
 :- import is_empty/1, memberchk_eq/2, sum_list/2 from lists.
@@ -808,7 +808,59 @@ project_substitution(Sigma, [H| T], Sin, Sout) :-
         Stmp = Sin
     ),
     project_substitution(Sigma, T, Stmp, Sout).
+
+%% Measurable probability computation
+
+probability_m(Osdd, P) :-
+    % osdd has to be the root node
+    empty_assoc(A),
+    pi_m(Osdd, A, P).
+
+:- table pi_m/3.
+pi_m(Node, Sigma, 0) :- '$unique_table'(Node, 0), !.
+pi_m(Node, Sigma, 1) :- '$unique_table'(Node, 1), !.
+pi_m(Node, Sigma, P) :-
+    ('$measurable_prob'(Node, Prob)
+    ->
+	Prob = P
+    ;
+        '$unique_table'(Node, tree(Root, ET)),
+	pi_1_m(Root, ET, Sigma, ProbList),
+	sum_list(ProbList, Prob),
+	assert('$measurable_prob'(Node, Prob)),
+	Prob = P
+     ).
+
+:- dynamic '$measurable_prob'/2.
+
+pi_1_m(_Root, [], _Sigma, []).
+pi_1_m(Root, [edge_subtree(Edge, Tree) | Rest], Sigma, [Prob | ProbRest]) :-
+    apply_substitution(Sigma, Edge, E1),
+    ve_representation(E1, EQ, NEQ),
+    solutions(Root, EQ, NEQ, Sols),
+    length(Sols, Measure),
+    (Measure = 0
+    ->
+	Prob = 0
+    ;
+        Sols = [Sol | _Rest],
+	pi_2_m(Root, Sol, Sigma, Tree, Psub),
+	'$canonical_label'(Switch, _Instance, Root),
+	intrange(Switch, Lower, Upper),
+	Prob is Measure / (Upper - Lower + 1) * Psub
+    ),
+    pi_1_m(Root, Rest, Sigma, ProbRest).
+
+pi_2_m(Root, Val, Sigma, Tree, Psub) :-
+    put_assoc(Root, Sigma, Val, Sigma1),
+    pi_extra_m(Tree, Sigma1, Psub).
     
+pi_extra_m(Node, Sigma, P) :-
+    free_vars(Node, FV),
+    empty_assoc(A),
+    project_substitution(Sigma, FV, A, Sigma1),
+    pi_m(Node, Sigma1, P).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Misc
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -819,6 +871,7 @@ writeDot(OSDD, File) :- writeDotFile(OSDD, File).
 initialize :-
     retractall('$canonical_label'/3),
     retractall('$unique_table'/2),
+    retractall('$measurable_prob'/2),
     prepare(0).
 
 compute_osdd(Query, CO) :-
