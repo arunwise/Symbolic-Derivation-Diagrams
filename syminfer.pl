@@ -486,7 +486,7 @@ and(Osdd1, Osdd2, Osdd) :-
 or(+Osdd1, +Osdd2, -Osdd)
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 or(Osdd1, Osdd2, Osdd) :-
-    write('OR :'), write(Osdd1), write(' '), writeln(Osdd2),
+    % write('OR :'), write(Osdd1), write(' '), writeln(Osdd2),
     binop(or, Osdd1, Osdd2, [], Osdd).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
