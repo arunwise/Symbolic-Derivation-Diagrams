@@ -673,11 +673,13 @@ pi_2(_R, [], _Sigma, _Tree, Pin, Pin).
 pi_2(Root, [Val | Rest], Sigma, Tree, Pin, Pout) :-
     put_assoc(Root, Sigma, Val, Sigma1),
     pi_extra(Tree, Sigma1, Psubtree),
-    
+
     '$canonical_label'(Switch, _Instance, Root),
     set_sw(Switch, Dist),
-    ith(Val, Dist, Pval),
-
+    intrange(Switch, Lower, Upper),
+    Ind is Val - Lower + 1,
+    ith(Ind, Dist, Pval),
+    
     Pedge is Pval * Psubtree,
     Ptmp is Pin + Pedge,
     pi_2(Root, Rest, Sigma, Tree, Ptmp, Pout).
