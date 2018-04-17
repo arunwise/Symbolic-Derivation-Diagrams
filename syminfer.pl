@@ -654,8 +654,8 @@ probability(Osdd, P) :-
     pi(Osdd, A, P).
 
 :- table pi/3.
-pi(Node, Sigma, 0) :- '$unique_table'(Node, 0), !.
-pi(Node, Sigma, 1) :- '$unique_table'(Node, 1), !.
+pi(Node, _Sigma, 0) :- '$unique_table'(Node, 0), !.
+pi(Node, _Sigma, 1) :- '$unique_table'(Node, 1), !.
 pi(Node, Sigma, P) :-
     '$unique_table'(Node, tree(Root, ET)),
     pi_1(Root, ET, Sigma, ProbList),
