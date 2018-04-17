@@ -3,7 +3,8 @@
 :- import concat_atom/2 from string.
 :- import is_empty/1, memberchk_eq/2, sum_list/2 from lists.
 :- import empty_assoc/1, put_assoc/4, get_assoc/3 from assoc_xsb.
-:- import ord_subtract/3, ord_add_element/3, ord_union/3 from ordsets.
+:- import ord_subtract/3, ord_add_element/3, ord_union/3,
+list_to_ord_set/2 from ordsets.
 
 :- import writeDotFile/2 from visualize.
 :- import satisfiable_constraint_graph/2, solutions/4,
@@ -715,7 +716,9 @@ output_vars(Node, O) :-
 output_vars_1([], Oin, Oin).
 output_vars_1([edge_subtree(_E, T) | Rest], Oin, Out) :-
     output_vars(T, O),
-    ord_union(Oin, O, Otmp),
+    ord_union(Oin, O, Otmp1),
+    % ord_union/3 has bug
+    list_to_ord_set(Otmp1, Otmp),
     output_vars_1(Rest, Otmp, Out).
 
 :- table edge_vars/2.
@@ -738,7 +741,9 @@ edge_vars_1([edge_subtree(E, T) | Rest], Ein, Eout) :-
     edge_vars(T, Esubtree),
     edge_vars_2(E, [], Eedge),
     ord_union(Ein, Esubtree, Ein1),
-    ord_union(Ein1, Eedge, Etmp),
+    ord_union(Ein1, Eedge, Etmp1),
+    % ord_union/3 has bug
+    list_to_ord_set(Etmp1, Etmp),
     edge_vars_1(Rest, Etmp, Eout).
 
 edge_vars_2([], Ein, Ein).
