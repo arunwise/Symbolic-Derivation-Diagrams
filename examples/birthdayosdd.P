@@ -12,7 +12,7 @@ set_sw(b, [1/365, 1/365, 1/365, 1/365, 1/365, 1/365, 1/365, 1/365, 1/365, 1/365,
 %% person(6,A,B,A,B).
 
 person(P, A, B, A, B) :-
-    basics:for(P, 1, 20).
+    basics:for(P, 1, 6).
 
 :- table same_birthday(_,_,_,lattice(or/3)).
 same_birthday(A,B,C,D) :- (person(E,A,B,F,G),person(H,F,G,I,J),E < H,msw(b,E,K,I,J,L,M),msw(b,H,N,L,M,O,P),constraint(K = N,O,P,Q,R),project_context(A,Q,[],C),split_if_needed(R,D)).

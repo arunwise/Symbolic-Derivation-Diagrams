@@ -48,5 +48,5 @@ query(N, A) :-
     numoccurs(L, a, A).
 
 qe(N, A) :-
-    query(N, A),
-    evidence(N).
+    evidence(N),
+    query(N, A).

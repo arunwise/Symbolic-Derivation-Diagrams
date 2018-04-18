@@ -154,8 +154,9 @@ solutions(Label, EQ, NEQ, Solutions) :-
 	gen_assoc(Label, A2, Var),
 	findall(Var, label([Var]), Solutions1),
 	list_to_ord_set(Solutions1, Solutions)
-    ).
-
+    ), !.
+solutions(_Label, _EQ, _NEQ, []).
+    
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 canonical_constraint(+EQ, +NEQ, cg(-EC, -NEC))
 
