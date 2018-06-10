@@ -2,7 +2,7 @@
 
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-transform_file(+InFile +OutFile)
+transform_file(+InFile, +OutFile)
 
 Read program in InFile, transform and write it to OutFile
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
