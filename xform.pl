@@ -54,10 +54,10 @@ write_clause(XClause, Handle) :-
         write(Handle, '.\n')
     ).
 
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-Defines which queries Q may be invoked with native domain constants
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-transform((:- export(Q)), (Q :- map_domain(Q, _Q), _Q), File) :- !.
+%% /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+%% Defines which queries Q may be invoked with native domain constants
+%% - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+%% transform((:- export(Q)), (Q :- map_domain(Q, _Q), _Q), File) :- !.
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 transform(+Clause, -XClause, +Handle)
