@@ -250,15 +250,18 @@ transform_pred(type(S, V), type(XS, I), (Ctxt, Osdd, Ctxt, Osdd)) :-
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 transform_pred(+set_sw(S, V), -set_sw(XS, V), (+Ctxt, +Osdd, -Ctxt, -Osdd))
 
-Transform set_sw directives by transforming switch names if they contain
-domain constants. The domain constants are mapped to integer values.
+Transform set_sw directives by transforming switch names if they
+contain domain constants. The domain constants are mapped to integer
+values. At this point assert set_sw/2 facts so they can be used later
+on for writing dist/3, dist/4 facts.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 transform_pred(set_sw(S, V), set_sw(XS, V), (Ctxt, Osdd, Ctxt, Osdd)) :-
     (ground(S)
     ->
 	S =.. [F | Vs],
 	find_int_mappings(Vs, Is),
-	XS =.. [F | Is]
+	XS =.. [F | Is],
+	assert(set_sw(S, V))
     ;
         write('non-ground switch in the program: '), writeln(S),
         fail
