@@ -1,7 +1,7 @@
 # Transforming PLP programs to support symbolic inference
 * Load xform.pl (in XSB this is `?- [xform].`)
 * Run: `?- transform_file('inputfile', 'outputfile')`
-* It is assumed that all `values/2` declarations appear before any other lines of code in `'inputfile'`.
+* The `type/2` facts should precede `outcome/2` facts which inturn preced `set_sw/2` facts in the `inputfile`.
 # Generating an OSDD for query q(v1,...,vn) 
 * Load syminfer.pl, and transformed file 'outputfile' (in XSB this is `?- [syminfer, 'outputfile'].`)
 * Run: `?- compute_osdd(q(v1,....,vn), O).`
