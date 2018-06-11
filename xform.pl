@@ -102,7 +102,8 @@ transform(F_in, F_out, Handle) :-
     (F = type
     ->  process_domain(F_in),
         transform_pred(F_in, F_out, (CtxtIn, OsddIn, CtxtIn, OsddIn)),
-        write_domain_intrange(F_out, Handle)
+        write_domain_intrange(F_out, Handle),
+	assert(F_out)
     ;   transform_pred(F_in, F_out, (CtxtIn, OsddIn, CtxtIn, OsddIn))
     ), !.
 
@@ -151,7 +152,8 @@ transform_pred(!, !, (Ctxt, Osdd, Ctxt, Osdd)) :- !.
 transform_pred(.(X, Y), [X | Y], (Ctxt, Osdd, Ctxt, Osdd)) :- !.
 transform_pred(=..(X, Y), =..(X, Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
 transform_pred(is(X, Y), is(X, Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
-transform_pred(outcomes(X, Y), outcomes(X, Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
+transform_pred(outcomes(X, Y), outcomes(X, Y), (Ctxt, Osdd, Ctxt, Osdd)) :-
+    assert(outcomes(X, Y)), !.
 
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
