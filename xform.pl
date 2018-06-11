@@ -100,7 +100,7 @@ a type and write to Handle.
 transform(F_in, F_out, Handle) :-
     functor(F_in, F, _N),
     (F = type
-    ->  process_domain(F_in, Handle),
+    ->  process_domain(F_in),
         transform_pred(F_in, F_out, (CtxtIn, OsddIn, CtxtIn, OsddIn)),
         write_domain_intrange(F_out, Handle)
     ;   transform_pred(F_in, F_out, (CtxtIn, OsddIn, CtxtIn, OsddIn))
@@ -289,12 +289,12 @@ transform_pred(Pred_in, Pred_out, (CtxtIn, OsddIn, CtxtOut, OsddOut)) :-
 %%     ).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-process_domain(+type(S, V), +Handle)
+process_domain(+type(S, V))
 
 Update the values_list/1 fact by adding the values 'V' if they are not
 already part of the values_list.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-process_domain(F_in, Handle) :-
+process_domain(F_in) :-
     F_in =.. [_ | [_, Values]],
     values_list(L),
     (member(V, Values), member(V, L) % Values is already in L
