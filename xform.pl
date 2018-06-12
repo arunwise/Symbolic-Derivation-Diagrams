@@ -13,7 +13,8 @@ transform_file(InFile, OutFile) :-
     open(OutFile, write, Handle),
     read_and_transform(Handle),
     values_list(L),  % Get the final values_list
-    write(Handle, 'values_list('), write(Handle, L), writeln(Handle, ').'), 
+    write(Handle, 'values_list('), write(Handle, L), writeln(Handle, ').'),
+    write_dists(Handle),
     close(Handle),
     retract(values_list(L)),
     seen, see(OF).
@@ -402,6 +403,44 @@ declare(F, N, Handle) :-
     str_cat(P, 'lattice(or/3)', P1),
     fmt_write(Handle, ':- table %s(%s).\n', args(F, P1)),
     true.
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+write_dists(+Handle)
+
+Write dist/3 and dist/4 facts.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+write_dists(Handle) :-
+    % find all switches
+    findall(S, set_sw(S, _), Switches),
+    write_dists(Switches, Handle).
+
+write_dists([], _).
+write_dists([S| R], Handle) :-
+    set_sw(S, Dist),
+    outcomes(S, Types),
+    Types \= [],
+    list_product([[]], Types, Table),
+    write_dist3(S, Table, Dist).
+
+list_product(Table, [], Table).
+list_product(TableIn, [Type|Rest], TableOut) :-
+    list_product1(TableIn, Type, Table),
+    list_product(Table, Rest, TableOut).
+
+list_product1(TableIn, Type, TableOut) :-
+    list_product2(TableIn, Type, [], TableOut).
+
+list_product2(_, [], Table, Table).
+list_product2(TableIn, [H| T], Rows, TableOut) :-
+    list_product3(TableIn, H, NewRows),
+    append(Rows, NewRows, RowsOut),
+    list_product2(TableIn, T, RowsOut, TableOut).
+
+list_product2([], _, []).
+list_product2([R|T], H, [R1|T1]) :-
+    append(R, H, R1),
+    list_product2(T, H, T1).
+
 
 placeholders(S, 0, S).
 placeholders(IS, N, OS):-
