@@ -420,7 +420,7 @@ write_dists([S| R], Handle) :-
     outcomes(S, Types),
     Types \= [],
     list_product([[]], Types, Table),
-    write_dist3(S, Table, Dist).
+    write_dist3(S, Table, Dist, Handle).
 
 list_product(Table, [], Table).
 list_product(TableIn, [Type|Rest], TableOut) :-
@@ -441,6 +441,10 @@ list_product3(Row, [H|T], [Row1|T1]) :-
     append(Row, [H], Row1),
     list_product3(Row, T, T1).
 
+write_dist3(_S, [], _D, _H).
+write_dist3(Switch, [Row|Rest], [Prob|PRest], Handle) :-
+    fmt_write(Handle, 'dist(%s, %s, %s).\n', args(Switch, Row, Prob)),
+    write_dist3(Switch, Rest, PRest, Handle).
 
 placeholders(S, 0, S).
 placeholders(IS, N, OS):-
