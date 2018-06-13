@@ -430,16 +430,16 @@ list_product(TableIn, [Type|Rest], TableOut) :-
 list_product1(TableIn, Type, TableOut) :-
     list_product2(TableIn, Type, [], TableOut).
 
-list_product2(_, [], Table, Table).
-list_product2(TableIn, [H| T], Rows, TableOut) :-
-    list_product3(TableIn, H, NewRows),
-    append(Rows, NewRows, RowsOut),
-    list_product2(TableIn, T, RowsOut, TableOut).
+list_product2([], _, Table, Table).
+list_product2([Row|Rest], Type, TableIn, TableOut) :-
+    list_product3(Row, Type, NewRows),
+    append(TableIn, NewRows, Table),
+    list_product2(Rest, Type, Table, TableOut).
 
-list_product2([], _, []).
-list_product2([R|T], H, [R1|T1]) :-
-    append(R, H, R1),
-    list_product2(T, H, T1).
+list_product3(Row, [], []).
+list_product3(Row, [H|T], [Row1|T1]) :-
+    append(Row, [H], Row1),
+    list_product3(Row, T, T1).
 
 
 placeholders(S, 0, S).
