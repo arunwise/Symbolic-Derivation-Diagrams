@@ -1,4 +1,5 @@
 :- import length/2, append/3, member/2, ith/3 from basics.
+:- import sum_list/2 from lists.
 
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -422,8 +423,22 @@ write_dists([S| R], Handle) :-
     typesets(Types, TypeSets),
     list_product([[]], TypeSets, Table),
     write_dist3(S, Table, Dist, Handle),
+    write_dist4(S, 1, TypeSets, Handle),
     write_dists(R, Handle).
 
+write_dist4(Switch, _, [], Handle).
+write_dist4(Switch, N, [TypeSet|Rest], Handle) :-
+    write_dist41(Switch, N, TypeSet, Handle),
+    N1 is N + 1,
+    write_dist4(Switch, N1, Rest, Handle).
+
+write_dist41(_Switch, _I, [], _Handle).
+write_dist41(Switch, I, [H|R], Handle) :-
+    setof(Prob, Val^(dist(Switch, Val, Prob),ith(I, Val, H)), Probs),
+    sum_list(Probs, P),
+    write(Handle, dist(Switch, I, H, P)), write(Handle, '.\n'),
+    write_dist41(Switch, I, R, Handle).
+    
 typesets([], []).
 typesets([T|R], [TS|RR]) :-
     type(T, TS),
@@ -451,6 +466,7 @@ write_dist3(_S, [], _D, _H).
 write_dist3(Switch, [Row|Rest], [Prob|PRest], Handle) :-
     % fmt_write(Handle, 'dist(%s, %s, %s).\n', args(Switch, Row, Prob)),
     write(Handle, dist(Switch, Row, Prob)), write(Handle, '.\n'),
+    assert(dist(Switch, Row, Prob)),
     write_dist3(Switch, Rest, PRest, Handle).
 
 placeholders(S, 0, S).
