@@ -13,14 +13,14 @@ list_to_ord_set/2 from ordsets.
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 msw(+S, +I, X, +CtxtIn, +OsddIn, -CtxtOut, -OsddOut)
 
-Update the CtxtIn with Id of random variable X. Compute OsddOut as
+Update the CtxtIn with Id of random variable(s) X. Compute OsddOut as
 conjunction of OsddIn and trivial OSDD for msw(S,I,X).
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 msw(S, I, X, CtxtIn, OsddIn, CtxtOut, OsddOut) :-
     ground(S),
     ground(I),
-    update_context(CtxtIn, X, S, I, CtxtOut),
+    update_context(CtxtIn, X, S, I, 1, CtxtOut),
     trivial_osdd(S, I, Osdd),
     and(OsddIn, Osdd, OsddOut).
     
@@ -199,24 +199,29 @@ apply_constraint_urg([edge_subtree(E, T)| Rest], C, PathConstr, ETin,
     apply_constraint_urg(Rest, C, PathConstr, ET, ETout).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-update_context(+CtxtIn, +X, +S, +I, -CtxtOut)
+update_context(+CtxtIn, +Xs, +S, +I, +N, -CtxtOut)
 
-Check if 'CtxtIn' specifies the switch/instance pair of the variable
-X. If so, it should match the pair (S, I). Otherwise, add the
-switch/instance pair of X as (S, I) to CtxtIn to produce CtxtOut.
+Check if 'CtxtIn' specifies the switch/instance/component triple of
+the variable X. If so, it should match the triple (S, I, N).
+Otherwise, add the switch/instance/component triple of X as (S, I, N)
+to CtxtIn and recurse for all the elements in Xs.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-update_context(CtxtIn, X, S, I, CtxtOut) :-
-    (existing_context(CtxtIn, X, S1, I1)
+update_context(CtxtIn, [], _, _, _, CtxtOut) :-
+    sort(CtxtIn, CtxtOut).
+update_context(CtxtIn, [X|Rest], S, I, N, CtxtOut) :-
+    (existing_context(CtxtIn, X, S1, I1, N1)
     ->
 	% we avoid duplicates and check that same context doesn't give
 	% two ids
 	S = S1,
 	I = I1,
-	CtxtOut = CtxtIn
+	N = N1,
+	Ctxt = CtxtIn
     ;
-        append(CtxtIn, [X-(S, I)], Ctxt),
-        sort(Ctxt, CtxtOut)
-    ).
+        append(CtxtIn, [X-(S, I, N)], Ctxt),
+    ),
+    M is N + 1,
+    update_context(Ctxt, Rest, S, I, M, CtxtOut).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 existing_context(+CtxtIn, +X, -S, -I)
