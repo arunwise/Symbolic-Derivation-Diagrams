@@ -56,11 +56,6 @@ write_clause(XClause, Handle) :-
         write(Handle, '.\n')
     ).
 
-%% /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-%% Defines which queries Q may be invoked with native domain constants
-%% - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-%% transform((:- export(Q)), (Q :- map_domain(Q, _Q), _Q), File) :- !.
-
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 transform(+Clause, -XClause, +Handle)
 
@@ -75,23 +70,6 @@ transform((H_in :- B_in), (H_out :- B_out), Handle) :- !,
     transform_body(B_in, CtxtIn, Args, B_out,
 		   (CtxtIn, OsddIn, CtxtOut, OsddOut)).
     
-    %% transform_pred(H_in, H_out, ExtraArgs),
-    %% transform_body(B_in, Args, B_out, ExtraArgs).
-
-%% /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-%% transform(+Fact, -XFact, +Handle)
-
-%% Transform 'Fact' to 'XFact'. If the 'Fact' is a values/2 fact, define
-%% a type and write to Handle.
-%% - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-%% transform(F_in, F_out, Handle) :-
-%%     functor(F_in, F, _N),
-%%     (F = values
-%%     ->  process_domain(F_in, Handle),
-%%         transform_pred(F_in, F_out, (CtxtIn, OsddIn, CtxtIn, OsddIn)),
-%%         write_domain_intrange(F_out, Handle)
-%%     ;   transform_pred(F_in, F_out, (CtxtIn, OsddIn, CtxtIn, OsddIn))
-%%     ), !.
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 transform(+Fact, -XFact, +Handle)
@@ -211,25 +189,6 @@ transform_pred(msw(S, I, X),
         fail
     ), !.
 
-%% /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-%% transform_pred(+values(S, V), -values(XS, I), (+Ctxt, +Osdd, -Ctxt, -Osdd))
-
-%% Transform values/2 facts. Map any arguments of the switch to
-%% corresponding integers and also map the list of values to their
-%% corresponding integer values.
-%% - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-%% transform_pred(values(S, V), values(XS, I), (Ctxt, Osdd, Ctxt, Osdd)) :-
-%%     (ground(S)
-%%     ->
-%% 	S =.. [F | Vs],
-%% 	find_int_mappings(Vs, Is),
-%% 	XS =.. [F | Is]
-%%     ;
-%%         write('non-ground switch in the program: '), writeln(S),
-%%         fail
-%%     ),
-%%     make_numerical(V, I), !.
-
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 transform_pred(+type(S, V), -type(XS, I), (+Ctxt, +Osdd, -Ctxt, -Osdd))
 
@@ -280,22 +239,6 @@ transform_pred(Pred_in, Pred_out, (CtxtIn, OsddIn, CtxtOut, OsddOut)) :-
     append(IntArgs, [CtxtIn, OsddIn, CtxtOut, OsddOut], NewArgs),
     Pred_out =.. [P | NewArgs], !.
 
-%% /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-%% process_domain(+values(S, V), +Handle)
-
-%% Update the values_list/1 fact by adding the values 'V' if they are not
-%% already part of the values_list.
-%% - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-%% process_domain(F_in, Handle) :-
-%%     F_in =.. [_ | [_, Values]],
-%%     values_list(L),
-%%     (member(V, Values), member(V, L) % Values is already in L
-%%     ->  true
-%%     ;   append(L, Values, L1),
-%%         assert(values_list(L1)),
-%%         retract(values_list(L))
-%%     ).
-
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 process_domain(+type(S, V))
 
@@ -313,21 +256,6 @@ process_domain(F_in) :-
     ).
 
 :- table write_domain_intrange/2.
-%% /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-%% write_domain_intrange(+values(S, I), +Handle)
-
-%% The argument 'I' is a list of contiguous integers. Find the first and
-%% last values in the list and write intrange/3 fact.
-
-%% - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-%% write_domain_intrange(F_out, Handle) :-
-%%     F_out =.. [_, S, V],
-%%     length(V, L),
-%%     ith(1, V, Start),
-%%     ith(L, V, End),
-%%     write(Handle, intrange(S, Start, End)), write(Handle, '.\n'),
-%%     true.
-
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 write_domain_intrange(+type(S, I), +Handle)
 
@@ -464,7 +392,6 @@ list_product3(Row, [H|T], [Row1|T1]) :-
 
 write_dist3(_S, [], _D, _H).
 write_dist3(Switch, [Row|Rest], [Prob|PRest], Handle) :-
-    % fmt_write(Handle, 'dist(%s, %s, %s).\n', args(Switch, Row, Prob)),
     write(Handle, dist(Switch, Row, Prob)), write(Handle, '.\n'),
     assert(dist(Switch, Row, Prob)),
     write_dist3(Switch, Rest, PRest, Handle).
