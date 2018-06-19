@@ -313,10 +313,11 @@ find_type(+Ctxt, +Var, -Type)
 
 Find the type of 'Var' by using the switch specified by 'Ctxt'
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-find_type([X-(S, _I)| _Rest], Term, Type) :-
+find_type([X-(S, _I, N)| _Rest], Term, Type) :-
     X == Term, !,
-    values(S, Type).
-find_type([X-(_S, _I)|Rest], Term, Type) :-
+    outcomes(S, Types),
+    ith(N, Types, Type).
+find_type([X-(_S, _I, _N)|Rest], Term, Type) :-
     X \== Term,
     find_type(Rest, Term, Type).
 
