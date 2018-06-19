@@ -305,7 +305,9 @@ type_check(Ctxt, Term1, Term2) :-
     ->
 	find_type(Ctxt, Term2, Type)
     ;
-        member(Term2, Type)
+        %member(Term2, Type)
+        type(Type, Values),
+	member(Term2, Values)
     ).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
