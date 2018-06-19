@@ -51,7 +51,7 @@ project_context_1(CtxtHead, [V - (S, I) | T], FV, Cin, Cout) :-
     ->
 	append(Cin, [V - (S, I)], Ctmp)
     ;
-        (existing_context(CtxtHead, V, S, I)
+        (existing_context(CtxtHead, V, S, I, N)
 	->
 	    append(Cin, [V - (S, I)], Ctmp)
 	;
@@ -59,25 +59,6 @@ project_context_1(CtxtHead, [V - (S, I) | T], FV, Cin, Cout) :-
 	)
     ),
     project_context_1(CtxtHead, T, FV, Ctmp, Cout).
-    %% (var(H)
-    %% ->
-    %% 	(existing_context(CtxtIn, H, _S, _I)
-    %% 	->
-    %% 	    project_context_1(Ctxt, T, CtxtIn, CtxtOut)
-    %% 	;
-    %%         (existing_context(Ctxt, H, S, I)
-    %% 	    ->
-    %% 	        append(CtxtIn, [H-(S, I)], CtxtTmp)
-    %% 	    ;
-    %% 	        write('Error in project_context_1. Failed to find id of variable '),
-    %% 		writeln(H),
-    %% 		fail
-    %% 	    ),
-    %% 	    project_context_1(Ctxt, T, CtxtTmp, CtxtOut)
-    %% 	)
-    %% ;
-    %%     project_context_1(Ctxt, T, CtxtIn, CtxtOut)
-    %% ).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 apply_constraint(+CtxtIn, NodeIn, +Constraint, +OutVars, +PathConstr, 
@@ -348,14 +329,14 @@ representation in terms of canonical labels.
 labeled_form(Ctxt, Lhs=Rhs, LLhs=LRhs) :-
     (var(Lhs)
     ->
-	existing_context(Ctxt, Lhs, SL, IL),
+	existing_context(Ctxt, Lhs, SL, IL, NL),
 	canonical_label(SL, IL, LLhs)
     ;
         LLhs=Lhs
     ),
     (var(Rhs)
     ->
-	existing_context(Ctxt, Rhs, SR, IR),
+	existing_context(Ctxt, Rhs, SR, IR, NR),
 	canonical_label(SR, IR, LRhs)
     ;
         LRhs = Rhs
@@ -363,14 +344,14 @@ labeled_form(Ctxt, Lhs=Rhs, LLhs=LRhs) :-
 labeled_form(Ctxt, Lhs\=Rhs, LLhs\=LRhs) :-
     (var(Lhs)
     ->
-	existing_context(Ctxt, Lhs, SL, IL),
+	existing_context(Ctxt, Lhs, SL, IL, NL),
 	canonical_label(SL, IL, LLhs)
     ;
         LLhs = Lhs
     ),
     (var(Rhs)
     ->
-	existing_context(Ctxt, Rhs, SR, IR),
+	existing_context(Ctxt, Rhs, SR, IR, NR),
 	canonical_label(SR, IR, LRhs)
     ;
         LRhs = Rhs
