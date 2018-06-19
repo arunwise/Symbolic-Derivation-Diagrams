@@ -46,14 +46,14 @@ project_context(CtxtHead, CtxtCur, FreeVars, CtxtOut) :-
     sort(Cout, CtxtOut).
 
 project_context_1(_CtxtHead, [], _FV, Cin, Cin).
-project_context_1(CtxtHead, [V - (S, I) | T], FV, Cin, Cout) :-
+project_context_1(CtxtHead, [V - (S, I, N) | T], FV, Cin, Cout) :-
     (memberchk_eq(V, FV)
     ->
-	append(Cin, [V - (S, I)], Ctmp)
+	append(Cin, [V - (S, I, N)], Ctmp)
     ;
         (existing_context(CtxtHead, V, S, I, N)
 	->
-	    append(Cin, [V - (S, I)], Ctmp)
+	    append(Cin, [V - (S, I, N)], Ctmp)
 	;
 	    Ctmp = Cin
 	)
