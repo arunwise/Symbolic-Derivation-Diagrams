@@ -266,6 +266,20 @@ canonical_label(S, I, L) :-
 :- dynamic '$canonical_label'/3.
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+canonical_label(+S, +I, +N, -L)
+
+Construct a canonical label for switch 'S', instance 'I' and component 'N' 
+as the atom 'var_S_I_N'
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+:- table canonical_label/4.
+canonical_label(S, I, N, L) :-
+    ground(S), ground(I), ground(N),
+    concat_atom([var,'_',S,'_',I,'_',N], L),
+    assert('$canonical_label'(S, I, N, L)).
+
+:- dynamic '$canonical_label'/4.
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 type_check(+Ctxt, +Constraint)
 
 Is true if Constraint is type consistent with respect to context.
@@ -333,14 +347,14 @@ labeled_form(Ctxt, Lhs=Rhs, LLhs=LRhs) :-
     (var(Lhs)
     ->
 	existing_context(Ctxt, Lhs, SL, IL, NL),
-	canonical_label(SL, IL, LLhs)
+	canonical_label(SL, IL, NL, LLhs)
     ;
         LLhs=Lhs
     ),
     (var(Rhs)
     ->
 	existing_context(Ctxt, Rhs, SR, IR, NR),
-	canonical_label(SR, IR, LRhs)
+	canonical_label(SR, IR, NR, LRhs)
     ;
         LRhs = Rhs
     ).
@@ -348,14 +362,14 @@ labeled_form(Ctxt, Lhs\=Rhs, LLhs\=LRhs) :-
     (var(Lhs)
     ->
 	existing_context(Ctxt, Lhs, SL, IL, NL),
-	canonical_label(SL, IL, LLhs)
+	canonical_label(SL, IL, NL, LLhs)
     ;
         LLhs = Lhs
     ),
     (var(Rhs)
     ->
 	existing_context(Ctxt, Rhs, SR, IR, NR),
-	canonical_label(SR, IR, LRhs)
+	canonical_label(SR, IR, NR, LRhs)
     ;
         LRhs = Rhs
     ).
@@ -873,6 +887,7 @@ writeDot(OSDD, File) :- writeDotFile(OSDD, File).
 
 initialize :-
     retractall('$canonical_label'/3),
+    retractall('$canonical_label'/4),
     retractall('$unique_table'/2),
     retractall('$measurable_prob'/2),
     prepare(0).
