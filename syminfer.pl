@@ -25,13 +25,13 @@ msw(S, I, X, CtxtIn, OsddIn, CtxtOut, OsddOut) :-
     and(OsddIn, Osdd, OsddOut).
     
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-constraint(+C, +CtxtIn, +OsddIn, -CtxtIn, -OsddOut)
+constraint(+C, +CtxtIn, +OsddIn, -OsddOut)
 
 Perform type checking of atomic constraint C and update the OsddIn to OsddOut
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-constraint(C, CtxtIn, OsddIn, CtxtIn, OsddOut) :-
+constraint(C, CtxtIn, OsddIn, OsddOut) :-
     type_check(CtxtIn, C),
-    apply_constraint(CtxtIn, OsddIn, C, [], [], CtxtIn, OsddOut).
+    apply_constraint(CtxtIn, OsddIn, C, [], [], OsddOut).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 project_context(+CtxHead, +CtxtCur, +FreeVars, -CtxtOut)
@@ -61,15 +61,15 @@ project_context_1(CtxtHead, [V - (S, I, N) | T], FV, Cin, Cout) :-
     project_context_1(CtxtHead, T, FV, Ctmp, Cout).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-apply_constraint(+CtxtIn, NodeIn, +Constraint, +OutVars, +PathConstr, 
-                 -CtxtIn, NodeOut)
+apply_constraint(+CtxtIn, +NodeIn, +Constraint, +OutVars, +PathConstr, 
+                 -NodeOut)
 
 Given a node 'NodeIn', whose path to root contains output variables
 'OutVars' and the path constraints are 'PathConstr', apply the atomic
 constraint 'Constraint' to the subtree rooted at 'NodeIn' and return
 the new node 'NodeOut'.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-apply_constraint(CtxtIn, NodeIn, C, OutVars, PathConstr, CtxtIn, NodeOut) :-
+apply_constraint(CtxtIn, NodeIn, C, OutVars, PathConstr, NodeOut) :-
     ('$unique_table'(NodeIn, 0)
     ->
 	% NodeIn represents a 0 leaf, nothing to apply.
@@ -173,7 +173,7 @@ apply_constraint_no_urg(_Ctxt, [], _C, _O, _P, []).
 apply_constraint_no_urg(Ctxt, [edge_subtree(E, T)| Rest], C, OutVars,
 		   PathConstr, [edge_subtree(E, TOut)| RestOut]) :-
     append(PathConstr, E, PathConstr1),
-    apply_constraint(Ctxt, T, C, OutVars, PathConstr1, Ctxt, TOut),
+    apply_constraint(Ctxt, T, C, OutVars, PathConstr1, TOut),
     apply_constraint_no_urg(Ctxt, Rest, C, OutVars, PathConstr, RestOut).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
