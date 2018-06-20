@@ -118,7 +118,9 @@ urgency_satisfied(Vars, Lhs=Rhs) :-
 	% Lhs is a constant
 	true
     ;
+        % get Switch/Instance/Component corresponding to the label
         '$canonical_label'(SL, IL, NL, Lhs),
+	% get the canonical label using only Switch/Instance
 	canonical_label(SL, IL, Lhs1),
 	member(Lhs1, Vars)
     ),
@@ -127,7 +129,9 @@ urgency_satisfied(Vars, Lhs=Rhs) :-
 	% Rhs is a constant
 	true
     ;
+        % get Switch/Instance/Component corresponding to the label
         '$canonical_label'(SR, IR, NR, Rhs),
+	% get the canonical label using only Switch/Instance
 	canonical_label(SR, IR, Rhs1),
         member(Rhs1, Vars)
     ).
@@ -138,7 +142,9 @@ urgency_satisfied(Vars, Lhs\=Rhs) :-
 	% Lhs is a constant
 	true
     ;
+        % get Switch/Instance/Component corresponding to the label
         '$canonical_label'(SL, IL, NL, Lhs),
+	% get the canonical label using only Switch/Instance
 	canonical_label(SL, IL, Lhs1),
 	member(Lhs1, Vars)
     ),
@@ -147,7 +153,9 @@ urgency_satisfied(Vars, Lhs\=Rhs) :-
 	% Rhs is a constant
 	true
     ;
+        % get Switch/Instance/Component corresponding to the label
         '$canonical_label'(SR, IR, NR, Rhs),
+        % get the canonical label using only Switch/Instance
 	canonical_label(SR, IR, Rhs1),
         member(Rhs1, Vars)
     ).
