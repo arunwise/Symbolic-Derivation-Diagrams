@@ -214,7 +214,7 @@ transform_pred(+set_sw(S, V), -set_sw(XS, V), (+Ctxt, +Osdd, -Ctxt, -Osdd))
 Transform set_sw directives by transforming switch names if they
 contain domain constants. The domain constants are mapped to integer
 values. At this point assert set_sw/2 facts so they can be used later
-on for writing dist/3, dist/4 facts.
+on for writing dist/3  facts.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 transform_pred(set_sw(S, V), set_sw(XS, V), (Ctxt, Osdd, Ctxt, Osdd)) :-
     (ground(S)
@@ -336,7 +336,7 @@ declare(F, N, Handle) :-
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 write_dists(+Handle)
 
-Write dist/3 and dist/4 facts.
+Write dist/3 facts.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 write_dists(Handle) :-
     % find all switches
@@ -351,21 +351,21 @@ write_dists([S| R], Handle) :-
     typesets(Types, TypeSets),
     list_product([[]], TypeSets, Table),
     write_dist3(S, Table, Dist, Handle),
-    write_dist4(S, 1, TypeSets, Handle),
+    % write_dist4(S, 1, TypeSets, Handle),
     write_dists(R, Handle).
 
-write_dist4(Switch, _, [], Handle).
-write_dist4(Switch, N, [TypeSet|Rest], Handle) :-
-    write_dist41(Switch, N, TypeSet, Handle),
-    N1 is N + 1,
-    write_dist4(Switch, N1, Rest, Handle).
+%% write_dist4(Switch, _, [], Handle).
+%% write_dist4(Switch, N, [TypeSet|Rest], Handle) :-
+%%     write_dist41(Switch, N, TypeSet, Handle),
+%%     N1 is N + 1,
+%%     write_dist4(Switch, N1, Rest, Handle).
 
-write_dist41(_Switch, _I, [], _Handle).
-write_dist41(Switch, I, [H|R], Handle) :-
-    setof(Prob, Val^(dist(Switch, Val, Prob),ith(I, Val, H)), Probs),
-    sum_list(Probs, P),
-    write(Handle, dist(Switch, I, H, P)), write(Handle, '.\n'),
-    write_dist41(Switch, I, R, Handle).
+%% write_dist41(_Switch, _I, [], _Handle).
+%% write_dist41(Switch, I, [H|R], Handle) :-
+%%     setof(Prob, Val^(dist(Switch, Val, Prob),ith(I, Val, H)), Probs),
+%%     sum_list(Probs, P),
+%%     write(Handle, dist(Switch, I, H, P)), write(Handle, '.\n'),
+%%     write_dist41(Switch, I, R, Handle).
     
 typesets([], []).
 typesets([T|R], [TS|RR]) :-
