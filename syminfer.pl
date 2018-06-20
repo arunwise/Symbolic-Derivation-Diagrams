@@ -103,12 +103,14 @@ apply_constraint(CtxtIn, NodeIn, C, OutVars, PathConstr, CtxtIn, NodeOut) :-
     ).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-urgency_satisfied(+Vars, +Constraint)
+urgency_satisfied(+OutVars, +Constraint)
 
 Is true when all the variables involved in 'Constraint' are elements
-of 'Vars' ('Vars' contains the labels instead of actual variable,
-similarly 'Constraint' is also represented in terms of canonical
-labels).
+of 'OutVars' ('OutVars' contains the labels instead of actual
+variable, similarly 'Constraint' is also represented in terms of
+canonical labels). Note that labels used for 'OutVars' omit the
+component information, so this has to be factored while checking
+membership.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 urgency_satisfied(Vars, Lhs=Rhs) :-
     (integer(Lhs)
@@ -116,14 +118,18 @@ urgency_satisfied(Vars, Lhs=Rhs) :-
 	% Lhs is a constant
 	true
     ;
-	member(Lhs, Vars)
+        '$canonical_label'(SL, IL, NL, Lhs),
+	canonical_label(SL, IL, Lhs1),
+	member(Lhs1, Vars)
     ),
     (integer(Rhs)
     ->
 	% Rhs is a constant
 	true
     ;
-        member(Rhs, Vars)
+        '$canonical_label'(SR, IR, NR, Rhs),
+	canonical_label(SR, IR, Rhs1),
+        member(Rhs1, Vars)
     ).
 
 urgency_satisfied(Vars, Lhs\=Rhs) :-
@@ -132,14 +138,18 @@ urgency_satisfied(Vars, Lhs\=Rhs) :-
 	% Lhs is a constant
 	true
     ;
-	member(Lhs, Vars)
+        '$canonical_label'(SL, IL, NL, Lhs),
+	canonical_label(SL, IL, Lhs1),
+	member(Lhs1, Vars)
     ),
     (integer(Rhs)
     ->
 	% Rhs is a constant
 	true
     ;
-        member(Rhs, Vars)
+        '$canonical_label'(SR, IR, NR, Rhs),
+	canonical_label(SR, IR, Rhs1),
+        member(Rhs1, Vars)
     ).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
