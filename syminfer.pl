@@ -25,11 +25,11 @@ msw(S, I, X, CtxtIn, OsddIn, CtxtOut, OsddOut) :-
     and(OsddIn, Osdd, OsddOut).
     
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-constraint(+C, +CtxtIn, +OsddIn, -OsddOut)
+constraint(+C, +CtxtIn, +OsddIn, -CtxtIn, -OsddOut)
 
 Perform type checking of atomic constraint C and update the OsddIn to OsddOut
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-constraint(C, CtxtIn, OsddIn, OsddOut) :-
+constraint(C, CtxtIn, OsddIn, CtxtIn, OsddOut) :-
     type_check(CtxtIn, C),
     apply_constraint(CtxtIn, OsddIn, C, [], [], OsddOut).
 
