@@ -695,7 +695,7 @@ pi_1(Root, [edge_subtree(Edge, Tree) | Rest], Sigma, [Prob | ProbRest]) :-
     apply_substitution(Sigma, Edge, E1),
     urgent_randvars(Root, E1, RVs),
     ve_representation(E1, EQ, NEQ),
-    solutions(Root, EQ, NEQ, Sols),
+    solutions(RVs, EQ, NEQ, Sols),
     pi_2(Root, Sols, Sigma, Tree, 0, Prob),
     pi_1(Root, Rest, Sigma, ProbRest).
 
