@@ -133,7 +133,6 @@ solutions(Label, EQ, NEQ, Solutions) :-
     ((is_empty(EQ), is_empty(NEQ))
     ->
 	% Variable corresponding to label is unconstrained
-	%usermod:'$id_label'(id(S, _I), Label),
 	usermod:'$canonical_label'(S, _I, Label),
 	usermod:intrange(S, Lower, Upper),
 	var(X),

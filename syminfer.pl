@@ -693,10 +693,50 @@ pi(Node, Sigma, P) :-
 pi_1(_Root, [], _Sigma, []).
 pi_1(Root, [edge_subtree(Edge, Tree) | Rest], Sigma, [Prob | ProbRest]) :-
     apply_substitution(Sigma, Edge, E1),
+    urgent_randvars(Root, E1, RVs),
     ve_representation(E1, EQ, NEQ),
     solutions(Root, EQ, NEQ, Sols),
     pi_2(Root, Sols, Sigma, Tree, 0, Prob),
     pi_1(Root, Rest, Sigma, ProbRest).
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+urgent_randvars(+Node, +Edge, -RandVars)
+
+Find the random variables in 'Edge' which are urgen w.r.t 'Node' and return
+them in 'RandVars'
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+urgent_randvars(Node, Edge, RandVars) :-
+    urgent_randvars_1(Node, Edge, [], RandVars).
+
+urgent_randvars_1(_N, [], RV, RV).
+urgent_randvars_1(Node, [X=Y|Rest], RVin, RVout) :-
+    (integer(X)
+    ->
+	RVX = RVin
+    ;
+        '$canonical_label'(SX, IX, NX, X),
+	canonical_label(SX, IX, NodeX),
+	(NodeX = Node
+	->
+	    append(RVin, [X], RVX)
+	;
+	    RVX = RVin
+	)
+    ),
+    (integer(Y)
+    ->
+	RVY = RVX
+    ;
+        '$canonical_label'(SY, IY, NY, Y),
+	canonical_label(SY, IY, NodeY),
+	(NodeY = Node
+	->
+	    append(RVX, [Y], RVY)
+	;
+	    RVY = RVX
+	)
+    ),
+    urgent_randvars_1(Node, Rest, RVY, RVout).
 
 pi_2(_R, [], _Sigma, _Tree, Pin, Pin).
 pi_2(Root, [Val | Rest], Sigma, Tree, Pin, Pout) :-
@@ -804,6 +844,14 @@ edge_vars_2([X\=Y|Rest], Ein, Eout) :-
     ),
     edge_vars_2(Rest, Etmp1, Eout).
 
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+apply_substitution(+Substitution, +CFin, -CFout)
+
+Apply the 'Substitution' to the constraint formula 'CFin' to get 'CFout'.
+Note that the constraint formulas are expressed in terms of canonical labels
+and not real variables. Nevertheless we apply substitution replacing these
+canonical labels with their corresponding constants.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 apply_substitution(_Sigma, [], []).
 apply_substitution(Sigma, [X=Y|Rest], [X1=Y1|RestSub]) :-
     (get_assoc(X, Sigma, ValX)
