@@ -11,7 +11,7 @@ from assoc_xsb.
 
 :- import list_to_ord_set/2 from ordsets.
 
-:- import append/3, member/2 from basics.
+:- import append/3, member/2, ith/3 from basics.
 
 :- import (in)/2, (#=)/2, (#\=)/2, label/1 from bounds.
 
@@ -78,8 +78,10 @@ enforce_domain_constraints([Key-Value|Rest]) :-
 	enforce_domain_constraints(Rest)
     ;
         % get the id corresponding to the variable, then its domain
-        usermod:'$canonical_label'(S, _I, Key),
-	usermod:intrange(S, Lower, Upper),
+        usermod:'$canonical_label'(S, _I, N, Key),
+	usermod:outcomes(S, Types),
+	ith(N, Types, Type),
+	usermod:intrange(Type, Lower, Upper),
 	Value in Lower..Upper,
 	enforce_domain_constraints(Rest)
     ).
