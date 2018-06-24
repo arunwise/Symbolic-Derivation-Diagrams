@@ -64,6 +64,17 @@ map_labels_to_vars(Ain, [Vertex-_Neighbors| Rest], Aout) :-
     ).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+get_vars(+Labels, +Assoc, -Vars)
+
+Returns the list of variables associated with the 'Labels' in 'Assoc'
+as the list 'Vars'.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+get_vars([], _, []).
+get_vars([L|R], A2, [V|VR]) :-
+    gen_assoc(L, A2, V),
+    get_vars(R, A2, VR).
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 enforce_domain_constraints(+List)
 
 Loop through list of key-value pairs and do: If key represents a
@@ -125,37 +136,27 @@ enforce_disequality_with_neighbors(Value, Assoc, [H|R]) :-
     enforce_disequality_with_neighbors(Value, Assoc, R).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-solutions(+Label, +EQ, +NEQ, -Solutions)
+solutions(+Labels, +EQ, +NEQ, -Solutions)
 
-'Label' is the label of a variable in the CSP, represented by graph
-with equality edges 'EQ' and disequality edges 'NEQ'. 'Solutions' is
-the set of all solutions to 'Label' which satisfies the CSP.
+'Labels' are the canonical labels of variables in the CSP represented
+by graph with equality edges 'EQ' and disequality edges
+'NEQ'. 'Solutions' is the set of all solutions to 'Labels' which
+satisfies the CSP.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-solutions(Label, EQ, NEQ, Solutions) :-
-    ((is_empty(EQ), is_empty(NEQ))
-    ->
-	% Variable corresponding to label is unconstrained
-	usermod:'$canonical_label'(S, _I, Label),
-	usermod:intrange(S, Lower, Upper),
-	var(X),
-	X in Lower..Upper,
-	findall(X, label([X]), Solutions1),
-	list_to_ord_set(Solutions1, Solutions)
-    ;
-        % Variable corresponding to label is constrained
-        vertices_edges_to_ugraph([], EQ, EQ1),
-        vertices_edges_to_ugraph([], NEQ, NEQ1),
-        empty_assoc(A),
-        map_labels_to_vars(A, EQ1, A1),
-        map_labels_to_vars(A1, NEQ1, A2),
-        assoc_to_list(A2, List),
-        enforce_domain_constraints(List),
-        enforce_equality_constraints(A2, EQ1),
-        enforce_disequality_constraints(A2, NEQ1),
-	gen_assoc(Label, A2, Var),
-	findall(Var, label([Var]), Solutions1),
-	list_to_ord_set(Solutions1, Solutions)
-    ), !.
+solutions(Labels, EQ, NEQ, Solutions) :-
+    vertices_edges_to_ugraph(Labels, EQ, EQ1),
+    vertices_edges_to_ugraph(Labels, NEQ, NEQ1),
+    empty_assoc(A),
+    map_labels_to_vars(A, EQ1, A1),
+    map_labels_to_vars(A1, NEQ1, A2),
+    assoc_to_list(A2, List),
+    enforce_domain_constraints(List),
+    enforce_equality_constraints(A2, EQ1),
+    enforce_disequality_constraints(A2, NEQ1),
+    get_vars(Labels, A2, Vars),
+    findall(Var, label(Vars), Solutions1),
+    list_to_ord_set(Solutions1, Solutions), !.    
+
 solutions(_Label, _EQ, _NEQ, []).
     
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
