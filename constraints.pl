@@ -43,8 +43,8 @@ map_labels_to_vars(+Ain, +S_representation, -Aout)
 
 Updates associative list Ain, by adding key-value pairs to produce
 Aout. If vertex is labeled by numeric constant k, then key-value pair
-k-k is added.  Otherwise vertex is labeled 'varn', key-value varn-X,
-is added where where X is a fresh variable.
+k-k is added.  Otherwise vertex is has a canonical label 'l',
+key-value l-X, is added where where X is a fresh variable.
 - - - - - - - - - - - - - - - - - - - -- - - - - - - - - - - - - - - - - */
 map_labels_to_vars(A, [], A).
 map_labels_to_vars(Ain, [Vertex-_Neighbors| Rest], Aout) :-
@@ -70,9 +70,9 @@ Returns the list of variables associated with the 'Labels' in 'Assoc'
 as the list 'Vars'.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 get_vars([], _, []).
-get_vars([L|R], A2, [V|VR]) :-
-    gen_assoc(L, A2, V),
-    get_vars(R, A2, VR).
+get_vars([L|R], A, [V|VR]) :-
+    gen_assoc(L, A, V),
+    get_vars(R, A, VR).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 enforce_domain_constraints(+List)
@@ -154,7 +154,7 @@ solutions(Labels, EQ, NEQ, Solutions) :-
     enforce_equality_constraints(A2, EQ1),
     enforce_disequality_constraints(A2, NEQ1),
     get_vars(Labels, A2, Vars),
-    findall(Var, label(Vars), Solutions1),
+    findall(Vars, label(Vars), Solutions1),
     list_to_ord_set(Solutions1, Solutions), !.    
 
 solutions(_Label, _EQ, _NEQ, []).
