@@ -122,7 +122,7 @@ urgency_satisfied(Vars, Lhs=Rhs) :-
         % get Switch/Instance/Component corresponding to the label
         '$canonical_label'(SL, IL, NL, Lhs),
 	% get the canonical label using only Switch/Instance
-	canonical_label(SL, IL, Lhs1),
+	'$canonical_label'(SL, IL, Lhs1),
 	member(Lhs1, Vars)
     ),
     (integer(Rhs)
@@ -133,7 +133,7 @@ urgency_satisfied(Vars, Lhs=Rhs) :-
         % get Switch/Instance/Component corresponding to the label
         '$canonical_label'(SR, IR, NR, Rhs),
 	% get the canonical label using only Switch/Instance
-	canonical_label(SR, IR, Rhs1),
+	'$canonical_label'(SR, IR, Rhs1),
         member(Rhs1, Vars)
     ).
 
@@ -146,7 +146,7 @@ urgency_satisfied(Vars, Lhs\=Rhs) :-
         % get Switch/Instance/Component corresponding to the label
         '$canonical_label'(SL, IL, NL, Lhs),
 	% get the canonical label using only Switch/Instance
-	canonical_label(SL, IL, Lhs1),
+	'$canonical_label'(SL, IL, Lhs1),
 	member(Lhs1, Vars)
     ),
     (integer(Rhs)
@@ -157,7 +157,7 @@ urgency_satisfied(Vars, Lhs\=Rhs) :-
         % get Switch/Instance/Component corresponding to the label
         '$canonical_label'(SR, IR, NR, Rhs),
         % get the canonical label using only Switch/Instance
-	canonical_label(SR, IR, Rhs1),
+	'$canonical_label'(SR, IR, Rhs1),
         member(Rhs1, Vars)
     ).
 
@@ -690,66 +690,107 @@ pi(Node, Sigma, P) :-
 
 pi_1(_Root, [], _Sigma, []).
 pi_1(Root, [edge_subtree(Edge, Tree) | Rest], Sigma, [Prob | ProbRest]) :-
+    component_vars(Root, RVs),
     apply_substitution(Sigma, Edge, E1),
-    urgent_randvars(Root, E1, RVs),
+    %% urgent_randvars(Root, E1, RVs),
     ve_representation(E1, EQ, NEQ),
     solutions(RVs, EQ, NEQ, Sols),
     pi_2(Root, Sols, Sigma, Tree, 0, Prob),
     pi_1(Root, Rest, Sigma, ProbRest).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-urgent_randvars(+Node, +Edge, -RandVars)
+component_vars(+Label, -VarLabels)
 
-Find the random variables in 'Edge' which are urgent w.r.t 'Node' and
-return them in 'RandVars'
+Given the canonical label 'Label' of an internal node, return the list
+of canonical labels of the components of the tuple of outcomes at that
+node.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-urgent_randvars(Node, Edge, RandVars) :-
-    urgent_randvars_1(Node, Edge, [], RandVars).
+component_vars(Label, VarList) :-
+    '$canonical_label'(S, I, Label),
+    outcomes(S, Types),
+    length(Types, N),
+    component_vars(S, I, 1, N, VarList).
 
-urgent_randvars_1(_N, [], RV, RV).
-urgent_randvars_1(Node, [X=Y|Rest], RVin, RVout) :-
-    (integer(X)
-    ->
-	RVX = RVin
-    ;
-        '$canonical_label'(SX, IX, NX, X),
-	canonical_label(SX, IX, NodeX),
-	(NodeX = Node
-	->
-	    append(RVin, [X], RVX)
-	;
-	    RVX = RVin
-	)
-    ),
-    (integer(Y)
-    ->
-	RVY = RVX
-    ;
-        '$canonical_label'(SY, IY, NY, Y),
-	canonical_label(SY, IY, NodeY),
-	(NodeY = Node
-	->
-	    append(RVX, [Y], RVY)
-	;
-	    RVY = RVX
-	)
-    ),
-    urgent_randvars_1(Node, Rest, RVY, RVout).
+component_vars(S, I, N, N, [V]) :-
+    canonical_label(S, I, N, V).
+component_vars(S, I, M, N, [V|R]) :-
+    M < N,
+    canonical_label(S, I, M, V),
+    M1 is M + 1,
+    component_vars(S, I, M1, N, R).
+    
+
+%% /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+%% urgent_randvars(+Node, +Edge, -RandVars)
+
+%% Find the random variables in 'Edge' which are urgent w.r.t 'Node' and
+%% return them in 'RandVars'
+%% - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+%% urgent_randvars(Node, Edge, RandVars) :-
+%%     urgent_randvars_1(Node, Edge, [], RandVars).
+
+%% urgent_randvars_1(_N, [], RV, RV).
+%% urgent_randvars_1(Node, [X=Y|Rest], RVin, RVout) :-
+%%     (integer(X)
+%%     ->
+%% 	RVX = RVin
+%%     ;
+%%         '$canonical_label'(SX, IX, NX, X),
+%% 	canonical_label(SX, IX, NodeX),
+%% 	(NodeX = Node
+%% 	->
+%% 	    append(RVin, [X], RVX)
+%% 	;
+%% 	    RVX = RVin
+%% 	)
+%%     ),
+%%     (integer(Y)
+%%     ->
+%% 	RVY = RVX
+%%     ;
+%%         '$canonical_label'(SY, IY, NY, Y),
+%% 	canonical_label(SY, IY, NodeY),
+%% 	(NodeY = Node
+%% 	->
+%% 	    append(RVX, [Y], RVY)
+%% 	;
+%% 	    RVY = RVX
+%% 	)
+%%     ),
+%%     urgent_randvars_1(Node, Rest, RVY, RVout).
 
 pi_2(_R, [], _Sigma, _Tree, Pin, Pin).
 pi_2(Root, [Val | Rest], Sigma, Tree, Pin, Pout) :-
-    put_assoc(Root, Sigma, Val, Sigma1),
+    %% put_assoc(Root, Sigma, Val, Sigma1),
+    extend_substitution(Root, Sigma, Val, Sigma1),
     pi_extra(Tree, Sigma1, Psubtree),
-
     '$canonical_label'(Switch, _Instance, Root),
-    set_sw(Switch, Dist),
-    intrange(Switch, Lower, Upper),
-    Ind is Val - Lower + 1,
-    ith(Ind, Dist, Pval),
-    
+    dist(Switch, Val, Pval),
+    %% set_sw(Switch, Dist),
+    %% intrange(Switch, Lower, Upper),
+    %% Ind is Val - Lower + 1,
+    %% ith(Ind, Dist, Pval),
     Pedge is Pval * Psubtree,
     Ptmp is Pin + Pedge,
     pi_2(Root, Rest, Sigma, Tree, Ptmp, Pout).
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+extend_substitution(+Root, +SigmaIn, +Valuation, -SigmaOut)
+
+Given input substitution, extend it by mapping all components of
+'Root' label to their values as given by 'Valuation' and return this
+new substitution in 'SigmaOut'.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+extend_substitution(Root, SigmaIn, Val, SigmaOut) :-
+    extend_substitution_1(Root, SigmaIn, Val, 1, SigmaOut).
+
+extend_substitution_1(_R, Sigma, [], _, Sigma).
+extend_substitution_1(Root, SigmaIn, [Val|Rest], N, SigmaOut) :-
+    '$canonical_label'(S, I, Root),
+    canonical_label(S, I, N, Label),
+    put_assoc(Label, SigmaIn, Val, Sigma),
+    N1 is N + 1,
+    extend_substitution_1(Root, Sigma, Rest, N1, SigmaOut).
 
 pi_extra(Node, Sigma, P) :-
     free_vars(Node, FV),
@@ -761,7 +802,32 @@ pi_extra(Node, Sigma, P) :-
 free_vars(Node, F) :-
     edge_vars(Node, E),
     output_vars(Node, O),
-    ord_subtract(E, O, F).
+    %% ord_subtract(E, O, F).
+    my_subtract(E, O, F).
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+my_subtract(+EdgeVars, +OutputVars, -FreeVars)
+
+Subtract from 'EdgeVars', those variables that occur in 'OutputVars'
+and return the difference as 'FreeVars'. Note however, that EdgeVars
+use labels of the form 'var_S_I_N' and OutputVars use labels of the
+form 'var_S_I'.  This should be factored while computing the
+difference.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+my_subtract(EdgeVars, OutputVars, FreeVars) :-
+    my_subtract_1(EdgeVars, OutputVars, [], FreeVars).
+
+my_subtract_1([], _, FVin, FVin).
+my_subtract_1([Label|Rest], OutputVars, FVin, FVout) :-
+    '$canonical_label'(S, I, N, Label),
+    '$canonical_label'(S, I, RootLabel),
+    (member(RootLabel, OutputVars)
+    ->
+	FV = FVin
+    ;
+        append(FVin, [Label], FV)
+    ),
+    my_subtract_1(Rest, OutputVars, FV, FVout).
 
 :- table output_vars/2.
 output_vars(Node, O) :-
