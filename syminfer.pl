@@ -11,23 +11,24 @@ list_to_ord_set/2 from ordsets.
    canonical_constraint/3 from constraints.
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-msw(+S, +I, X, +CtxtIn, +OsddIn, -CtxtOut, -OsddOut)
+msw(+S, +I, +Xs, +CtxtIn, +OsddIn, -CtxtOut, -OsddOut)
 
-Update the CtxtIn with Id of random variables X. Compute OsddOut as
-conjunction of OsddIn and trivial OSDD for msw(S,I,X).
+Update the CtxtIn with Id of random variables Xs. Compute OsddOut as
+conjunction of OsddIn and trivial OSDD for msw(S, I, Xs).
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-msw(S, I, X, CtxtIn, OsddIn, CtxtOut, OsddOut) :-
+msw(S, I, Xs, CtxtIn, OsddIn, CtxtOut, OsddOut) :-
     ground(S),
     ground(I),
-    update_context(CtxtIn, X, S, I, CtxtOut),
+    update_context(CtxtIn, Xs, S, I, CtxtOut),
     trivial_osdd(S, I, Osdd),
     and(OsddIn, Osdd, OsddOut).
     
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 constraint(+C, +CtxtIn, +OsddIn, -CtxtIn, -OsddOut)
 
-Perform type checking of atomic constraint C and update the OsddIn to OsddOut
+Perform type checking of atomic constraint C and update the OsddIn to
+OsddOut. Note that this does not change the Context.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 constraint(C, CtxtIn, OsddIn, CtxtIn, OsddOut) :-
     type_check(CtxtIn, C),
@@ -107,7 +108,7 @@ urgency_satisfied(+OutVars, +Constraint)
 
 Is true when all the variables involved in 'Constraint' are elements
 of 'OutVars' ('OutVars' contains the labels instead of actual
-variable, similarly 'Constraint' is also represented in terms of
+variables, similarly 'Constraint' is also represented in terms of
 canonical labels). Note that labels used for 'OutVars' omit the
 component information, so this has to be factored while checking
 membership.
@@ -337,7 +338,6 @@ type_check(Ctxt, Term1, Term2) :-
     ->
 	find_type(Ctxt, Term2, Type)
     ;
-        %member(Term2, Type)
         type(Type, Values),
 	member(Term2, Values)
     ).
@@ -457,8 +457,6 @@ canonical_form_et_1([edge_subtree(E, T) | Rest],
     canonical_constraint(EQ, NEQ, cg(EQ1, NEQ1)),
     eq_graph_to_formula(EQ1, [], EQF),
     neq_graph_to_formula(NEQ1, EQF, F), 
-    %append(EQ1, NEQ1, CE1),
-    %sort(CE1, CE),
     sort(F, CF),
     canonical_form_et_1(Rest, RestC).
 
@@ -702,8 +700,8 @@ pi_1(Root, [edge_subtree(Edge, Tree) | Rest], Sigma, [Prob | ProbRest]) :-
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 urgent_randvars(+Node, +Edge, -RandVars)
 
-Find the random variables in 'Edge' which are urgen w.r.t 'Node' and return
-them in 'RandVars'
+Find the random variables in 'Edge' which are urgent w.r.t 'Node' and
+return them in 'RandVars'
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 urgent_randvars(Node, Edge, RandVars) :-
     urgent_randvars_1(Node, Edge, [], RandVars).
