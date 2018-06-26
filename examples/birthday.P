@@ -15,6 +15,6 @@ same_birthday :-
     person(P1),
     person(P2),
     P1 < P2,
-    msw(b, P1, X),
-    msw(b, P2, Y),
+    msw(b, P1, [X]),
+    msw(b, P2, [Y]),
     {X = Y}.
