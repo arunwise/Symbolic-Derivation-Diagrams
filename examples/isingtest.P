@@ -7,7 +7,7 @@ outcomes(edge, [bool,bool]).
 %% set_sw(node, [0.5, 0.5]).
 set_sw(edge, [0.49, 0.01, 0.01, 0.49]).
 
-ising(A, B, C, D) :-
+ising(E11, E21, E31, E41) :-
     %% msw(node, 1, [A]),
     %% msw(node, 2, [B]),
     %% msw(node, 3, [C]),
