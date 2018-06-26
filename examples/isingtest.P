@@ -1,24 +1,29 @@
 % Encoding of Ising model to test program transformation.
 
 type(bool, [t, f]).
-outcomes(node, [bool]).
+%$ outcomes(node, [bool]).
 outcomes(edge, [bool,bool]).
 
-set_sw(node, [0.5, 0.5]).
+%% set_sw(node, [0.5, 0.5]).
 set_sw(edge, [0.49, 0.01, 0.01, 0.49]).
 
 ising(A, B, C, D) :-
-    msw(node, 1, [A]),
-    msw(node, 2, [B]),
-    msw(node, 3, [C]),
-    msw(node, 4, [D]),
-    msw(edge, 1, [A,B]),
-    msw(edge, 2, [B,C]),
-    msw(edge, 3, [C,D]),
-    msw(edge, 4, [D,A]).
+    %% msw(node, 1, [A]),
+    %% msw(node, 2, [B]),
+    %% msw(node, 3, [C]),
+    %% msw(node, 4, [D]),
+    msw(edge, 1, [E11,E12]),
+    msw(edge, 2, [E21,E22]),
+    msw(edge, 3, [E31,E32]),
+    msw(edge, 4, [E41,E42]),
+    {E12=E21},
+    {E22=E32},
+    {E32=E41},
+    {E42=E11}.
 
 query :-
-    ising(t, t, t, t).
+    ising(A, B, C, D),
+    {A=t}, {B=t}, {C=t}, {D=t}.
 
 evidence :-
     ising(A, B, C, D).
