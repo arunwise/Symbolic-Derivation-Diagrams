@@ -964,8 +964,8 @@ probability_m(Osdd, P) :-
     pi_m(Osdd, A, P).
 
 :- table pi_m/3.
-pi_m(Node, Sigma, 0) :- '$unique_table'(Node, 0), !.
-pi_m(Node, Sigma, 1) :- '$unique_table'(Node, 1), !.
+pi_m(Node, _Sigma, 0) :- '$unique_table'(Node, 0), !.
+pi_m(Node, _Sigma, 1) :- '$unique_table'(Node, 1), !.
 pi_m(Node, Sigma, P) :-
     ('$measurable_prob'(Node, Prob)
     ->
@@ -982,9 +982,10 @@ pi_m(Node, Sigma, P) :-
 
 pi_1_m(_Root, [], _Sigma, []).
 pi_1_m(Root, [edge_subtree(Edge, Tree) | Rest], Sigma, [Prob | ProbRest]) :-
+    component_vars(Root, RVs),
     apply_substitution(Sigma, Edge, E1),
     ve_representation(E1, EQ, NEQ),
-    solutions(Root, EQ, NEQ, Sols),
+    solutions(RVs, EQ, NEQ, Sols),
     length(Sols, Measure),
     (Measure = 0
     ->
@@ -993,13 +994,32 @@ pi_1_m(Root, [edge_subtree(Edge, Tree) | Rest], Sigma, [Prob | ProbRest]) :-
         Sols = [Sol | _Rest],
 	pi_2_m(Root, Sol, Sigma, Tree, Psub),
 	'$canonical_label'(Switch, _Instance, Root),
-	intrange(Switch, Lower, Upper),
-	Prob is Measure / (Upper - Lower + 1) * Psub
+	%%intrange(Switch, Lower, Upper),
+	domain_size(Switch, Size),
+	Prob is Measure / Size * Psub
+	%% Prob is Measure / (Upper - Lower + 1) * Psub
     ),
     pi_1_m(Root, Rest, Sigma, ProbRest).
 
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+domain_size(+Switch, -Size)
+
+Return the number of valuations in the outcome space of 'Switch'
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+domain_size(Switch, Size) :-
+    outcomes(Switch, Types),
+    domain_size_1(1, Types, Size).
+
+domain_size_1(Size, [], Size).
+domain_size_1(SizeIn, [Type|Rest], SizeOut) :-
+    type(Type, Values),
+    length(Values, L),
+    Size is SizeIn * L,
+    domain_size_1(Size, Rest, SizeOut).
+
 pi_2_m(Root, Val, Sigma, Tree, Psub) :-
-    put_assoc(Root, Sigma, Val, Sigma1),
+    %% put_assoc(Root, Sigma, Val, Sigma1),
+    extend_substitution(Root, Sigma, Val, Sigma1),
     pi_extra_m(Tree, Sigma1, Psub).
     
 pi_extra_m(Node, Sigma, P) :-
