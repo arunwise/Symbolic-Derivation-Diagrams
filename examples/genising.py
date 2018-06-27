@@ -1,7 +1,13 @@
 # script to generate ising model encodings of Px
+import argparse
 
-rows = 2
-cols = 2
+parser = argparse.ArgumentParser()
+parser.add_argument("-r", "--rows", required=True, help="number of rows")
+parser.add_argument("-c", "--cols", required=True, help="number of columns")
+
+args = vars(parser.parse_args())
+rows = int(args["rows"])
+cols = int(args["cols"])
 
 f = open('ising.P', 'w')
 
