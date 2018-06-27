@@ -114,7 +114,7 @@ f.write('\n')
 f.write('query :- \n')
 f.write('\tworld(')
 f.write(', '.join(list(nodelabels.values())))
-f.write(',\n')
+f.write('),\n')
 for node in list(nodelabels.values()):
     f.write('\t{'+node+' = t},\n')
 else:
