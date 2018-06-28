@@ -6,3 +6,5 @@ examples/transformed/*
 *~
 *.dot
 *.pdf
+/examples/isingtestosdd.P
+/TAGS

@@ -11,27 +11,28 @@ list_to_ord_set/2 from ordsets.
    canonical_constraint/3 from constraints.
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-msw(+S, +I, X, +CtxtIn, +OsddIn, -CtxtOut, -OsddOut)
+msw(+S, +I, +Xs, +CtxtIn, +OsddIn, -CtxtOut, -OsddOut)
 
-Update the CtxtIn with Id of random variable X. Compute OsddOut as
-conjunction of OsddIn and trivial OSDD for msw(S,I,X).
+Update the CtxtIn with Id of random variables Xs. Compute OsddOut as
+conjunction of OsddIn and trivial OSDD for msw(S, I, Xs).
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-msw(S, I, X, CtxtIn, OsddIn, CtxtOut, OsddOut) :-
+msw(S, I, Xs, CtxtIn, OsddIn, CtxtOut, OsddOut) :-
     ground(S),
     ground(I),
-    update_context(CtxtIn, X, S, I, CtxtOut),
+    update_context(CtxtIn, Xs, S, I, CtxtOut),
     trivial_osdd(S, I, Osdd),
     and(OsddIn, Osdd, OsddOut).
     
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 constraint(+C, +CtxtIn, +OsddIn, -CtxtIn, -OsddOut)
 
-Perform type checking of atomic constraint C and update the OsddIn to OsddOut
+Perform type checking of atomic constraint C and update the OsddIn to
+OsddOut. Note that this does not change the Context.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 constraint(C, CtxtIn, OsddIn, CtxtIn, OsddOut) :-
     type_check(CtxtIn, C),
-    apply_constraint(CtxtIn, OsddIn, C, [], [], CtxtIn, OsddOut).
+    apply_constraint(CtxtIn, OsddIn, C, [], [], OsddOut).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 project_context(+CtxHead, +CtxtCur, +FreeVars, -CtxtOut)
@@ -46,49 +47,30 @@ project_context(CtxtHead, CtxtCur, FreeVars, CtxtOut) :-
     sort(Cout, CtxtOut).
 
 project_context_1(_CtxtHead, [], _FV, Cin, Cin).
-project_context_1(CtxtHead, [V - (S, I) | T], FV, Cin, Cout) :-
+project_context_1(CtxtHead, [V - (S, I, N) | T], FV, Cin, Cout) :-
     (memberchk_eq(V, FV)
     ->
-	append(Cin, [V - (S, I)], Ctmp)
+	append(Cin, [V - (S, I, N)], Ctmp)
     ;
-        (existing_context(CtxtHead, V, S, I)
+        (existing_context(CtxtHead, V, S, I, N)
 	->
-	    append(Cin, [V - (S, I)], Ctmp)
+	    append(Cin, [V - (S, I, N)], Ctmp)
 	;
 	    Ctmp = Cin
 	)
     ),
     project_context_1(CtxtHead, T, FV, Ctmp, Cout).
-    %% (var(H)
-    %% ->
-    %% 	(existing_context(CtxtIn, H, _S, _I)
-    %% 	->
-    %% 	    project_context_1(Ctxt, T, CtxtIn, CtxtOut)
-    %% 	;
-    %%         (existing_context(Ctxt, H, S, I)
-    %% 	    ->
-    %% 	        append(CtxtIn, [H-(S, I)], CtxtTmp)
-    %% 	    ;
-    %% 	        write('Error in project_context_1. Failed to find id of variable '),
-    %% 		writeln(H),
-    %% 		fail
-    %% 	    ),
-    %% 	    project_context_1(Ctxt, T, CtxtTmp, CtxtOut)
-    %% 	)
-    %% ;
-    %%     project_context_1(Ctxt, T, CtxtIn, CtxtOut)
-    %% ).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-apply_constraint(+CtxtIn, NodeIn, +Constraint, +OutVars, +PathConstr, 
-                 -CtxtIn, NodeOut)
+apply_constraint(+CtxtIn, +NodeIn, +Constraint, +OutVars, +PathConstr, 
+                 -NodeOut)
 
 Given a node 'NodeIn', whose path to root contains output variables
 'OutVars' and the path constraints are 'PathConstr', apply the atomic
 constraint 'Constraint' to the subtree rooted at 'NodeIn' and return
 the new node 'NodeOut'.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-apply_constraint(CtxtIn, NodeIn, C, OutVars, PathConstr, CtxtIn, NodeOut) :-
+apply_constraint(CtxtIn, NodeIn, C, OutVars, PathConstr, NodeOut) :-
     ('$unique_table'(NodeIn, 0)
     ->
 	% NodeIn represents a 0 leaf, nothing to apply.
@@ -122,12 +104,14 @@ apply_constraint(CtxtIn, NodeIn, C, OutVars, PathConstr, CtxtIn, NodeOut) :-
     ).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-urgency_satisfied(+Vars, +Constraint)
+urgency_satisfied(+OutVars, +Constraint)
 
 Is true when all the variables involved in 'Constraint' are elements
-of 'Vars' ('Vars' contains the labels instead of actual variable,
-similarly 'Constraint' is also represented in terms of canonical
-labels).
+of 'OutVars' ('OutVars' contains the labels instead of actual
+variables, similarly 'Constraint' is also represented in terms of
+canonical labels). Note that labels used for 'OutVars' omit the
+component information, so this has to be factored while checking
+membership.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 urgency_satisfied(Vars, Lhs=Rhs) :-
     (integer(Lhs)
@@ -135,14 +119,22 @@ urgency_satisfied(Vars, Lhs=Rhs) :-
 	% Lhs is a constant
 	true
     ;
-	member(Lhs, Vars)
+        % get Switch/Instance/Component corresponding to the label
+        '$canonical_label'(SL, IL, NL, Lhs),
+	% get the canonical label using only Switch/Instance
+	'$canonical_label'(SL, IL, Lhs1),
+	member(Lhs1, Vars)
     ),
     (integer(Rhs)
     ->
 	% Rhs is a constant
 	true
     ;
-        member(Rhs, Vars)
+        % get Switch/Instance/Component corresponding to the label
+        '$canonical_label'(SR, IR, NR, Rhs),
+	% get the canonical label using only Switch/Instance
+	'$canonical_label'(SR, IR, Rhs1),
+        member(Rhs1, Vars)
     ).
 
 urgency_satisfied(Vars, Lhs\=Rhs) :-
@@ -151,14 +143,22 @@ urgency_satisfied(Vars, Lhs\=Rhs) :-
 	% Lhs is a constant
 	true
     ;
-	member(Lhs, Vars)
+        % get Switch/Instance/Component corresponding to the label
+        '$canonical_label'(SL, IL, NL, Lhs),
+	% get the canonical label using only Switch/Instance
+	'$canonical_label'(SL, IL, Lhs1),
+	member(Lhs1, Vars)
     ),
     (integer(Rhs)
     ->
 	% Rhs is a constant
 	true
     ;
-        member(Rhs, Vars)
+        % get Switch/Instance/Component corresponding to the label
+        '$canonical_label'(SR, IR, NR, Rhs),
+        % get the canonical label using only Switch/Instance
+	'$canonical_label'(SR, IR, Rhs1),
+        member(Rhs1, Vars)
     ).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -174,7 +174,7 @@ apply_constraint_no_urg(_Ctxt, [], _C, _O, _P, []).
 apply_constraint_no_urg(Ctxt, [edge_subtree(E, T)| Rest], C, OutVars,
 		   PathConstr, [edge_subtree(E, TOut)| RestOut]) :-
     append(PathConstr, E, PathConstr1),
-    apply_constraint(Ctxt, T, C, OutVars, PathConstr1, Ctxt, TOut),
+    apply_constraint(Ctxt, T, C, OutVars, PathConstr1, TOut),
     apply_constraint_no_urg(Ctxt, Rest, C, OutVars, PathConstr, RestOut).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -199,37 +199,49 @@ apply_constraint_urg([edge_subtree(E, T)| Rest], C, PathConstr, ETin,
     apply_constraint_urg(Rest, C, PathConstr, ET, ETout).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-update_context(+CtxtIn, +X, +S, +I, -CtxtOut)
+update_context(+CtxtIn, +Xs, +S, +I, -CtxtOut)
 
-Check if 'CtxtIn' specifies the switch/instance pair of the variable
-X. If so, it should match the pair (S, I). Otherwise, add the
-switch/instance pair of X as (S, I) to CtxtIn to produce CtxtOut.
+Update 'CtxtIn' by updating the switch/instance/component triple of each 
+variable in Xs.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-update_context(CtxtIn, X, S, I, CtxtOut) :-
-    (existing_context(CtxtIn, X, S1, I1)
+update_context(CtxtIn, Xs, S, I, CtxtOut) :-
+    update_context_1(CtxtIn, Xs, S, I, 1, CtxtOut).
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+update_context_1(+CtxtIn, +Xs, +S, +I, +N, -CtxtOut)
+
+Check if 'CtxtIn' specifies the switch/instance/component triple of
+the variable X. If so, it should match the triple (S, I, N).
+Otherwise, add the switch/instance/component triple of X as (S, I, N)
+to CtxtIn and recurse for all the elements in Xs.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+update_context_1(CtxtIn, [], _, _, _, CtxtOut) :-
+    sort(CtxtIn, CtxtOut).
+update_context_1(CtxtIn, [X|Rest], S, I, N, CtxtOut) :-
+    (existing_context(CtxtIn, X, S, I, N)
     ->
 	% we avoid duplicates and check that same context doesn't give
 	% two ids
-	S = S1,
-	I = I1,
-	CtxtOut = CtxtIn
+	Ctxt = CtxtIn
     ;
-        append(CtxtIn, [X-(S, I)], Ctxt),
-        sort(Ctxt, CtxtOut)
-    ).
+        append(CtxtIn, [X-(S, I, N)], Ctxt)
+    ),
+    M is N + 1,
+    update_context_1(Ctxt, Rest, S, I, M, CtxtOut).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-existing_context(+CtxtIn, +X, -S, -I)
+existing_context(+CtxtIn, +X, -S, -I, -N)
 
-Check 'CtxtIn' for the switch/instance pair of X.
+Check 'CtxtIn' for the switch/instance/component triple of X.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-existing_context([X1-(S1, I1) | Rest], X, S, I) :-
+existing_context([X1-(S1, I1, N1) | Rest], X, S, I, N) :-
     (X == X1
     ->
 	S = S1,
-	I = I1
+	I = I1,
+	N = N1
     ;
-        existing_context(Rest, X, S, I)
+        existing_context(Rest, X, S, I, N)
     ).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -273,6 +285,20 @@ canonical_label(S, I, L) :-
 :- dynamic '$canonical_label'/3.
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+canonical_label(+S, +I, +N, -L)
+
+Construct a canonical label for switch 'S', instance 'I' and component 'N' 
+as the atom 'var_S_I_N'
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+:- table canonical_label/4.
+canonical_label(S, I, N, L) :-
+    ground(S), ground(I), ground(N),
+    concat_atom([var,'_',S,'_',I,'_',N], L),
+    assert('$canonical_label'(S, I, N, L)).
+
+:- dynamic '$canonical_label'/4.
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 type_check(+Ctxt, +Constraint)
 
 Is true if Constraint is type consistent with respect to context.
@@ -312,7 +338,8 @@ type_check(Ctxt, Term1, Term2) :-
     ->
 	find_type(Ctxt, Term2, Type)
     ;
-        member(Term2, Type)
+        type(Type, Values),
+	member(Term2, Values)
     ).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -320,10 +347,11 @@ find_type(+Ctxt, +Var, -Type)
 
 Find the type of 'Var' by using the switch specified by 'Ctxt'
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-find_type([X-(S, _I)| _Rest], Term, Type) :-
+find_type([X-(S, _I, N)| _Rest], Term, Type) :-
     X == Term, !,
-    values(S, Type).
-find_type([X-(_S, _I)|Rest], Term, Type) :-
+    outcomes(S, Types),
+    ith(N, Types, Type).
+find_type([X-(_S, _I, _N)|Rest], Term, Type) :-
     X \== Term,
     find_type(Rest, Term, Type).
 
@@ -336,30 +364,30 @@ representation in terms of canonical labels.
 labeled_form(Ctxt, Lhs=Rhs, LLhs=LRhs) :-
     (var(Lhs)
     ->
-	existing_context(Ctxt, Lhs, SL, IL),
-	canonical_label(SL, IL, LLhs)
+	existing_context(Ctxt, Lhs, SL, IL, NL),
+	canonical_label(SL, IL, NL, LLhs)
     ;
         LLhs=Lhs
     ),
     (var(Rhs)
     ->
-	existing_context(Ctxt, Rhs, SR, IR),
-	canonical_label(SR, IR, LRhs)
+	existing_context(Ctxt, Rhs, SR, IR, NR),
+	canonical_label(SR, IR, NR, LRhs)
     ;
         LRhs = Rhs
     ).
 labeled_form(Ctxt, Lhs\=Rhs, LLhs\=LRhs) :-
     (var(Lhs)
     ->
-	existing_context(Ctxt, Lhs, SL, IL),
-	canonical_label(SL, IL, LLhs)
+	existing_context(Ctxt, Lhs, SL, IL, NL),
+	canonical_label(SL, IL, NL, LLhs)
     ;
         LLhs = Lhs
     ),
     (var(Rhs)
     ->
-	existing_context(Ctxt, Rhs, SR, IR),
-	canonical_label(SR, IR, LRhs)
+	existing_context(Ctxt, Rhs, SR, IR, NR),
+	canonical_label(SR, IR, NR, LRhs)
     ;
         LRhs = Rhs
     ).
@@ -429,8 +457,6 @@ canonical_form_et_1([edge_subtree(E, T) | Rest],
     canonical_constraint(EQ, NEQ, cg(EQ1, NEQ1)),
     eq_graph_to_formula(EQ1, [], EQF),
     neq_graph_to_formula(NEQ1, EQF, F), 
-    %append(EQ1, NEQ1, CE1),
-    %sort(CE1, CE),
     sort(F, CF),
     canonical_form_et_1(Rest, RestC).
 
@@ -617,28 +643,28 @@ To be implemented.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 split_if_needed(X,X).
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Query processing definitions
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% % Query processing definitions
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% Maps the domain of an exported query to the integer representation
-map_domain(Q, _Q) :-
-    write('Q: '), writeln(Q),
-    values_list(L),
-    Q =.. [F | Args],
-    map_args(Args, _Args, L),
-    basics:append(_Args, [leaf(1), O], OSDD_Args),
-    _Q =.. [F | OSDD_Args],
-    write('_Q: '), writeln(_Q).
+%% % Maps the domain of an exported query to the integer representation
+%% map_domain(Q, _Q) :-
+%%     write('Q: '), writeln(Q),
+%%     values_list(L),
+%%     Q =.. [F | Args],
+%%     map_args(Args, _Args, L),
+%%     basics:append(_Args, [leaf(1), O], OSDD_Args),
+%%     _Q =.. [F | OSDD_Args],
+%%     write('_Q: '), writeln(_Q).
 
-% Maps an individual argument to it's corresponding interger representation
-map_args([], [], _).
-map_args([Arg|Args], [_Arg|_Args], L) :-
-    (basics:ith(I, L, Arg)
-    ->  _Arg = I
-    ;   _Arg = Arg
-    ),
-    map_args(Args, _Args, L).    
+%% % Maps an individual argument to it's corresponding interger representation
+%% map_args([], [], _).
+%% map_args([Arg|Args], [_Arg|_Args], L) :-
+%%     (basics:ith(I, L, Arg)
+%%     ->  _Arg = I
+%%     ;   _Arg = Arg
+%%     ),
+%%     map_args(Args, _Args, L).    
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -664,26 +690,107 @@ pi(Node, Sigma, P) :-
 
 pi_1(_Root, [], _Sigma, []).
 pi_1(Root, [edge_subtree(Edge, Tree) | Rest], Sigma, [Prob | ProbRest]) :-
+    component_vars(Root, RVs),
     apply_substitution(Sigma, Edge, E1),
+    %% urgent_randvars(Root, E1, RVs),
     ve_representation(E1, EQ, NEQ),
-    solutions(Root, EQ, NEQ, Sols),
+    solutions(RVs, EQ, NEQ, Sols),
     pi_2(Root, Sols, Sigma, Tree, 0, Prob),
     pi_1(Root, Rest, Sigma, ProbRest).
 
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+component_vars(+Label, -VarLabels)
+
+Given the canonical label 'Label' of an internal node, return the list
+of canonical labels of the components of the tuple of outcomes at that
+node.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+component_vars(Label, VarList) :-
+    '$canonical_label'(S, I, Label),
+    outcomes(S, Types),
+    length(Types, N),
+    component_vars(S, I, 1, N, VarList).
+
+component_vars(S, I, N, N, [V]) :-
+    canonical_label(S, I, N, V).
+component_vars(S, I, M, N, [V|R]) :-
+    M < N,
+    canonical_label(S, I, M, V),
+    M1 is M + 1,
+    component_vars(S, I, M1, N, R).
+    
+
+%% /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+%% urgent_randvars(+Node, +Edge, -RandVars)
+
+%% Find the random variables in 'Edge' which are urgent w.r.t 'Node' and
+%% return them in 'RandVars'
+%% - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+%% urgent_randvars(Node, Edge, RandVars) :-
+%%     urgent_randvars_1(Node, Edge, [], RandVars).
+
+%% urgent_randvars_1(_N, [], RV, RV).
+%% urgent_randvars_1(Node, [X=Y|Rest], RVin, RVout) :-
+%%     (integer(X)
+%%     ->
+%% 	RVX = RVin
+%%     ;
+%%         '$canonical_label'(SX, IX, NX, X),
+%% 	canonical_label(SX, IX, NodeX),
+%% 	(NodeX = Node
+%% 	->
+%% 	    append(RVin, [X], RVX)
+%% 	;
+%% 	    RVX = RVin
+%% 	)
+%%     ),
+%%     (integer(Y)
+%%     ->
+%% 	RVY = RVX
+%%     ;
+%%         '$canonical_label'(SY, IY, NY, Y),
+%% 	canonical_label(SY, IY, NodeY),
+%% 	(NodeY = Node
+%% 	->
+%% 	    append(RVX, [Y], RVY)
+%% 	;
+%% 	    RVY = RVX
+%% 	)
+%%     ),
+%%     urgent_randvars_1(Node, Rest, RVY, RVout).
+
 pi_2(_R, [], _Sigma, _Tree, Pin, Pin).
 pi_2(Root, [Val | Rest], Sigma, Tree, Pin, Pout) :-
-    put_assoc(Root, Sigma, Val, Sigma1),
+    %% put_assoc(Root, Sigma, Val, Sigma1),
+    extend_substitution(Root, Sigma, Val, Sigma1),
     pi_extra(Tree, Sigma1, Psubtree),
-
     '$canonical_label'(Switch, _Instance, Root),
-    set_sw(Switch, Dist),
-    intrange(Switch, Lower, Upper),
-    Ind is Val - Lower + 1,
-    ith(Ind, Dist, Pval),
-    
+    dist(Switch, Val, Pval),
+    %% set_sw(Switch, Dist),
+    %% intrange(Switch, Lower, Upper),
+    %% Ind is Val - Lower + 1,
+    %% ith(Ind, Dist, Pval),
     Pedge is Pval * Psubtree,
     Ptmp is Pin + Pedge,
     pi_2(Root, Rest, Sigma, Tree, Ptmp, Pout).
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+extend_substitution(+Root, +SigmaIn, +Valuation, -SigmaOut)
+
+Given input substitution, extend it by mapping all components of
+'Root' label to their values as given by 'Valuation' and return this
+new substitution in 'SigmaOut'.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+extend_substitution(Root, SigmaIn, Val, SigmaOut) :-
+    extend_substitution_1(Root, SigmaIn, Val, 1, SigmaOut).
+
+extend_substitution_1(_R, Sigma, [], _, Sigma).
+extend_substitution_1(Root, SigmaIn, [Val|Rest], N, SigmaOut) :-
+    '$canonical_label'(S, I, Root),
+    canonical_label(S, I, N, Label),
+    put_assoc(Label, SigmaIn, Val, Sigma),
+    N1 is N + 1,
+    extend_substitution_1(Root, Sigma, Rest, N1, SigmaOut).
 
 pi_extra(Node, Sigma, P) :-
     free_vars(Node, FV),
@@ -695,7 +802,32 @@ pi_extra(Node, Sigma, P) :-
 free_vars(Node, F) :-
     edge_vars(Node, E),
     output_vars(Node, O),
-    ord_subtract(E, O, F).
+    %% ord_subtract(E, O, F).
+    my_subtract(E, O, F).
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+my_subtract(+EdgeVars, +OutputVars, -FreeVars)
+
+Subtract from 'EdgeVars', those variables that occur in 'OutputVars'
+and return the difference as 'FreeVars'. Note however, that EdgeVars
+use labels of the form 'var_S_I_N' and OutputVars use labels of the
+form 'var_S_I'.  This should be factored while computing the
+difference.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+my_subtract(EdgeVars, OutputVars, FreeVars) :-
+    my_subtract_1(EdgeVars, OutputVars, [], FreeVars).
+
+my_subtract_1([], _, FVin, FVin).
+my_subtract_1([Label|Rest], OutputVars, FVin, FVout) :-
+    '$canonical_label'(S, I, N, Label),
+    '$canonical_label'(S, I, RootLabel),
+    (member(RootLabel, OutputVars)
+    ->
+	FV = FVin
+    ;
+        append(FVin, [Label], FV)
+    ),
+    my_subtract_1(Rest, OutputVars, FV, FVout).
 
 :- table output_vars/2.
 output_vars(Node, O) :-
@@ -776,6 +908,14 @@ edge_vars_2([X\=Y|Rest], Ein, Eout) :-
     ),
     edge_vars_2(Rest, Etmp1, Eout).
 
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+apply_substitution(+Substitution, +CFin, -CFout)
+
+Apply the 'Substitution' to the constraint formula 'CFin' to get 'CFout'.
+Note that the constraint formulas are expressed in terms of canonical labels
+and not real variables. Nevertheless we apply substitution replacing these
+canonical labels with their corresponding constants.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 apply_substitution(_Sigma, [], []).
 apply_substitution(Sigma, [X=Y|Rest], [X1=Y1|RestSub]) :-
     (get_assoc(X, Sigma, ValX)
@@ -824,8 +964,8 @@ probability_m(Osdd, P) :-
     pi_m(Osdd, A, P).
 
 :- table pi_m/3.
-pi_m(Node, Sigma, 0) :- '$unique_table'(Node, 0), !.
-pi_m(Node, Sigma, 1) :- '$unique_table'(Node, 1), !.
+pi_m(Node, _Sigma, 0) :- '$unique_table'(Node, 0), !.
+pi_m(Node, _Sigma, 1) :- '$unique_table'(Node, 1), !.
 pi_m(Node, Sigma, P) :-
     ('$measurable_prob'(Node, Prob)
     ->
@@ -842,9 +982,10 @@ pi_m(Node, Sigma, P) :-
 
 pi_1_m(_Root, [], _Sigma, []).
 pi_1_m(Root, [edge_subtree(Edge, Tree) | Rest], Sigma, [Prob | ProbRest]) :-
+    component_vars(Root, RVs),
     apply_substitution(Sigma, Edge, E1),
     ve_representation(E1, EQ, NEQ),
-    solutions(Root, EQ, NEQ, Sols),
+    solutions(RVs, EQ, NEQ, Sols),
     length(Sols, Measure),
     (Measure = 0
     ->
@@ -853,13 +994,32 @@ pi_1_m(Root, [edge_subtree(Edge, Tree) | Rest], Sigma, [Prob | ProbRest]) :-
         Sols = [Sol | _Rest],
 	pi_2_m(Root, Sol, Sigma, Tree, Psub),
 	'$canonical_label'(Switch, _Instance, Root),
-	intrange(Switch, Lower, Upper),
-	Prob is Measure / (Upper - Lower + 1) * Psub
+	%%intrange(Switch, Lower, Upper),
+	domain_size(Switch, Size),
+	Prob is Measure / Size * Psub
+	%% Prob is Measure / (Upper - Lower + 1) * Psub
     ),
     pi_1_m(Root, Rest, Sigma, ProbRest).
 
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+domain_size(+Switch, -Size)
+
+Return the number of valuations in the outcome space of 'Switch'
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+domain_size(Switch, Size) :-
+    outcomes(Switch, Types),
+    domain_size_1(1, Types, Size).
+
+domain_size_1(Size, [], Size).
+domain_size_1(SizeIn, [Type|Rest], SizeOut) :-
+    type(Type, Values),
+    length(Values, L),
+    Size is SizeIn * L,
+    domain_size_1(Size, Rest, SizeOut).
+
 pi_2_m(Root, Val, Sigma, Tree, Psub) :-
-    put_assoc(Root, Sigma, Val, Sigma1),
+    %% put_assoc(Root, Sigma, Val, Sigma1),
+    extend_substitution(Root, Sigma, Val, Sigma1),
     pi_extra_m(Tree, Sigma1, Psub).
     
 pi_extra_m(Node, Sigma, P) :-
@@ -877,6 +1037,7 @@ writeDot(OSDD, File) :- writeDotFile(OSDD, File).
 
 initialize :-
     retractall('$canonical_label'/3),
+    retractall('$canonical_label'/4),
     retractall('$unique_table'/2),
     retractall('$measurable_prob'/2),
     prepare(0).

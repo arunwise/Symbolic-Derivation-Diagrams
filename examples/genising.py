@@ -1,134 +1,123 @@
 # script to generate ising model encodings of Px
+import argparse
 
-rows = 6
-cols = 6
+parser = argparse.ArgumentParser()
+parser.add_argument("-r", "--rows", required=True, help="number of rows")
+parser.add_argument("-c", "--cols", required=True, help="number of columns")
+
+args = vars(parser.parse_args())
+rows = int(args["rows"])
+cols = int(args["cols"])
 
 f = open('ising.P', 'w')
 
-# write the values and set_sw facts
-f.write('values(a, [t, f]).\n')
-f.write('values(bt, [t, f]).\n')
-f.write('values(bf, [t, f]).\n')
-f.write('set_sw(a, [0.5, 0.5]).\n')
-f.write('set_sw(bt, [0.9, 0.1]).\n')
-f.write('set_sw(bf, [0.9, 0.1]).\n')
+# write type facts
+f.write('type(bool, [t, f]).\n')
+
+# write outcomes facts
+f.write('outcomes(edge, [bool, bool]).\n')
+
+# write set_sw facts
+f.write('set_sw(edge, [0.49, 0.01, 0.01, 0.49]).\n')
 
 f.write('\n')
 
-# write rules for edge factor
-f.write('factor(F, V1, V2) :-\n')
-f.write('\t msw(a, F, V1),\n')
-f.write('\t {V1=t},\n')
-f.write('\t msw(bt, F, V2).\n')
+# Compute the set of all edges. Associate with each (row, col) pair a
+# unique label that serves as the variable name. Also with each (row,
+# col) pair associate the set of edges incident on that node.
+edges = []
+nodelabels = {}
+incidentedges = {}
 
-f.write('\n')
-
-f.write('factor(F, V1, V2) :-\n')
-f.write('\t msw(a, F, V1),\n')
-f.write('\t {V1=f},\n')
-f.write('\t msw(bf, F, V2).\n')
-
-f.write('\n')
-
-# write the world predicate
-f.write('world(')
-
-args = ''
 # horizontal edges
-for r in range(1, 1+rows):
-    for c in range(1, cols):
-        args = args+'Fh{0}{1}V1, Fh{0}{1}V2, '.format(r,c)
+for i in range(rows):
+    for j in range(cols-1):
+        node1 = str(i)+str(j)
+        node2 = str(i)+str(j+1)
+        edge = 'edge_'+node1+'_'+node2
+        edges.append(edge)
+        if node1 not in nodelabels:
+            nodelabels[node1] = 'N_'+node1+'_'+edge
+
+        if node2 not in nodelabels:
+            nodelabels[node2] = 'N_'+node2+'_'+edge
+
+        if node1 not in incidentedges:
+            incidentedges[node1] = [edge]
+        else:
+            incidentedges[node1].append(edge)
+
+        if node2 not in incidentedges:
+            incidentedges[node2] = [edge]
+        else:
+            incidentedges[node2].append(edge)
 
 # vertical edges
-for c in range(1, 1+cols):
-    for r in range(1, rows):
-        args = args+'Fv{0}{1}V1, Fv{0}{1}V2, '.format(c,r)
+for j in range(cols):
+    for i in range(rows-1):
+        node1 = str(i)+str(j)
+        node2 = str(i+1)+str(j)
+        edge = 'edge_'+node1+'_'+node2
+        edges.append(edge)
+        if node1 not in nodelabels:
+            nodelabels[node1] = 'N_'+node1+'_'+edge
 
-# remove trailing comma and space
-args = args[:-2]
+        if node2 not in nodelabels:
+            nodelabels[node2] = 'N_'+node2+'_'+edge
 
-f.write(args)
+        if node1 not in incidentedges:
+            incidentedges[node1] = [edge]
+        else:
+            incidentedges[node1].append(edge)
+
+        if node2 not in incidentedges:
+            incidentedges[node2] = [edge]
+        else:
+            incidentedges[node2].append(edge)
+
+
+# write the head of the world rule
+f.write('world(')
+f.write(', '.join(list(nodelabels.values())))
 f.write(') :-\n')
 
-# write msw goals
-body = ''
-# horizontal edges
-for r in range(1, 1+rows):
-    for c in range(1, cols):
-        body = body+'\t factor(h{0}{1}, Fh{0}{1}V1, Fh{0}{1}V2),\n'.format(r,c)
+# write the msw part of the body
+for e in edges:
+    parts = e.split('_')
+    f.write('\t')
+    f.write('msw(edge, '+e+', [')
+    f.write('N_'+parts[1]+'_'+e),
+    f.write(', '),
+    f.write('N_'+parts[2]+'_'+e),
+    f.write(']),\n')
 
-# vertical edges
-for c in range(1, 1+cols):
-    for r in range(1, rows):
-        body = body+'\t factor(v{0}{1}, Fv{0}{1}V1, Fv{0}{1}V2),\n'.format(c,r)
+# write the constraints
+for i in range(rows):
+    for j in range(cols):
+        node = str(i)+str(j)
+        edgelist = incidentedges[node]
+        k = 0
+        while k < len(edgelist)-1:
+            f.write('\t{N_'+node+'_'+edgelist[k]+' = '+'N_'+node+'_'+edgelist[k+1]+'},\n')
+            k = k + 1
+else:
+    f.write('\ttrue.\n')
 
-body = body[:-2]
-body = body + '.\n'
-f.write(body)
-
+# write the evidence rule
 f.write('\n')
+f.write('evidence :- world(')
+f.write(', '.join(list(nodelabels.values())))
+f.write(').\n')
 
-# write evidence predicate
-f.write('evidence :-\n')
-f.write('\t world({0}),\n'.format(args))
-
-constr = ''
-# write constraints
-for r in range(1, 1+rows):
-    for c in range(1, cols):        
-        if r > 1:
-            # left-up constraint
-            constr = constr + '\t{{Fh{0}{1}V1 = Fv{2}{3}V2}},\n'.format(r, c, c, r-1)
-            # right-up constraint
-            constr = constr + '\t{{Fh{0}{1}V2 = Fv{2}{3}V2}},\n'.format(r, c, c+1, r-1)
-            
-        if r < rows:
-            # left-down constraint
-            constr = constr + '\t{{Fh{0}{1}V1 = Fv{2}{3}V1}},\n'.format(r, c, c, r)
-            # right-down constraint
-            constr = constr + '\t{{Fh{0}{1}V2 = Fv{2}{0}V1}},\n'.format(r, c, c+1, r)
-
-        if c < cols-1:
-            # right-right constraint
-            constr = constr + '\t{{Fh{0}{1}V2 = Fh{2}{3}V1}},\n'.format(r, c, r, c+1)
-
-# we have recorded all constraints except down down
-for c in range(1, 1+cols):
-    for r in range(1, rows):
-        if r < rows - 1:
-            # down-down constraint
-            constr = constr + '\t{{Fv{0}{1}V2 = Fv{2}{3}V1}},\n'.format(c, r, c, r+1)
-
-constr = constr[:-2]
-constr = constr + '.\n'
-
-f.write(constr)
-
+# write the query rule
 f.write('\n')
-
-# write query
 f.write('query :- \n')
-f.write('\t world({0}),\n'.format(args))
-
-qbody = ''
-# horizontal edges
-for r in range(1, 1+rows):
-    for c in range(1, cols):
-        qbody = qbody + '\t{{Fh{0}{1}V1 = t}},\n'.format(r,c)
-        qbody = qbody + '\t{{Fh{0}{1}V2 = t}},\n'.format(r,c)
-
-# vertical edges
-for c in range(1, 1+cols):
-    for r in range(1, rows):
-        qbody = qbody + '\t{{Fv{0}{1}V1 = t}},\n'.format(c,r)
-        qbody = qbody + '\t{{Fv{0}{1}V2 = t}},\n'.format(c,r)
-
-qbody = qbody[:-2]
-qbody = qbody + '.\n'
-
-f.write(qbody)
-
-f.write('\n')
-
-f.write('qe :- evidence, query.\n')
+f.write('\tworld(')
+f.write(', '.join(list(nodelabels.values())))
+f.write('),\n')
+for node in list(nodelabels.values()):
+    f.write('\t{'+node+' = t},\n')
+else:
+    f.write('\ttrue.\n')
+    
 f.close()

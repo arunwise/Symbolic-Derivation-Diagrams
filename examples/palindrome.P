@@ -1,10 +1,11 @@
-values(flip, [a,b]).
+type(alphabet, [a,b]).
+outcomes(flip, [alphabet]).
 set_sw(flip, [0.5, 0.5]).
 
 genlist(0, []).
 genlist(N, L) :-
     N > 0,
-    msw(flip, N, X),
+    msw(flip, N, [X]),
     L = [X | L1],
     N1 is N-1,
     genlist(N1, L1).
