@@ -14,7 +14,7 @@ transform_file(InFile, OutFile) :-
     open(OutFile, write, Handle),
     read_and_transform(Handle),
     values_list(L),  % Get the final values_list
-    write(Handle, 'values_list('), write(Handle, L), writeln(Handle, ').'),
+    write(Handle, 'values_list('), writeq(Handle, L), writeln(Handle, ').'),
     write_dists(Handle),
     close(Handle),
     retract(values_list(L)),
@@ -47,12 +47,12 @@ Write transformed clause 'XClause' to Handle.
 write_clause(XClause, Handle) :-
     ((H :- B) = XClause
     ->
-	write(Handle, H),
+	writeq(Handle, H),
 	write(Handle, ' :- '),
-	write(Handle, B),
+	writeq(Handle, B),
 	write(Handle, '.\n')
     ;
-        write(Handle, XClause),
+        writeq(Handle, XClause),
         write(Handle, '.\n')
     ).
 
