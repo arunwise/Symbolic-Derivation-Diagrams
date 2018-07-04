@@ -1,59 +1,67 @@
-values(alpha, [a, b, c]).
-values(num, [1, 2, 3]).
+type(letters, [a, b, c]).
+type(numbers, [1, 2, 3]).
+
+outcomes(alpha, [letters]).
+outcomes(num, [numbers]).
+
 set_sw(alpha, [0.25, 0.25, 0.5]).
 
-test1 :- msw(alpha, 1, X).
+test1 :- msw(alpha, 1, [X]).
 
-test2 :- msw(alpha, 1, X), {X = a}.
-
-% should fail
-test3 :- msw(alpha, 1, X), {X = 1}.
-
-test4 :- msw(alpha, 1, X), msw(alpha, 2, Y), {X=Y}.
-
-test5 :- msw(alpha, 1, X), msw(alpha, 2, Y), {X\=Y}.
+test2 :- msw(alpha, 1, [X]), {X = a}.
 
 % should fail
-test6 :- msw(alpha, 1, X), msw(num, 1, Y), {X=Y}.
+test3 :- msw(alpha, 1, [X]), {X = 1}.
+
+test4 :- msw(alpha, 1, [X]), msw(alpha, 2, [Y]), {X=Y}.
+
+test5 :- msw(alpha, 1, [X]), msw(alpha, 2, [Y]), {X\=Y}.
+
+% should fail
+test6 :- msw(alpha, 1, [X]), msw(num, 1, [Y]), {X=Y}.
 
 % should fail.
-test7 :- msw(alpha, 1, X), msw(num, 1, Y), {X\=Y}.
+test7 :- msw(alpha, 1, [X]), msw(num, 1, [Y]), {X\=Y}.
 
-test8 :- msw(alpha, 1, X), X=Y.
+test8 :- msw(alpha, 1, [X]), X=Y.
 
-test9 :- msw(alpha, 1, X).
-test9 :- msw(num, 1, X).
-
-% should fail
-test10 :- msw(alpha, 1, X), msw(alpha, 2, Y), {X=Y}, {X\=Y}.
-
-test11 :- msw(alpha, 1, X), msw(alpha, 2, Y), {X=a}, {b\=Y}, {X=Y}.
+test9 :- msw(alpha, 1, [X]).
+test9 :- msw(num, 1, [X]).
 
 % should fail
-test12 :- msw(alpha, 1, X), msw(alpha, 2, Y), {X=a}, {a\=Y}, {X=Y}.
+test10 :- msw(alpha, 1, [X]), msw(alpha, 2, [Y]), {X=Y}, {X\=Y}.
+
+test11 :- msw(alpha, 1, [X]), msw(alpha, 2, [Y]), {X=a}, {b\=Y}, {X=Y}.
 
 % should fail
-test13 :- {X=a}, msw(alpha, 1, X).
+test12 :- msw(alpha, 1, [X]), msw(alpha, 2, [Y]), {X=a}, {a\=Y}, {X=Y}.
 
-test14 :- msw(alpha, 1, X), {X=a}.
-test14 :- msw(alpha, 1, X), {X=b}.
+% should fail
+test13 :- {X=a}, msw(alpha, 1, [X]).
 
-test15 :- msw(alpha, 1, X), msw(alpha, 2, Y), msw(alpha, 3, Z), {X = Y}, {Z = a}, {Z \= Y}.
+test14 :- msw(alpha, 1, [X]), {X=a}.
+test14 :- msw(alpha, 1, [X]), {X=b}.
+
+test15 :- msw(alpha, 1, [X]), msw(alpha, 2, [Y]), msw(alpha, 3, [Z]), {X = Y}, {Z = a}, {Z \= Y}.
 
 % Tests for case split
-test16 :- msw(alpha, 1, X), msw(alpha, 2, Y), msw(alpha, 3, Z), {Z = Y}, {Z = X}.
+test16 :- msw(alpha, 1, [X]), msw(alpha, 2, [Y]), msw(alpha, 3, [Z]), {Z = Y}, {Z = X}.
 
 test17 :- test17_1(X), {X=a}.
-test17_1(X) :- msw(alpha, 1, X).
-test17_1(X) :- msw(alpha, 2, X).
+test17_1(X) :- msw(alpha, 1, [X]).
+test17_1(X) :- msw(alpha, 2, [X]).
 
-test18 :- msw(alpha, 1, X), test18_1(X).
+test18 :- msw(alpha, 1, [X]), test18_1(X).
 test18_1(X) :- {X = a}.
 
-test19 :- msw(alpha, 1, X), msw(alpha, 2, Y), test19_1(X, Y).
+test19 :- msw(alpha, 1, [X]), msw(alpha, 2, [Y]), test19_1(X, Y).
 test19_1(X, Y) :- {X=a}, {Y=b}.
 test19_1(X, Y) :- {X=b}, {Y=a}.
 
 test20 :- test20_1(X).
-test20_1(X) :- msw(alpha, 1, X), {X=a}.
-test20_1(X) :- msw(num, 1, X), {X=2}.
+test20_1(X) :- msw(alpha, 1, [X]), {X=a}.
+test20_1(X) :- msw(num, 1, [X]), {X=2}.
+
+test21 :- test21_1, test21_2.
+test21_1 :- msw(alpha, 1, [X]), {X=a}.
+test21_2 :- msw(alpha, 2, [X]), {X=b}.
