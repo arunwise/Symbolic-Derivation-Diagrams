@@ -141,7 +141,8 @@ transform_pred(=..(X, Y), =..(X, Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
 transform_pred(is(X, Y), is(X, Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
 transform_pred(outcomes(X, Y), outcomes(X, Y), (Ctxt, Osdd, Ctxt, Osdd)) :-
     assert(outcomes(X, Y)), !.
-
+transform_pred(concat_atom(X, Y),
+	       concat_atom(X, Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 transform_pred(+Constraint, -XConstraint, (+CtxtIn, +OsddIn, 
