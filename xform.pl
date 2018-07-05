@@ -56,6 +56,11 @@ write_clause(XClause, Handle) :-
         write(Handle, '.\n')
     ).
 
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+transform(+Directive, -Directive, +Handle)
+
+leave directives alone during transformation
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 transform((:- Directive), (:- Directive), Handle) :- !.
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
