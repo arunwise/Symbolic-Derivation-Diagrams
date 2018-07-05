@@ -1,0 +1,182 @@
+:- import concat_atom/2 from string.
+
+type(bool, [t, f]).
+outcomes(edge, [bool, bool]).
+set_sw(edge, [0.49, 0.01, 0.01, 0.49]).
+
+row_edges(1, N1, N2, N3, N4, N5, N6, N7, N8, N9) :-
+    msw(edge, e_11_12, [N1, N2]),
+    msw(edge, e_12_13, [N2S, N3]),
+    msw(edge, e_13_14, [N3S, N4]),
+    msw(edge, e_14_15, [N4S, N5]),
+    msw(edge, e_15_16, [N5S, N6]),
+    msw(edge, e_16_17, [N6S, N7]),
+    msw(edge, e_17_18, [N7S, N8]),
+    msw(edge, e_18_19, [N8S, N9]),
+    {N2 = N2S},
+    {N3 = N3S},
+    {N4 = N4S},
+    {N5 = N5S},
+    {N6 = N6S},
+    {N7 = N7S},
+    {N8 = N8S}.
+
+row_edges(R, N1, N2, N3, N4, N5, N6, N7, N8, N9) :-
+    1 < R, R =< 9,
+    R1 is R - 1,
+    column_edges(R1, R, M1, M2, M3, M4, M5, M6, M7, M8, M9),
+
+    concat_atom([e,'_',R,1,'_',R,2], E1),
+    concat_atom([e,'_',R,2,'_',R,3], E2),    
+    concat_atom([e,'_',R,3,'_',R,4], E3),    
+    concat_atom([e,'_',R,4,'_',R,5], E4),    
+    concat_atom([e,'_',R,5,'_',R,6], E5),
+    concat_atom([e,'_',R,6,'_',R,7], E6),    
+    concat_atom([e,'_',R,7,'_',R,8], E7),    
+    concat_atom([e,'_',R,8,'_',R,9], E8),    
+
+    msw(edge, E1, [N1, N2]),
+    msw(edge, E2, [N2S, N3]),
+    msw(edge, E3, [N3S, N4]),
+    msw(edge, E4, [N4S, N5]),
+    msw(edge, E5, [N5S, N6]),
+    msw(edge, E6, [N6S, N7]),
+    msw(edge, E7, [N7S, N8]),
+    msw(edge, E8, [N8S, N9]),
+
+    {N2 = N2S},
+    {N3 = N3S},
+    {N4 = N4S},
+    {N5 = N5S},
+    {N6 = N6S},
+    {N7 = N7S},
+    {N8 = N8S},
+
+    {M1 = N1},
+    {M2 = N2},
+    {M3 = N3},
+    {M4 = N4},
+    {M5 = N5},
+    {M6 = N6},
+    {M7 = N7},
+    {M8 = N8},
+    {M9 = N9}.
+
+column_edges(R1, R2, M1, M2, M3, M4, M5, M6, M7, M8, M9) :-
+    row_edges(R1, N1, N2, N3, N4, N5, N6, N7, N8, N9),
+
+    concat_atom([e,'_',R1,1,'_',R2,1], E1),
+    concat_atom([e,'_',R1,2,'_',R2,2], E2),
+    concat_atom([e,'_',R1,3,'_',R2,3], E3),
+    concat_atom([e,'_',R1,4,'_',R2,4], E4),
+    concat_atom([e,'_',R1,5,'_',R2,5], E5),
+    concat_atom([e,'_',R1,6,'_',R2,6], E6),
+    concat_atom([e,'_',R1,7,'_',R2,7], E7),
+    concat_atom([e,'_',R1,8,'_',R2,8], E8),
+    concat_atom([e,'_',R1,9,'_',R2,9], E9),
+    
+    msw(edge, E1, [M1S, M1]),
+    msw(edge, E2, [M2S, M2]),
+    msw(edge, E3, [M3S, M3]),
+    msw(edge, E4, [M4S, M4]),
+    msw(edge, E5, [M5S, M5]),
+    msw(edge, E6, [M6S, M6]),
+    msw(edge, E7, [M7S, M7]),
+    msw(edge, E8, [M8S, M8]),
+    msw(edge, E9, [M9S, M9]),
+
+    {M1S = N1},
+    {M2S = N2},
+    {M3S = N3},
+    {M4S = N4},
+    {M5S = N5},
+    {M6S = N6},
+    {M7S = N7},
+    {M8S = N8},
+    {M9S = N9}.
+
+evidence :-
+    row_edges(9, N1, N2, N3, N4, N5, N6, N7, N8, N9).
+
+query :-
+    query_row(9),
+    query_col(9).
+
+query_row(0).
+query_row(N) :-
+    N > 0,
+
+    concat_atom([e,'_',N,1,'_',N,2], E1),
+    concat_atom([e,'_',N,2,'_',N,3], E2),    
+    concat_atom([e,'_',N,3,'_',N,4], E3),    
+    concat_atom([e,'_',N,4,'_',N,5], E4),    
+    concat_atom([e,'_',N,5,'_',N,6], E5),
+    concat_atom([e,'_',N,6,'_',N,7], E6),    
+    concat_atom([e,'_',N,7,'_',N,8], E7),    
+    concat_atom([e,'_',N,8,'_',N,9], E8),    
+
+    msw(edge, E1, [N1, N2]),
+    msw(edge, E2, [N2S, N3]),
+    msw(edge, E3, [N3S, N4]),
+    msw(edge, E4, [N4S, N5]),
+    msw(edge, E5, [N5S, N6]),
+    msw(edge, E6, [N6S, N7]),
+    msw(edge, E7, [N7S, N8]),
+    msw(edge, E8, [N8S, N9]),    
+
+    {N1 = t},
+    {N2 = t},
+    {N2S = t},
+    {N3 = t},
+    {N3S = t},
+    {N4 = t},
+    {N4S = t},
+    {N5 = t},
+    {N5S = t},
+    {N6 = t},
+    {N6S = t},
+    {N7 = t},
+    {N7S = t},
+    {N8 = t},
+    {N8S = t},
+    {N9 = t},
+
+    N1 is N-1,
+    query_row(N1).
+
+query_col(1).
+query_col(N2) :-
+    N2 > 1,
+    N1 is N2 - 1,
+
+    concat_atom([e,'_',N1,1,'_',N2,1], E1),
+    concat_atom([e,'_',N1,2,'_',N2,2], E2),
+    concat_atom([e,'_',N1,3,'_',N2,3], E3),
+    concat_atom([e,'_',N1,4,'_',N2,4], E4),
+    concat_atom([e,'_',N1,5,'_',N2,5], E5),
+    concat_atom([e,'_',N1,6,'_',N2,6], E6),
+    concat_atom([e,'_',N1,7,'_',N2,7], E7),
+    concat_atom([e,'_',N1,8,'_',N2,8], E8),
+    concat_atom([e,'_',N1,9,'_',N2,9], E9),
+    
+    msw(edge, E1, [M1S, M1]),
+    msw(edge, E2, [M2S, M2]),
+    msw(edge, E3, [M3S, M3]),
+    msw(edge, E4, [M4S, M4]),
+    msw(edge, E5, [M5S, M5]),
+    msw(edge, E6, [M6S, M6]),
+    msw(edge, E7, [M7S, M7]),
+    msw(edge, E8, [M8S, M8]),
+    msw(edge, E9, [M9S, M9]),
+
+    {M1S = t}, {M1 = t},
+    {M2S = t}, {M2 = t},
+    {M3S = t}, {M3 = t},
+    {M4S = t}, {M4 = t},
+    {M5S = t}, {M5 = t},
+    {M6S = t}, {M6 = t},
+    {M7S = t}, {M7 = t},
+    {M8S = t}, {M8 = t},
+    {M9S = t}, {M9 = t},
+   
+    query_col(N1).
