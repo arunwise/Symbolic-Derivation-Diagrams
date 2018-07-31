@@ -57,6 +57,13 @@ write_clause(XClause, Handle) :-
     ).
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+transform(+Directive, -Directive, +Handle)
+
+leave directives alone during transformation
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+transform((:- Directive), (:- Directive), Handle) :- !.
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 transform(+Clause, -XClause, +Handle)
 
 Transform 'Clause' to 'XClause' and write the table directives for
@@ -134,7 +141,10 @@ transform_pred(=..(X, Y), =..(X, Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
 transform_pred(is(X, Y), is(X, Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
 transform_pred(outcomes(X, Y), outcomes(X, Y), (Ctxt, Osdd, Ctxt, Osdd)) :-
     assert(outcomes(X, Y)), !.
-
+transform_pred(concat_atom(X, Y),
+	       concat_atom(X, Y), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
+transform_pred(fmt_write_string(X, Y, Z),
+	       fmt_write_string(X, Y, Z), (Ctxt, Osdd, Ctxt, Osdd)) :- !.
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 transform_pred(+Constraint, -XConstraint, (+CtxtIn, +OsddIn, 

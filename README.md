@@ -16,3 +16,5 @@
 * Generate OSDD `O` and use: `?- writeDot(O, 'dotfile.dot').`
 * Install and use `dot` tool to generate PNG/PDF or other format file
 * Use: `$ dot -Tpdf dotfile.dot -o dotfile.pdf` to transform to PDF
+# Notes
+* Implementation of OSDD exact inference algorithms described in [Constraint-Based Inference in Probabilistic Logic Programs](https://easychair.org/publications/preprint_download/pmTQ)
