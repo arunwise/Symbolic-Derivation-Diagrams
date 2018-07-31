@@ -20,11 +20,19 @@ f.write('outcomes(edge, [bool, bool]).\n')
 # write set_sw facts
 f.write('set_sw(edge, [0.49, 0.01, 0.01, 0.49]).\n')
 
+# write down rows and cols
+f.write('rows('+rows+').\n')
+f.write('cols('+cols+').\n')
+
 f.write('\n')
 
-# Compute the set of all edges. Associate with each (row, col) pair a
-# unique label that serves as the variable name. Also with each (row,
-# col) pair associate the set of edges incident on that node.
+# 1. Compute the set of all edges.
+
+# 2. Associate with each (row, col) a unique label that serves as # the variable name.
+
+# 3. Also with each (row, col) associate the set of edges incident on
+# that node.
+
 edges = []
 nodelabels = {}
 incidentedges = {}
@@ -75,20 +83,17 @@ for j in range(cols):
         else:
             incidentedges[node2].append(edge)
 
-
-# write the head of the world rule
-f.write('world(')
-f.write(', '.join(list(nodelabels.values())))
-f.write(') :-\n')
+# write the head of the evidence rule
+f.write('evidence :- \n')
 
 # write the msw part of the body
 for e in edges:
     parts = e.split('_')
     f.write('\t')
     f.write('msw(edge, '+e+', [')
-    f.write('N_'+parts[1]+'_'+e),
-    f.write(', '),
-    f.write('N_'+parts[2]+'_'+e),
+    f.write('N_'+parts[1]+'_'+e)
+    f.write(', ')
+    f.write('N_'+parts[2]+'_'+e)
     f.write(']),\n')
 
 # write the constraints
@@ -103,21 +108,37 @@ for i in range(rows):
 else:
     f.write('\ttrue.\n')
 
-# write the evidence rule
-f.write('\n')
-f.write('evidence :- world(')
-f.write(', '.join(list(nodelabels.values())))
-f.write(').\n')
+# # write the evidence rule
+# f.write('\n')
+# f.write('evidence :- world(')
+# f.write(', '.join(list(nodelabels.values())))
+# f.write(').\n')
 
 # write the query rule
 f.write('\n')
 f.write('query :- \n')
-f.write('\tworld(')
-f.write(', '.join(list(nodelabels.values())))
-f.write('),\n')
-for node in list(nodelabels.values()):
-    f.write('\t{'+node+' = t},\n')
-else:
-    f.write('\ttrue.\n')
-    
+# f.write('\tworld(')
+# f.write(', '.join(list(nodelabels.values())))
+# f.write('),\n')
+# for node in list(nodelabels.values()):
+#     f.write('\t{'+node+' = t},\n')
+# else:
+#     f.write('\ttrue.\n')
+for e in edges:
+    parts = e.split('_')
+    f.write('\t')
+    f.write('msw(edge, '+e+', [')
+    f.write('N_'+parts[1]+'_'+e)
+    f.write(', ')
+    f.write('N_'+parts[2]+'_'+e)
+    f.write(']),\n')
+    f.write('\t{N_'+parts[1]+'_'+e+' = t},')
+    f.write('\t{N_'+parts[2]+'_'+e+' = t},\n')
+
+f.write('\ttrue.\n')
+f.write('\n')
+
+# write conjunction of query and evidence
+f.write('qe :- evidence, query.\n')
+
 f.close()
